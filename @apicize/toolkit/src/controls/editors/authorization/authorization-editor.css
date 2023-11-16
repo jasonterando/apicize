@@ -1,0 +1,13 @@
+.authorization-editor {
+    padding: 24px;
+    border-top-style: solid;
+    border-top-width: 1px;
+}
+
+.authorization-editor-panel {
+    margin-left: 64px;
+}
+
+.authorization-editor-subpanel {
+    padding-top: 24px;
+}

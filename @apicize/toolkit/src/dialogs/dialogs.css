@@ -1,0 +1,12 @@
+.dialog {
+  padding: 48px;
+}
+.dialog-contents {
+  padding: 24px 24px 0 24px;
+}
+.filename {
+  font-weight: 800;
+}
+.filedate {
+  font-size: .80em;
+}

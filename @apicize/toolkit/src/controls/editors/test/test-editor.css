@@ -1,0 +1,43 @@
+.test-definition, .test-environment {
+    display: flex;
+    border-top-style: solid;
+    border-top-width: 1px;
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    padding-top: 24px;
+    padding-bottom: 24px;
+    padding-right: 24px;
+}
+
+.test-definition .button-column {
+    width: 64px;
+    margin-right: 24px;
+}
+
+.test-definition .panels {
+    flex: 1
+}
+
+.test-content {
+    display: block;
+}
+
+.code-editor {
+    outline: none;
+    border: 1px !important;
+    border-color: #444;
+    border-width: 1px;
+    border-radius: 4px;
+    border-top-style: solid !important;
+    border-bottom-style: solid !important;
+    border-left-style: solid !important;
+    border-right-style: solid !important;
+}
+
+.code-editor:focus {
+    border-color: #90CAF9;
+}
+
+/* .MuiFormControlLabel-label {
+    font-size: 10em;
+} */

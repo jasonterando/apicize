@@ -1,0 +1,34 @@
+{
+    "name": "apicize",
+    "private": true,
+    "workspaces": {
+        "packages": [
+            "@apicize/definitions",
+            "@apicize/engine",
+            "@apicize/toolkit",
+            "@apicize/app"
+        ],
+        "nohoist": [
+            "electron",
+            "electron/**",
+            "electron-squirrel-startup",
+            "electron-squirrel-startup/**",
+            "@electron-forge",
+            "@electron-forge/**"
+        ]
+    },
+    "scripts": {
+        "build-deps": "yarn workspace @apicize/definitions build && yarn workspace @apicize/engine build && yarn workspace @apicize/toolkit build",
+        "watch-deps": "concurrently \"yarn workspace @apicize/definitions watch\" \"yarn workspace @apicize/engine watch\" \"yarn workspace @apicize/toolkit watch\"",
+        "start": "yarn run build-deps && concurrently \"yarn workspace @apicize/definitions watch\" \"yarn workspace @apicize/engine watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn workspace @apicize/app watch\"",
+        "zzzz_start": "npm run build-deps && node .bin/concurrently.js watch",
+        "zzz_start": "npm run build && npm run watch",
+        "package": "npm run package --workspace=@apicize/app",
+        "make": "npm run make --workspace=@apicize/app",
+        "publish": "npm run publish --workspace=@apicize/app",
+        "lint": "npm run start --workspace=@apicize/lint"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
