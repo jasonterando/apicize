@@ -125,11 +125,11 @@ export function FileDialog(props: {
             {
               files.map(w => (
                 <Grid item xs={2} key={++ctr}>
-                  <IconButton sx={{float: 'right', position: 'relative', zIndex: '100', color: 'black'}} onClick={async () => await deleteFile(w)}>
+                  <IconButton sx={{ float: 'right', position: 'relative', zIndex: '100', color: 'black' }} onClick={async () => await deleteFile(w)}>
                     <DeleteIcon />
                   </IconButton>
                   <Button variant="contained" fullWidth
-                    style={{ textTransform: 'none', justifyContent: 'left', textAlign: 'left', display: 'block', position: 'relative', top: '-44px'}}
+                    style={{ textTransform: 'none', justifyContent: 'left', textAlign: 'left', display: 'block', position: 'relative', top: '-44px' }}
                     onClick={_ => updateFileName(w.displayName)}
                     onDoubleClick={_ => {
                       updateFileName(w.displayName)

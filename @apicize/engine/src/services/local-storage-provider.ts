@@ -1,4 +1,9 @@
-import { OpenedWorkbook, StorageEntry, StorageProvider, StoredWorkbook, Workbook } from '@apicize/definitions'
+import { EditableWorkbookAuthorization, EditableWorkbookEnvironment, EditableWorkbookRequestGroup, EditableWorkbookRequestItem, OpenedWorkbook, StateStorage, StorageEntry, StorageProvider, StoredWorkbook,
+    WorkbookAuthorization, WorkbookEnvironment, WorkbookRequest, WorkbookRequestGroup, isGroup } from '@apicize/definitions'
+import { EditableWorkbookAuthorizationToAuthorization } from '@apicize/definitions/dist/models/workbook/editable/editable-workbook-authorization'
+import { EditableWorkbookEnvironmentToEnvironment } from '@apicize/definitions/dist/models/workbook/editable/editable-workbook-environment'
+import { EditableWorkbookRequest, EditableWorkbookRequestToRequest } from '@apicize/definitions/dist/models/workbook/editable/editable-workbook-request'
+import { EditableWorkbookRequestGroupToRequestGroup } from '@apicize/definitions/dist/models/workbook/editable/editable-workbook-request-group'
 import { readdir, readFile, writeFile, stat } from 'fs/promises'
 import { join, parse } from 'path'
 
@@ -49,6 +54,11 @@ export class LocalStorageProvider implements StorageProvider {
         }
     }
 
+    /**
+     * Reads workbook information from the file specified by ...name
+     * @param name portions of file name to join together
+     * @returns opened workbook information
+     */
     async openWorkbook(...name: string[]): Promise<OpenedWorkbook | Error> {
         try {
             let fullName = LocalStorageProvider.forceExtension(join(...name))
@@ -56,27 +66,83 @@ export class LocalStorageProvider implements StorageProvider {
             const results = JSON.parse(data) as StoredWorkbook
             // Cursory validation
             if (! (
-                Array.isArray(results.tests)
-                && Array.isArray(results.authorizations)
+                typeof results.requests == 'object'
+                && typeof results.authorizations == 'object'
+                && typeof results.environments  == 'object'
                 && results.version == 1.0
             )) {
                 throw new Error('File does not apear to contain a valid workbook')
             }
 
+            // Make sure IDs are saved in each entity
+            for(const [id, request] of Object.entries(results.requests.entities)) {
+                request.id = id
+            }
+            for(const [id, auth] of Object.entries(results.authorizations.entities)) {
+                auth.id = id
+            }
+            for(const [id, env] of Object.entries(results.environments.entities)) {
+                env.id = id
+            }
+
             return {
                 displayName: LocalStorageProvider.removeExtension(parse(fullName).base),
                 fullName,
-                workbook: results
+                requests: results.requests,
+                authorizations: results.authorizations,
+                environments: results.environments
             }
         } catch(e) {
             return (e instanceof Error) ? e : new Error(`${e}`)
         }
     }
 
-    async saveWorkbook(workbook: Workbook, ...name: string[]): Promise<StorageEntry | Error> {
+    /**
+     * Save workbook data to file specified by ...name
+     * @param requests 
+     * @param authorizations 
+     * @param environments 
+     * @param name 
+     * @returns 
+     */
+    async saveWorkbook(
+        requests: StateStorage<EditableWorkbookRequestItem>,
+        authorizations: StateStorage<EditableWorkbookAuthorization>,
+        environments: StateStorage<EditableWorkbookEnvironment>,
+        ...name: string[]): Promise<StorageEntry | Error> {
+        
+        const requestEntities: {[id: string]: WorkbookRequest | WorkbookRequestGroup} = {}
+        for(const id of Object.keys(requests.entities)) {
+            const request = requests.entities[id]
+            requestEntities[id] = isGroup(id, requests)
+                ? EditableWorkbookRequestGroupToRequestGroup(request as EditableWorkbookRequestGroup)
+                : EditableWorkbookRequestToRequest(request as EditableWorkbookRequest)
+        }
+
+        const authorizationEntities: {[id: string]: WorkbookAuthorization} = {}
+        for(const id of Object.keys(authorizations.entities)) {
+            authorizationEntities[id] = EditableWorkbookAuthorizationToAuthorization(authorizations.entities[id])
+        }
+
+        const environmentEntities: {[id: string]: WorkbookEnvironment} = {}
+        for(const id of Object.keys(environments.entities)) {
+            environmentEntities[id] = EditableWorkbookEnvironmentToEnvironment(environments.entities[id])
+        }
         const workbookToSave: StoredWorkbook = {
             version: 1.0,
-            ...workbook
+            requests: {
+                entities: requestEntities,
+                allIDs: requests.allIDs,
+                childIDs: requests.childIDs
+            },
+            authorizations: {
+                entities: authorizationEntities,
+                allIDs: authorizations.allIDs
+            },
+            environments: {
+                entities: environmentEntities,
+                allIDs: environments.allIDs
+            }
         }
         let fullName = join(...name)
         if (! fullName.endsWith(LocalStorageProvider.Suffix)) {

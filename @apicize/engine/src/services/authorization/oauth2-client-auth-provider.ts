@@ -1,4 +1,4 @@
-import { OAuth2ClientAuthorizationData, TestRequest, AuthorizationProvider } from "@apicize/definitions";
+import { OAuth2ClientAuthorizationData, WorkbookRequest, AuthorizationProvider } from "@apicize/definitions";
 
 /**
  * Implements OAuth2 client grant authentication
@@ -13,17 +13,16 @@ export class OAuth2ClientAuthorizationProvider implements AuthorizationProvider 
      * Set authorization to bearer access token
      * @param request 
      */
-    public async Setup(request: TestRequest): Promise<void> {
+    public async Setup(request: WorkbookRequest): Promise<void> {
         if (! this.token && ((! this.expires_at) || (this.expires_at && this.expires_at > Date.now() - 1000))) {
             [this.token, this.expires_at] = await this.GetToken();
         }
 
-        const headers = request.headers ?? [];
-        headers.push({
+        request.headers ??= []
+        request.headers.push({
             name: 'Authorization',
             value: `Bearer ${this.token}`
         })
-        request.headers = headers;
 
         return Promise.resolve();
     }
@@ -81,7 +80,6 @@ export class OAuth2ClientAuthorizationProvider implements AuthorizationProvider 
         
         return [token, expires_at];
     }
-
 }
 
 

@@ -1,0 +1,1 @@
+{"version":3,"file":"random-identifier-generator.d.ts","sourceRoot":"","sources":["random-identifier-generator.ts"],"names":[],"mappings":"AACA,OAAO,CAAC,MAAM,CAAC;IACX,UAAU,MAAM;QACZ,UAAU,IAAI,GAAG,MAAM,IAAI,MAAM,IAAI,MAAM,IAAI,MAAM,IAAI,MAAM,EAAE,CAAA;KACpE;CACJ;AAED,wBAAgB,kBAAkB,QAAwC"}

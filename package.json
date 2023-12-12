@@ -20,7 +20,7 @@
     "scripts": {
         "build-deps": "yarn workspace @apicize/definitions build && yarn workspace @apicize/engine build && yarn workspace @apicize/toolkit build",
         "watch-deps": "concurrently \"yarn workspace @apicize/definitions watch\" \"yarn workspace @apicize/engine watch\" \"yarn workspace @apicize/toolkit watch\"",
-        "start": "yarn run build-deps && concurrently \"yarn workspace @apicize/definitions watch\" \"yarn workspace @apicize/engine watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn workspace @apicize/app watch\"",
+        "start": "concurrently \"yarn workspace @apicize/definitions watch\" \"yarn workspace @apicize/engine watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn run build-deps &&  yarn workspace @apicize/app watch\"",
         "zzzz_start": "npm run build-deps && node .bin/concurrently.js watch",
         "zzz_start": "npm run build && npm run watch",
         "package": "npm run package --workspace=@apicize/app",

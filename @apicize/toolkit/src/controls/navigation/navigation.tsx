@@ -1,291 +1,481 @@
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import FolderIcon from '@mui/icons-material/Folder'
+import SendIcon from '@mui/icons-material/Send'
+import LockIcon from '@mui/icons-material/Lock'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import DeleteIcon from '@mui/icons-material/DeleteOutlined'
+import LanguageIcon from '@mui/icons-material/Language'
 import { TreeView } from '@mui/x-tree-view/TreeView'
 import { TreeItem } from '@mui/x-tree-view/TreeItem'
-import FolderIcon from '@mui/icons-material/Folder'
-import ScienceIcon from '@mui/icons-material/Science'
-import LockIcon from '@mui/icons-material/Lock';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMoreSharp'
-import ChevronRightIcon from '@mui/icons-material/ChevronRightSharp'
-import DeleteIcon from '@mui/icons-material/DeleteOutlined'
-import { Box, Button, ButtonGroup, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Menu, MenuItem, MenuList, Paper, Toolbar, Typography } from '@mui/material'
-import { RootState, addNewAuthorization, addNewTest, deleteAuthorization, deleteTest, setActiveAuthorization, setActiveTest } from '../../models/store'
+import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack } from '@mui/material'
+import {
+    NavigationListItem,
+    RootState, addNewAuthorization, addNewEnvironment, addNewRequest, addNewRequestGroup, deleteAuthorization, deleteEnvironment, deleteRequest,
+    moveAuthorization,
+    moveEnvironment,
+    moveRequest,
+    setActiveAuthorization, setActiveEnvironment, setActiveRequest, setNavigationMenu
+} from '../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
 import AddIcon from '@mui/icons-material/Add'
-import React, { MouseEvent, SyntheticEvent } from 'react'
-import { GetEditableTitle, NO_AUTHORIZATION } from '@apicize/definitions';
+import React, { DragEvent, MouseEvent, ReactNode, SyntheticEvent, useRef, useState } from 'react'
+import { useConfirmation } from '../../services/confirmation-service'
+import { useDrag, useDrop } from 'react-dnd'
 
+import './navigation.css'
+import { GetEditableTitle, Identifiable } from '@apicize/definitions/dist/models/identifiable';
 
 export function Navigation() {
-    
-    const tests = useSelector((state: RootState) => state.tests)
-    const authorizations = useSelector((state: RootState) => state.authorizations)
-    const activeTest = useSelector((state: RootState) => state.activeTest)
-    const activeAuth = useSelector((state: RootState) => state.activeAuthorization)
-    const [selected, setSelected] = React.useState<string | undefined>()
+
     const dispatch = useDispatch()
+    const confirm = useConfirmation()
 
-    const [testsMenu, setTestsMenu] = React.useState<{
-        id: string
-        mouseX: number
-        mouseY: number
-    } | null>(null)
+    const requests = useSelector((state: RootState) => state.requestList)
+    const authorizations = useSelector((state: RootState) => state.authorizationList)
+    const environments = useSelector((state: RootState) => state.environmentList)
+    const activeRequest = useSelector((state: RootState) => state.activeRequest)
+    const activeRequestGroup = useSelector((state: RootState) => state.activeRequestGroup)
+    const activeAuth = useSelector((state: RootState) => state.activeAuthorization)
+    const activeEnv = useSelector((state: RootState) => state.activeEnvironment)
+    const navigationMenu = useSelector((state: RootState) => state.navigationMenu)
+    const [selected, setSelected] = React.useState<string>('')
 
-    const handleShowTestsMenu = (event: React.MouseEvent, id: string) => {
-        event.preventDefault()
-        setTestsMenu(
-            testsMenu === null
-                ? {
-                    id,
-                    mouseX: event.clientX - 1,
-                    mouseY: event.clientY - 6,
-                }
-                : // repeated contextmenu when it is already open closes it with Chrome 84 on Ubuntu
-                // Other native context menus might behave different.
-                // With this behavior we prevent contextmenu from the backdrop to re-locale existing context menus.
-                null,
+    React.useEffect(() => {
+        if (activeRequest) {
+            selectRequest(activeRequest.id)
+        }
+    }, [activeRequest])
+
+    React.useEffect(() => {
+        if (activeRequestGroup) {
+            selectRequest(activeRequestGroup.id)
+        }
+    }, [activeRequestGroup])
+
+    React.useEffect(() => {
+        if (activeAuth) {
+            selectAuthorization(activeAuth.id)
+        }
+    }, [activeAuth])
+
+    React.useEffect(() => {
+        if (activeEnv) {
+            selectEnvironment(activeEnv?.id)
+        }
+    }, [activeEnv])
+
+
+    function NavTreeSection(props: {
+        children?: ReactNode | undefined
+        type: string
+        title: string
+        onAdd: () => void
+    }) {
+        const ref = useRef(null)
+        const [{ isOver, canDrop }, drop] = useDrop(() => ({
+            accept: props.type,
+            drop: () => ({ id: null }),
+            collect: (monitor) => ({
+                isOver: monitor.isOver(),
+                canDrop: monitor.canDrop()
+            })
+        }))
+
+        drop(ref)
+        return (<TreeItem
+            key={`hdr-${props.type}`}
+            nodeId={`hdr-${props.type}`}
+            onClick={e => handleSelectHeader(e)}
+            label={(
+                <Box
+                    ref={ref}
+                    component='span'
+                    display='flex'
+                    justifyContent='space-between'
+                    alignItems='center'
+                    sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                >
+                    {
+                        props.type === 'request' ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                            props.type === 'auth' ? (<LockIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                                props.type === 'env' ? (<LanguageIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                                    (<></>)
+                    }
+                    <Box className='nav-node-text' sx={{ flexGrow: 1 }}>
+                        {props.title}
+                    </Box>
+                    {
+                        props.type === 'request' ?
+                            (
+                                <IconButton sx={{ flexGrow: 0, minHeight: '40px' }} onClick={(e) => handleShowNavigationMenu(e, 'menu-auth')}>
+                                    <MoreVertIcon />
+                                </IconButton>
+                            )
+                            :
+                            (
+
+                                <IconButton sx={{ flexGrow: 0, minHeight: '40px' }} onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    props.onAdd()
+                                }}>
+                                    <AddIcon />
+                                </IconButton>
+                            )
+                    }
+                </Box>
+            )}>
+            {props.children}
+        </TreeItem>
         )
     }
 
-    const updateEditor = (testID?: string, authID?: string) => {
-        dispatch(setActiveTest({ id: testID }))
-        dispatch(setActiveAuthorization({ id: authID }))
+    function NavTreeItem(props: {
+        type: string,
+        item: NavigationListItem
+    }) {
+        let onSelect: (id: string) => void
+        let onDelete: (item: NavigationListItem) => void
+        let onMove: (id: string, destinationID: string | null) => void
+
+        switch (props.type) {
+            case 'request':
+                onSelect = handleSelectRequest
+                onDelete = handleDeleteRequest
+                onMove = handleMoveRequest
+                break;
+            case 'auth':
+                onSelect = handleSelectAuth
+                onDelete = handleDeleteAuth
+                onMove = handleMoveAuth
+                break;
+            case 'env':
+                onSelect = handleSelectEnv
+                onDelete = handleDeleteEnv
+                onMove = handleMoveEnv
+                break;
+            default:
+                throw new Error('Invalid nav type')
+        }
+
+        const ref = useRef(null)
+        const [{ isOver, canDrop }, drop] = useDrop(() => ({
+            accept: props.type,
+            drop: () => (props.item),
+            collect: (monitor) => ({
+                isOver: monitor.isOver(),
+                canDrop: monitor.canDrop()
+            })
+        }))
+
+        const [{ isDragging }, drag] = useDrag(() => ({
+            type: props.type,
+            options: {
+                id: props.item.id,
+                dropEffect: 'move'
+            },
+            end: (item, monitor) => {
+                const dropResult = monitor.getDropResult<NavigationListItem | null>()
+                if (item && dropResult) {
+                    onMove(props.item.id, dropResult.id)
+                }
+            },
+            collect: (monitor) => ({
+                isDragging: monitor.isDragging(),
+                handlerId: monitor.getHandlerId(),
+            }),
+        }))
+
+        drag(drop(ref))
+        return Array.isArray(props.item.children)
+            ?
+            (<TreeItem
+                key={`hdr-${props.type}`}
+                nodeId={props.item.id}
+                id={props.item.id}
+                onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onSelect(props.item.id)
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onFocusCapture={e => e.stopPropagation()}
+                sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                label={(
+                    <Box
+                        ref={ref}
+                        component='span'
+                        display='flex'
+                        justifyContent='space-between'
+                        alignItems='center'
+                        sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                    >
+                        <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
+                        <Box className='nav-node-text' sx={{flexGrow: 1}}>{GetEditableTitle(props.item)} (Group)</Box>
+                        <IconButton
+                            sx={{
+                                visibility: props.item.id === selected ? 'normal' : 'hidden'
+                            }}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onDelete(props.item)
+                            }}
+                        >
+                            <DeleteIcon />
+                        </IconButton>
+                    </Box>
+                )}>
+                    {props.item.children.map(c => (
+                        <NavTreeItem type={props.type} item={c} key={`nav-${c.id}`} />
+                    ))}
+            </TreeItem>)
+            :
+            (<TreeItem
+                nodeId={props.item.id}
+                key={props.item.id}
+                ref={ref}
+                id={props.item.id}
+                onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onSelect(props.item.id)
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onFocusCapture={e => e.stopPropagation()}
+                sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                label={(
+                    <Box
+                        component='span'
+                        display='flex'
+                        justifyContent='space-between'
+                        alignItems='center'
+                    >
+                        {
+                            Array.isArray(props.item.children)
+                                ? <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
+                                : null
+                        }
+                        <Box className='nav-node-text'>{GetEditableTitle(props.item)}</Box>
+                        <IconButton
+                            sx={{
+                                visibility: props.item.id === selected ? 'normal' : 'hidden'
+                            }}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onDelete(props.item)
+                            }}
+                        >
+                            <DeleteIcon />
+                        </IconButton>
+                    </Box>
+                )} />)
     }
 
-    const handleCloseTestMenu = () => {
-        setTestsMenu(null)
+    const handleShowNavigationMenu = (event: React.MouseEvent, id: string) => {
+        event.preventDefault()
+        event.stopPropagation()
+        dispatch(setNavigationMenu(
+            {
+                id,
+                mouseX: event.clientX - 1,
+                mouseY: event.clientY - 6,
+            }
+        ))
     }
 
-    const handleSelectHeader = () => {
-        updateEditor();
-        setTestsMenu(null)
+    const clearNavigationMenu = () => {
+        dispatch(setNavigationMenu(undefined))
     }
 
-    const handleAddTest = (e: SyntheticEvent) => {
-        e.stopPropagation()
-        setTestsMenu(null)
-        dispatch(addNewTest())
-    }
-   
-    const handleDeleteTest = (e: MouseEvent, id: string) => {
-        e.stopPropagation()
-        updateEditor(undefined, undefined);
-        dispatch(deleteTest({ id }))
+    const clearAllSelections = () => {
+        dispatch(setActiveRequest({ id: undefined }))
+        dispatch(setActiveAuthorization({ id: undefined }))
+        dispatch(setActiveEnvironment({ id: undefined }))
+        setSelected('')
     }
 
-    const handleSelectTest = (id: string) => {
-        dispatch(setActiveTest({id}));
+    const selectRequest = (id: string) => {
+        dispatch(setActiveRequest({ id }))
         setSelected(id)
-        updateEditor(id);
     }
 
-    const handleAddAuth = (e: SyntheticEvent) => {
+    const selectAuthorization = (id: string) => {
+        dispatch(setActiveAuthorization({ id }))
+        setSelected(id)
+    }
+
+    const selectEnvironment = (id: string) => {
+        dispatch(setActiveEnvironment({ id }))
+        setSelected(id)
+    }
+
+    const handleCloseRequestMenu = () => {
+        clearNavigationMenu()
+    }
+
+    const handleSelectHeader = (e: SyntheticEvent) => {
+        e.preventDefault()
         e.stopPropagation()
+        clearAllSelections()
+        clearNavigationMenu()
+    }
+
+    const handleAddRequest = (e: SyntheticEvent) => {
+        e.stopPropagation()
+        clearNavigationMenu()
+        dispatch(addNewRequest())
+    }
+
+    const handleAddRequestGroup = (e: SyntheticEvent) => {
+        e.stopPropagation()
+        clearNavigationMenu()
+        dispatch(addNewRequestGroup())
+    }
+
+    const handleDeleteRequest = (item: NavigationListItem) => {
+        confirm({
+            title: 'Delete Request',
+            message: `Are you are you sure you want to delete ${GetEditableTitle(item)}?`,
+            okButton: 'Yes',
+            cancelButton: 'No',
+            defaultToCancel: true
+        }).then((result) => {
+            if (result) {
+                clearAllSelections()
+                dispatch(deleteRequest(item.id))
+            }
+        })
+    }
+
+    const handleSelectRequest = (id: string) => {
+        dispatch(setActiveRequest({ id }))
+        selectRequest(id)
+    }
+
+    const handleMoveRequest = (id: string, destinationID: string | null) => {
+        dispatch(moveRequest({ id, destinationID }))
+    }
+
+    const handleAddAuth = () => {
         dispatch(addNewAuthorization())
     }
 
-    const handleDeleteAuth = (e: MouseEvent, id: string) => {
-        updateEditor(undefined, undefined);
-        dispatch(deleteAuthorization({ id }))
+    const handleDeleteAuth = (item: NavigationListItem) => {
+        confirm({
+            title: 'Delete Authorization',
+            message: `Are you are you sure you want to delete ${GetEditableTitle(item)}?`,
+            okButton: 'Yes',
+            cancelButton: 'No',
+            defaultToCancel: true
+        }).then((result) => {
+            if (result) {
+                clearAllSelections()
+                dispatch(deleteAuthorization(item.id))
+            }
+        })
     }
 
     const handleSelectAuth = (id: string) => {
-        dispatch(setActiveAuthorization({id}));
-        setSelected(id)
-        updateEditor(undefined, id);
+        dispatch(setActiveAuthorization({ id }))
+        selectAuthorization(id)
     }
 
-    function TestsMenu() {
+    const handleMoveAuth = (id: string, destinationID: string | null) => {
+        console.log(`Moving auth ${id} to ${destinationID}`)
+        dispatch(moveAuthorization({ id, destinationID }))
+    }
+
+    const handleAddEnv = () => {
+        dispatch(addNewEnvironment())
+    }
+
+    const handleDeleteEnv = (env: NavigationListItem) => {
+        confirm({
+            title: 'Delete Environment',
+            message: `Are you are you sure you want to delete ${(env.name?.length ?? 0) > 0 ? env.name : '(Unnamed)'}?`,
+            okButton: 'Yes',
+            cancelButton: 'No',
+            defaultToCancel: true
+        }).then((result) => {
+            if (result) {
+                clearAllSelections()
+                dispatch(deleteEnvironment(env.id))
+            }
+        })
+    }
+
+    const handleSelectEnv = (id: string) => {
+        dispatch(setActiveEnvironment({ id }))
+        selectEnvironment(id)
+    }
+
+    const handleMoveEnv = (id: string, destinationID: string | null) => {
+        dispatch(moveEnvironment({ id, destinationID }))
+    }
+
+    function RequestsMenu() {
         return (
             <Menu
-                open={testsMenu !== null}
-                onClose={handleCloseTestMenu}
+                id='requests-menu'
+                open={navigationMenu !== undefined}
+                onClose={handleCloseRequestMenu}
                 anchorReference='anchorPosition'
-                anchorPosition={
-                    testsMenu !== null
-                        ? { top: testsMenu.mouseY, left: testsMenu.mouseX }
-                        : undefined
-                }
+                anchorPosition={{
+                    top: navigationMenu?.mouseY ?? 0,
+                    left: navigationMenu?.mouseX ?? 0
+                }}
             >
-                <MenuItem>
+                <MenuItem onClick={(e) => handleAddRequest(e)}>
+                    <ListItemIcon>
+                        <SendIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Add Request</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleAddRequestGroup(e)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Folder</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(e) => handleAddTest(e)}>
-                    <ListItemIcon>
-                        <ScienceIcon fontSize='small' />
-                    </ListItemIcon>
-                    <ListItemText>Add Test</ListItemText>
-                </MenuItem>
             </Menu>
         )
     }
 
-    React.useEffect(() => {
-        setSelected(activeTest?.id)
-    }, [activeTest])
-
-    React.useEffect(() => {
-        setSelected(activeAuth?.id)
-    }, [activeAuth])
-
     return (
-        <Box>
-            <List disablePadding>
-                <ListItemButton 
-                    key='nav-tests'
-                    onClick={() => handleSelectHeader()}>
-                    <ListItemIcon>
-                        <ScienceIcon />
-                    </ListItemIcon>
-                    <ListItemText primary='Tests' />
-                    <IconButton onClick={(e) => handleAddTest(e)}>
-                        <AddIcon />
-                    </IconButton>
-                </ListItemButton>
-                {tests.map(t => {
-                    return (<ListItemButton
-                        key={t.id}
-                        sx={{ pl: 6}}
-                        selected={t.id === selected}
-                        onClick={() => handleSelectTest(t.id)}>
-                        <ListItemText primary={GetEditableTitle(t)} />
-                        <IconButton onClick={(e) => handleDeleteTest(e, t.id)}>
-                            <DeleteIcon />
-                        </IconButton>
-                    </ListItemButton>);
-                })}
-
-                <ListItemButton 
-                    key='nav-auths'
-                    onClick={() => handleSelectHeader()}>
-                    <ListItemIcon>
-                        <LockIcon />
-                    </ListItemIcon>
-                    <ListItemText primary='Authorizations' />
-                    <IconButton onClick={(e) => handleAddAuth(e)}>
-                        <AddIcon />
-                    </IconButton>
-                </ListItemButton>
-                {authorizations.filter(a => a.id !== NO_AUTHORIZATION).map(a => {
-                    return (<ListItemButton
-                        key={a.id}
-                        sx={{ pl: 6 }}
-                        selected={a.id === selected}
-                        onClick={() => handleSelectAuth(a.id)}>
-                        <ListItemText primary={GetEditableTitle(a)} />
-                        <IconButton onClick={(e) => handleDeleteAuth(e, a.id)}>
-                            <DeleteIcon />
-                        </IconButton>
-                    </ListItemButton>);
-                })}
-
-            </List>
-
-
-            {/* <TreeView
+        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', paddingRight: '24px' }}>
+            <TreeView
                 disableSelection
-                aria-label='test navigator'
+                id='navigation'
+                key='navigation'
+                aria-label='request navigator'
                 defaultCollapseIcon={<ExpandMoreIcon />}
                 defaultExpandIcon={<ChevronRightIcon />}
-                defaultExpanded={['Tests', 'Auth', 'Env']}
-                selected={selected}
+                defaultExpanded={['hdr-request', 'hdr-auth', 'hdr-env']}
                 onNodeSelect={(e: React.SyntheticEvent) => e.stopPropagation()}
-                onNodeFocus={(e: React.SyntheticEvent, id: string) => handleNodeFocus(id)}
-
+                selected={selected}
+                // onNodeFocus={(e: React.SyntheticEvent, id: string) => handleNodeFocus(id)}
                 sx={{ height: '100vh', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
             >
-                <TreeItem
-                    nodeId='Tests'
-                    label={(
-                        <Box
-                            component='span'
-                            display='flex'
-                            justifyContent='space-between'
-                            alignItems='center'
-                        >
-                            <Box
-                                component='span'
-                                justifyContent='space-between'
-                                alignItems='left'>
-                                <ScienceIcon sx={{ verticalAlign: 'middle', marginRight: '8px' }} />
-                                Tests
-                            </Box>
-                            <IconButton onClick={(e) => handleShowTestsMenu(e, 'tests')}>
-                                <AddIcon />
-                            </IconButton>
-
-                        </Box>
-                    )}>
+                <NavTreeSection key='nav-section-request' type='request' title='Requests' onAdd={() => { }}>
                     {
-                        tests.map(t => {
-                            return (<TreeItem key={t.id}
-                                nodeId={`test-${t.id}`}
-                                label={(
-                                    <Box
-                                        component='span'
-                                        display='flex'
-                                        justifyContent='space-between'
-                                        alignItems='center'
-                                    >
-                                        {t.name}
-                                        <IconButton onClick={(e) => handleDeleteTest(e, t.id)}>
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    </Box>
-                                )} />)
-                        })
+                        requests.map(t => <NavTreeItem item={t} type='request' key={`nav-section-${t.id}`} />)
                     }
-                </TreeItem>
-                <TreeItem
-                    nodeId='Auth'
-                    label={(
-                        <Box
-                            component='span'
-                            display='flex'
-                            justifyContent='space-between'
-                            alignItems='center'
-                        >
-                            <Box
-                                component='span'
-                                justifyContent='space-between'
-                                alignItems='left'>
-                                <LockIcon sx={{ verticalAlign: 'middle', marginRight: '8px' }} />
-                                Authorizations
-                            </Box>
-                            <IconButton onClick={handleAddAuth}>
-                                <AddIcon />
-                            </IconButton>
-
-                        </Box>
-                    )}>
+                </NavTreeSection>
+                <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' onAdd={handleAddAuth}>
                     {
-                        authorizations.filter(a => a.id !== NO_AUTHORIZATION).map(t => {
-                            return (<TreeItem key={t.id}
-                                nodeId={`auth-${t.id}`}
-                                label={(
-                                    <Box
-                                        component='span'
-                                        display='flex'
-                                        justifyContent='space-between'
-                                        alignItems='center'
-                                    >
-                                        {t.name}
-                                        <IconButton onClick={(e) => handleDeleteAuth(e, t.id)}>
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    </Box>
-                                )} />)
-                        })
+                        authorizations.map(t => <NavTreeItem item={t} type='auth' key={`nav-section-${t.id}`} />)
                     }
-                </TreeItem>
-                <TreeItem nodeId='Env' label='Environment'>
-                    <TreeItem nodeId='2' label='Calendar' />
-                </TreeItem>
-            </TreeView>*/}
-
-
-            <TestsMenu />
-        </Box>
+                </NavTreeSection>
+                <NavTreeSection key='nav-section-env' type='env' title='Environments' onAdd={handleAddEnv}>
+                    {
+                        environments.map(t => <NavTreeItem item={t} type='env' key={`nav-section-${t.id}`} />)
+                    }
+                </NavTreeSection>
+            </TreeView>
+            <RequestsMenu />
+        </Stack>
     )
 }

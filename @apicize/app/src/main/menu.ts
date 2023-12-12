@@ -212,6 +212,13 @@ export default class MenuBuilder {
                 this.mainWindow.webContents.send(ApicizeEvents.SaveWorkbook)
             }
           },
+          {
+            label: 'Save &As',
+            accelerator: 'Ctrl+Shift+S',
+            click: () => {
+                this.mainWindow.webContents.send(ApicizeEvents.SaveWorkbookAs)
+            }
+          },
           // {
           //   label: '&Save As',
           // },

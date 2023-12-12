@@ -1,4 +1,4 @@
-import { BasicAuthorizationData, TestRequest, AuthorizationProvider } from "@apicize/definitions";
+import { BasicAuthorizationData, WorkbookRequest, AuthorizationProvider } from "@apicize/definitions";
 
 /**
  * Implements basic authorization (RFC-7617)
@@ -13,16 +13,15 @@ export class BasicAuthorizationProvider implements AuthorizationProvider {
      * @param request 
      * @returns 
      */
-    public Setup(request: TestRequest): Promise<void> {
+    public Setup(request: WorkbookRequest): Promise<void> {
         if (! this.header) {
             this.header = this.BuildHeader();
         }
-        const headers = request.headers ?? [];
-        headers.push({
+        request.headers ??= [];
+        request.headers.push({
             name: 'Authorization',
             value: this.header
         })
-        request.headers = headers;
         return Promise.resolve();
     }
 

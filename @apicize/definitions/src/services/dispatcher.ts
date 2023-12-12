@@ -1,10 +1,11 @@
-import { TestResponse } from "../models/test-response";
+import { ResultResponse } from "../models/result";
 import { WorkbookAuthorization } from "../models/workbook/workbook-authorization";
-import { WorkbookTest } from "../models/workbook/workbook-test";
+import { WorkbookRequest } from "../models/workbook/workbook-request";
 
 export interface Dispatcher {
     dispatch(
-        test: WorkbookTest,
+        abort: AbortSignal,
+        test: WorkbookRequest,
         authorization?: WorkbookAuthorization
-    ): Promise<TestResponse>;
+    ): Promise<ResultResponse>;
 }

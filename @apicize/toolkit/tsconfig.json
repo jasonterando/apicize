@@ -17,5 +17,5 @@
     "declaration": true,
     "declarationMap": true,
   },
-  "exclude": ["dist", "test", "release/build", "release/app/dist", ".erb/dll"]
+  "exclude": ["./dist", "test", "release/build", "release/app/dist", ".erb/dll"]
 }

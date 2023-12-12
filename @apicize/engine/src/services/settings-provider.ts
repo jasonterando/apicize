@@ -19,31 +19,46 @@ export class SettingsProvider {
             mkdirSync(this.appDirectory)
         }
 
+        // Read settings if they exist
         this.settingsFileName = join(this.appDirectory, '.apicize-settings.json')
 
-        let workbookDirectory: string | undefined
-        try {
-            if (existsSync(this.settingsFileName)) {
-                const settingsData = JSON.parse(readFileSync(this.settingsFileName).toString())
-                workbookDirectory = settingsData.workbookDirectory.toString()
+        let settings: Settings | undefined
+        if (existsSync(this.settingsFileName)) {
+            try {
+                settings = JSON.parse(readFileSync(this.settingsFileName).toString()) as Settings
+            } catch(e) {
+                console.error(`Unable to read setings file ${this.settingsFileName} (${e})`)
             }
-        } catch(e) {
-            console.error(`Unable to read settings (${e})`)
         }
 
-        if (! (workbookDirectory && (workbookDirectory?.length ?? 0) > 0)) {
-            workbookDirectory = join(this.appDirectory, 'workbooks')
+        if (settings == undefined) {
+            settings = {
+                workbookDirectory: ''
+            }
         }
 
-        if(! existsSync(workbookDirectory)) {
-            mkdirSync(workbookDirectory)
-        }
+        if ((settings.workbookDirectory?.length ?? 0) < 0) {
+            let workbookDirectory: string | undefined
+            try {
+                if (existsSync(this.settingsFileName)) {
+                    const settingsData = JSON.parse(readFileSync(this.settingsFileName).toString())
+                    workbookDirectory = settingsData.workbookDirectory.toString()
+                }
+            } catch(e) {
+                console.error(`Unable to read settings (${e})`)
+            }
 
-        this._settings = {
-            workbookDirectory
-        }
+            if (! (workbookDirectory && (workbookDirectory?.length ?? 0) > 0)) {
+                workbookDirectory = join(this.appDirectory, 'workbooks')
+            }
 
-        console.log('Creating settings', this._settings)
+            if(! existsSync(workbookDirectory)) {
+                mkdirSync(workbookDirectory)
+            }
+
+            settings.workbookDirectory = workbookDirectory
+        }
+        this._settings = settings
     }
 
     public saveSettings() {
@@ -60,6 +75,11 @@ export class SettingsProvider {
 
     public set workbookDirectory(directory: string) {
         this._settings.workbookDirectory = directory
+        this.saveSettings()
+    }
+
+    public set lastWorkbookFileName(fileName: string) {
+        this._settings.lastWorkbookFileName = fileName
         this.saveSettings()
     }
 }

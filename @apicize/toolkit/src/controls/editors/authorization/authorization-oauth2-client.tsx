@@ -1,39 +1,100 @@
 import { FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material'
-import { EditableWorkbookAuthorization, OAuth2ClientAuthorizationData } from '@apicize/definitions'
-import { updateAuthorization } from '../../../models/store'
+import { OAuth2ClientAuthorizationData } from '@apicize/definitions'
+import { RootState, updateAuthorization } from '../../../models/store'
 import { useEffect, useState } from 'react'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 
-export function AuthorizationOAuth2ClientPanel(props: { auth: EditableWorkbookAuthorization }) {
+export function AuthorizationOAuth2ClientPanel() {
     const dispatch = useDispatch()
 
-    const [accessTokenUrl, setAccessTokenUrl] = useState<string | undefined>((props.auth?.data as OAuth2ClientAuthorizationData)?.accessTokenUrl)
-    const [clientID, setClientID] = useState<string | undefined>((props.auth?.data as OAuth2ClientAuthorizationData)?.clientID)
-    const [clientSecret, setClientSecret] = useState<string | undefined>((props.auth?.data as OAuth2ClientAuthorizationData)?.clientSecret)
-    const [scope, setScope] = useState<string | undefined>((props.auth?.data as OAuth2ClientAuthorizationData)?.scope)
-    const [sendCredentialsInBody, setSendCredentialsInBody] = useState<string>(((props.auth?.data as OAuth2ClientAuthorizationData)?.sendCredentialsInBody ?? false) ? 'yes' : 'no')
+    const authorization = useSelector((state: RootState) => state.activeAuthorization)
+    const [accessTokenUrl, setAccessTokenUrl] = useState<string>((authorization?.data as OAuth2ClientAuthorizationData)?.accessTokenUrl ?? '')
+    const [clientID, setClientID] = useState<string>((authorization?.data as OAuth2ClientAuthorizationData)?.clientID ?? '')
+    const [clientSecret, setClientSecret] = useState<string>((authorization?.data as OAuth2ClientAuthorizationData)?.clientSecret ?? '')
+    const [scope, setScope] = useState<string>((authorization?.data as OAuth2ClientAuthorizationData)?.scope ?? '')
+    const [sendCredentialsInBody, setSendCredentialsInBody] = useState<string>(((authorization?.data as OAuth2ClientAuthorizationData)?.sendCredentialsInBody ?? false) ? 'yes' : 'no')
 
     useEffect(() => {
-        const data = props.auth.data as OAuth2ClientAuthorizationData
+        const data = authorization?.data as OAuth2ClientAuthorizationData
         setAccessTokenUrl(data?.accessTokenUrl ?? '')
         setClientID(data?.clientID ?? '')
         setClientSecret(data?.clientSecret ?? '')
         setScope(data?.scope ?? '')
         setSendCredentialsInBody(data?.sendCredentialsInBody ? 'yes' : 'no')
-    }, [props.auth])
+    }, [authorization])
 
-    const updateData = (accessTokenUrl: string | undefined,
-        clientID: string | undefined,
-        clientSecret: string | undefined,
-        scope: string | undefined,
-        sendCredentialsInBody: boolean) => {
-        dispatch(updateAuthorization({ data: {
-            accessTokenUrl: accessTokenUrl ?? '',
-            clientID: clientID ?? '',
-            clientSecret: clientSecret ?? '',
-            scope: scope ?? '',
-            sendCredentialsInBody
-        } }))
+    if (!authorization) {
+        return null
+    }
+
+    const updateAccessTokenUrl = (updatedAccessTokenUrl: string) => {
+        setAccessTokenUrl(updatedAccessTokenUrl)
+        dispatch(updateAuthorization({
+            id: authorization.id,
+            data: {
+                accessTokenUrl: updatedAccessTokenUrl,
+                clientID: clientID ?? '',
+                clientSecret: clientSecret ?? '',
+                scope: scope ?? '',
+                sendCredentialsInBody: sendCredentialsInBody === 'yes'
+            }
+        }))
+    }
+
+    const updateClientID = (updatedClientID: string) => {
+        setClientID(updatedClientID)
+        dispatch(updateAuthorization({
+            id: authorization.id,
+            data: {
+                accessTokenUrl: accessTokenUrl ?? '',
+                clientID: updatedClientID,
+                clientSecret: clientSecret ?? '',
+                scope: scope ?? '',
+                sendCredentialsInBody: sendCredentialsInBody === 'yes'
+            }
+        }))
+    }
+
+    const updateClientSecret = (updatedClientSecret: string) => {
+        setClientSecret(updatedClientSecret)
+        dispatch(updateAuthorization({
+            id: authorization.id,
+            data: {
+                accessTokenUrl: accessTokenUrl ?? '',
+                clientID: clientID ?? '',
+                clientSecret: updatedClientSecret ?? '',
+                scope: scope ?? '',
+                sendCredentialsInBody: sendCredentialsInBody === 'yes'
+            }
+        }))
+    }
+
+    const updateScope = (updatedScope: string) => {
+        setScope(updatedScope)
+        dispatch(updateAuthorization({
+            id: authorization.id,
+            data: {
+                accessTokenUrl: accessTokenUrl ?? '',
+                clientID: clientID ?? '',
+                clientSecret: clientSecret ?? '',
+                scope: updatedScope,
+                sendCredentialsInBody: sendCredentialsInBody === 'yes'
+            }
+        }))
+    }
+
+    const updateSendCredentialsInBody = (updatedSendCredentialsInBody: string) => {
+        setSendCredentialsInBody(updatedSendCredentialsInBody)
+        dispatch(updateAuthorization({
+            id: authorization.id,
+            data: {
+                accessTokenUrl: accessTokenUrl ?? '',
+                clientID: clientID ?? '',
+                clientSecret: clientSecret ?? '',
+                scope: scope ?? '',
+                sendCredentialsInBody: updatedSendCredentialsInBody === 'yes'
+            }
+        }))
     }
 
     return (<Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
@@ -43,7 +104,7 @@ export function AuthorizationOAuth2ClientPanel(props: { auth: EditableWorkbookAu
                 label='Access Token URL'
                 aria-label='access token url'
                 value={accessTokenUrl}
-                onChange={e => updateData(e.target.value, clientID, clientSecret, scope, sendCredentialsInBody === 'yes')}
+                onChange={e => updateAccessTokenUrl(e.target.value)}
                 fullWidth
             />
         </Grid>
@@ -53,7 +114,7 @@ export function AuthorizationOAuth2ClientPanel(props: { auth: EditableWorkbookAu
                 label='Client ID'
                 aria-label='client id'
                 value={clientID}
-                onChange={e => updateData(accessTokenUrl, e.target.value, clientSecret, scope, sendCredentialsInBody === 'yes' )}
+                onChange={e => updateClientID(e.target.value)}
                 fullWidth
             />
         </Grid>
@@ -63,7 +124,7 @@ export function AuthorizationOAuth2ClientPanel(props: { auth: EditableWorkbookAu
                 label='Client Secret'
                 aria-label='client secret'
                 value={clientSecret}
-                onChange={e => updateData(accessTokenUrl, clientID, e.target.value, scope, sendCredentialsInBody === 'yes')}
+                onChange={e => updateClientSecret(e.target.value)}
                 fullWidth
             />
         </Grid>
@@ -73,7 +134,7 @@ export function AuthorizationOAuth2ClientPanel(props: { auth: EditableWorkbookAu
                 label='Scope'
                 aria-label='scope'
                 value={scope}
-                onChange={e => updateData(accessTokenUrl, clientID, clientSecret, e.target.value, sendCredentialsInBody === 'yes')}
+                onChange={e => updateScope(e.target.value)}
                 fullWidth
             />
         </Grid>
@@ -85,14 +146,12 @@ export function AuthorizationOAuth2ClientPanel(props: { auth: EditableWorkbookAu
                     id='auth-oauth2-creds-id'
                     value={sendCredentialsInBody}
                     label='Credential Method'
-                    onChange={e => updateData(accessTokenUrl, clientID, clientSecret, scope, e.target.value == 'yes')}
+                    onChange={e => updateSendCredentialsInBody(e.target.value)}
                 >
                     <MenuItem value='no'>Send Credentials in Auth Header</MenuItem>
                     <MenuItem value='yes'>Send Credentials in Body</MenuItem>
                 </Select>
             </FormControl>
         </Grid>
-
-
     </Grid>)
 }

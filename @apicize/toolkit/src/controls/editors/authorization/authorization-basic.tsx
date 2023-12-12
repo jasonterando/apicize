@@ -1,26 +1,44 @@
 import { Grid, TextField } from "@mui/material"
-import { BasicAuthorizationData, EditableWorkbookAuthorization } from "@apicize/definitions"
-import { updateAuthorization } from "../../../models/store"
+import { BasicAuthorizationData } from "@apicize/definitions"
+import { RootState, updateAuthorization } from "../../../models/store"
 import { useEffect, useState } from "react"
-import { useDispatch } from "react-redux"
+import { useDispatch, useSelector } from "react-redux"
 
-export function AuthorizationBasicPanel(props: { auth: EditableWorkbookAuthorization }) {
+export function AuthorizationBasicPanel() {
     const dispatch = useDispatch()
 
-    const [username, setUsername] = useState<string | undefined>((props.auth?.data as BasicAuthorizationData)?.username)
-    const [password, setPassword] = useState<string | undefined>((props.auth?.data as BasicAuthorizationData)?.password)
+    const authorization = useSelector((state: RootState) => state.activeAuthorization)
+    const [username, setUsername] = useState<string>((authorization?.data as BasicAuthorizationData)?.username ?? '')
+    const [password, setPassword] = useState<string>((authorization?.data as BasicAuthorizationData)?.password ?? '')
 
     useEffect(() => {
-        const data = props.auth.data as BasicAuthorizationData
+        const data = authorization?.data as BasicAuthorizationData
         setUsername(data?.username ?? '')
         setPassword(data?.password ?? '')
-    }, [props.auth])
+    }, [authorization])
 
-    const updateData = (username: string | undefined, password: string | undefined) => {
+    if(! authorization) {
+        return null
+    }
+
+    const updateUsername = (updatedUsername: string) => {
+        setUsername(updatedUsername)
         dispatch(updateAuthorization({
+            id: authorization.id,
             data: {
-                username: username ?? "",
-                password: password ?? ""
+                username: updatedUsername ?? '',
+                password: password ?? ''
+            }
+        }))
+    }
+
+    const updatePassword = (updatedPassword: string) => {
+        setPassword(updatedPassword)
+        dispatch(updateAuthorization({
+            id: authorization.id,
+            data: {
+                username: username ?? '',
+                password: updatedPassword ?? ''
             }
         }))
     }
@@ -32,7 +50,7 @@ export function AuthorizationBasicPanel(props: { auth: EditableWorkbookAuthoriza
                 label="Username"
                 aria-label='username'
                 value={username}
-                onChange={e => updateData(e.target.value, password)}
+                onChange={e => updateUsername(e.target.value)}
                 fullWidth
             />
         </Grid>
@@ -42,7 +60,7 @@ export function AuthorizationBasicPanel(props: { auth: EditableWorkbookAuthoriza
                 label="Password"
                 aria-label='password'
                 value={password}
-                onChange={e => updateData(username, e.target.value)}
+                onChange={e => updatePassword(e.target.value)}
                 fullWidth
             />
         </Grid>

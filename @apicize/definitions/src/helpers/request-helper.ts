@@ -1,4 +1,4 @@
-// import { Method, Request, RequestNameValuePair } from "../models/request"
+// import { Method, Request, NameValuePair } from "../models/request"
 // import { URLSearchParams } from "url"
 // import {
 //     type BodyInit as BodyInitType
@@ -11,8 +11,8 @@
 //  */
 // export class RequestHelper implements Request {
 
-//     private _headers?: RequestNameValuePair[]
-//     private _queryStringParams?: RequestNameValuePair[]
+//     private _headers?: NameValuePair[]
+//     private _queryStringParams?: NameValuePair[]
 //     private _body?: BodyInitType
 
 //     public constructor(
@@ -29,14 +29,14 @@
 //     /**
 //      * Return defined headers (if any) to use for request
 //      */
-//     public get headers(): RequestNameValuePair[] | undefined {
+//     public get headers(): NameValuePair[] | undefined {
 //         return this._headers
 //     }
 
 //     /**
 //      * Return defined query string parameters (if any) to use for request
 //      */
-//     public get queryStringParams(): RequestNameValuePair[] | undefined {
+//     public get queryStringParams(): NameValuePair[] | undefined {
 //         return this._queryStringParams
 //     }
 
@@ -117,7 +117,7 @@
 //      * @param value 
 //      * @returns 
 //      */
-//     public AddQueryStringParams(data: RequestNameValuePair[]): RequestHelper {
+//     public AddQueryStringParams(data: NameValuePair[]): RequestHelper {
 //         this._queryStringParams = [...(this._queryStringParams ?? []), ...data];
 //         return this;
 //     }

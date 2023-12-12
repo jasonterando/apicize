@@ -1,27 +1,44 @@
 import { Grid, TextField } from "@mui/material"
-import { updateAuthorization } from "../../../models/store"
+import { RootState, updateAuthorization } from "../../../models/store"
 import { useEffect, useState } from "react"
-import { useDispatch } from "react-redux"
 import { ApiKeyAuthorizationData } from "@apicize/definitions/dist/models/authorization"
-import { EditableWorkbookAuthorization } from "@apicize/definitions"
+import { useDispatch, useSelector } from "react-redux"
 
-export function AuthorizationApiKeyPanel(props: { auth: EditableWorkbookAuthorization }) {
+export function AuthorizationApiKeyPanel() {
     const dispatch = useDispatch()
 
-    const [header, setHeader] = useState<string | undefined>((props.auth?.data as ApiKeyAuthorizationData)?.header)
-    const [value, setValue] = useState<string | undefined>((props.auth?.data as ApiKeyAuthorizationData)?.value)
+    const authorization = useSelector((state: RootState) => state.activeAuthorization)
+    const [header, setHeader] = useState<string>((authorization?.data as ApiKeyAuthorizationData)?.header ?? '')
+    const [value, setValue] = useState<string>((authorization?.data as ApiKeyAuthorizationData)?.value ?? '')
 
     useEffect(() => {
-        const data = props.auth.data as ApiKeyAuthorizationData
+        const data = authorization?.data as ApiKeyAuthorizationData
         setHeader(data?.header ?? '')
         setValue(data?.value ?? '')
-    }, [props.auth])
+    }, [authorization])
 
-    const updateData = (header: string | undefined, value: string | undefined) => {
+    if (!authorization) {
+        return null
+    }
+
+    const updateHeader = (updatedHeader: string) => {
+        setHeader(updatedHeader)
         dispatch(updateAuthorization({
+            id: authorization.id,
             data: {
-                header: header ?? "",
-                value: value ?? ""
+                header: updatedHeader,
+                value: value ?? ''
+            }
+        }))
+    }
+
+    const updateValue = (updatedValue: string) => {
+        setValue(updatedValue)
+        dispatch(updateAuthorization({
+            id: authorization.id,
+            data: {
+                header: header ?? '',
+                value: updatedValue
             }
         }))
     }
@@ -33,7 +50,7 @@ export function AuthorizationApiKeyPanel(props: { auth: EditableWorkbookAuthoriz
                 label="Header"
                 aria-label='header'
                 value={header}
-                onChange={e => updateData(e.target.value, value)}
+                onChange={e => updateHeader(e.target.value)}
                 fullWidth
             />
         </Grid>
@@ -43,7 +60,7 @@ export function AuthorizationApiKeyPanel(props: { auth: EditableWorkbookAuthoriz
                 label="Value"
                 aria-label='value'
                 value={value}
-                onChange={e => updateData(header, e.target.value)}
+                onChange={e => updateValue(e.target.value)}
                 fullWidth
             />
         </Grid>

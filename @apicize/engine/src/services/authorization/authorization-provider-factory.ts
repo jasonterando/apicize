@@ -1,5 +1,5 @@
 import { BasicAuthorizationData, OAuth2ClientAuthorizationData, RequestAuthorizationType, WorkbookAuthorization } from "@apicize/definitions";
-import { ApiKeyAuthorizationData } from "@apicize/definitions/dist/models/authorization";
+import { ApiKeyAuthorizationData } from "@apicize/definitions/dist/models/request-authorization";
 import { ApiKeyAuthorizationProvider } from "./apikey-auth-provider";
 import { BasicAuthorizationProvider } from "./basic-auth-provider";
 import { OAuth2ClientAuthorizationProvider } from "./oauth2-client-auth-provider";

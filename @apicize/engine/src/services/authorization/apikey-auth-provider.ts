@@ -1,5 +1,4 @@
-import { TestRequest, AuthorizationProvider } from "@apicize/definitions"
-import { ApiKeyAuthorizationData } from "@apicize/definitions/dist/models/authorization"
+import { WorkbookRequest, AuthorizationProvider, ApiKeyAuthorizationData } from "@apicize/definitions"
 
 /**
  * Implements API key authorization
@@ -12,13 +11,12 @@ export class ApiKeyAuthorizationProvider implements AuthorizationProvider {
      * @param request 
      * @returns 
      */
-    public Setup(request: TestRequest): Promise<void> {
-        const headers = request.headers ?? []
-        headers.push({
+    public Setup(request: WorkbookRequest): Promise<void> {
+        request.headers ??= []
+        request.headers.push({
             name: this.data.header,
             value: this.data.value
         })
-        // request.headers = headers
         return Promise.resolve()
     }
 }

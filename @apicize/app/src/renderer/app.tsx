@@ -2,8 +2,9 @@ import './app.css'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { Provider } from 'react-redux'
-import { store } from '@apicize/toolkit/dist/models/store'
+import { store, ConfirmationServiceProvider, ToastServiceProvider, DndProvider, HTML5Backend } from '@apicize/toolkit'
 import { Main } from './main'
+import { Events } from './events'
 
 const darkTheme = createTheme({
   components: {
@@ -24,7 +25,7 @@ const darkTheme = createTheme({
 
     MuiIconButton: {
       defaultProps: {
-        sx: {padding: '3px'}
+        sx: { padding: '3px' }
       }
     },
     MuiListItemIcon: {
@@ -69,16 +70,16 @@ const darkTheme = createTheme({
     // },
     // MuiTextField: {
     //   defaultProps: {
-        
+
     //     sx: {marginLeft: '14px'}
     //   }
     // },
     MuiTypography: {
       styleOverrides: {
         h1: {
-          fontSize: '28px',
+          fontSize: '24px',
           marginTop: '8px',
-          marginBottom: '28px'
+          marginBottom: '24px'
         }
       }
     }
@@ -96,8 +97,15 @@ export function App() {
   return (
     <Provider store={store}>
       <ThemeProvider theme={darkTheme}>
-        <CssBaseline />
-        <Main />
+        <DndProvider backend={HTML5Backend}>
+        <ConfirmationServiceProvider>
+          <ToastServiceProvider>
+            <CssBaseline />
+            <Main />
+            <Events />
+          </ToastServiceProvider>
+        </ConfirmationServiceProvider>
+        </DndProvider>
       </ThemeProvider>
     </Provider>
   )

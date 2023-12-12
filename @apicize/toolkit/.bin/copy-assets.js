@@ -1,10 +1,11 @@
 const fs = require('node:fs/promises');
-(async () => {
-    await Promise.all([
-        fs.copyFile('./src/controls/context/test-context.css', './dist/controls/context/test-context.css'),
-        fs.copyFile('./src/controls/editors/authorization/authorization-editor.css', './dist/controls/editors/authorization/authorization-editor.css'),
-        fs.copyFile('./src/controls/editors/test/test-editor.css', './dist/controls/editors/test/test-editor.css'),
-        fs.copyFile('./src/dialogs/dialogs.css', './dist/dialogs/dialogs.css')
-    ])
-})();
 
+(async () => {
+    await fs.mkdir('./dist/controls/context', {recursive:true})
+    await fs.mkdir('./dist/controls/navigation', {recursive:true})
+    
+    await fs.mkdir('./dist/dialogs', {recursive:true})
+    await fs.copyFile('./src/controls/styles.css', './dist/controls/styles.css')
+    await fs.copyFile('./src/dialogs/dialogs.css', './dist/dialogs/dialogs.css')
+    await fs.copyFile('./src/controls/navigation/navigation.css', './dist/controls/navigation/navigation.css')
+})();
