@@ -4,9 +4,6 @@ import { CancelRequestsFunction, RunRequestsFunction, WorkbookAuthorization, Wor
 import { Box, Stack } from '@mui/material'
 
 
-console.log('Main file loaded')
-
-
 export function Main() {
     const runRequests: RunRequestsFunction = (requests: WorkbookRequest[], authorization: WorkbookAuthorization, environment: WorkbookEnvironment) =>
         window.apicize.runRequests(requests, authorization, environment)

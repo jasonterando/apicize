@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material"
 import { RootState, updateAuthorization } from "../../../models/store"
 import { useEffect, useState } from "react"
-import { ApiKeyAuthorizationData } from "@apicize/definitions/dist/models/authorization"
+import { ApiKeyAuthorizationData } from "@apicize/definitions"
 import { useDispatch, useSelector } from "react-redux"
 
 export function AuthorizationApiKeyPanel() {

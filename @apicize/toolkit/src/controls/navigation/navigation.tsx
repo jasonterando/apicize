@@ -19,12 +19,11 @@ import {
 } from '../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
 import AddIcon from '@mui/icons-material/Add'
-import React, { DragEvent, MouseEvent, ReactNode, SyntheticEvent, useRef, useState } from 'react'
+import React, { ReactNode, SyntheticEvent, useRef } from 'react'
 import { useConfirmation } from '../../services/confirmation-service'
-import { useDrag, useDrop } from 'react-dnd'
-
+import { DndContext, useDraggable } from '@dnd-kit/core'
 import './navigation.css'
-import { GetEditableTitle, Identifiable } from '@apicize/definitions/dist/models/identifiable';
+import { GetEditableTitle } from '@apicize/definitions/dist/models/identifiable';
 
 export function Navigation() {
 
@@ -72,29 +71,29 @@ export function Navigation() {
         title: string
         onAdd: () => void
     }) {
-        const ref = useRef(null)
-        const [{ isOver, canDrop }, drop] = useDrop(() => ({
-            accept: props.type,
-            drop: () => ({ id: null }),
-            collect: (monitor) => ({
-                isOver: monitor.isOver(),
-                canDrop: monitor.canDrop()
-            })
-        }))
+        // const ref = useRef(null)
+        // const [{ isOver, canDrop }, drop] = useDrop(() => ({
+        //     accept: props.type,
+        //     drop: () => ({ id: null }),
+        //     collect: (monitor) => ({
+        //         isOver: monitor.isOver(),
+        //         canDrop: monitor.canDrop()
+        //     })
+        // }))
 
-        drop(ref)
+        // drop(ref)
         return (<TreeItem
             key={`hdr-${props.type}`}
             nodeId={`hdr-${props.type}`}
             onClick={e => handleSelectHeader(e)}
             label={(
                 <Box
-                    ref={ref}
+                    // ref={ref}
                     component='span'
                     display='flex'
                     justifyContent='space-between'
                     alignItems='center'
-                    sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                    // sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
                 >
                     {
                         props.type === 'request' ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
@@ -159,35 +158,42 @@ export function Navigation() {
                 throw new Error('Invalid nav type')
         }
 
-        const ref = useRef(null)
-        const [{ isOver, canDrop }, drop] = useDrop(() => ({
-            accept: props.type,
-            drop: () => (props.item),
-            collect: (monitor) => ({
-                isOver: monitor.isOver(),
-                canDrop: monitor.canDrop()
-            })
-        }))
+        // const ref = useRef(null)
+        // const [{ isOver, canDrop }, drop] = useDrop(() => ({
+        //     accept: props.type,
+        //     drop: () => (props.item),
+        //     collect: (monitor) => ({
+        //         isOver: monitor.isOver(),
+        //         canDrop: monitor.canDrop()
+        //     })
+        // }))
 
-        const [{ isDragging }, drag] = useDrag(() => ({
-            type: props.type,
-            options: {
-                id: props.item.id,
-                dropEffect: 'move'
-            },
-            end: (item, monitor) => {
-                const dropResult = monitor.getDropResult<NavigationListItem | null>()
-                if (item && dropResult) {
-                    onMove(props.item.id, dropResult.id)
-                }
-            },
-            collect: (monitor) => ({
-                isDragging: monitor.isDragging(),
-                handlerId: monitor.getHandlerId(),
-            }),
-        }))
+        // const dragRef = useDraggable({
+        //     id: props.item.id,
+        //     data: {
+        //         type: props.type
+        //     }
+        // })
 
-        drag(drop(ref))
+        // const [{ isDragging }, drag] = useDraggable(() => ({
+        //     type: props.type,
+        //     options: {
+        //         id: props.item.id,
+        //         dropEffect: 'move'
+        //     },
+        //     end: (item, monitor) => {
+        //         const dropResult = monitor.getDropResult<NavigationListItem | null>()
+        //         if (item && dropResult) {
+        //             onMove(props.item.id, dropResult.id)
+        //         }
+        //     },
+        //     collect: (monitor) => ({
+        //         isDragging: monitor.isDragging(),
+        //         handlerId: monitor.getHandlerId(),
+        //     }),
+        // }))
+
+        // drag(drop(ref))
         return Array.isArray(props.item.children)
             ?
             (<TreeItem
@@ -201,18 +207,18 @@ export function Navigation() {
                 }}
                 onDragOver={(e) => e.preventDefault()}
                 onFocusCapture={e => e.stopPropagation()}
-                sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                // sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
                 label={(
                     <Box
-                        ref={ref}
+                        // ref={ref}
                         component='span'
                         display='flex'
                         justifyContent='space-between'
                         alignItems='center'
-                        sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                        // sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
                     >
                         <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
-                        <Box className='nav-node-text' sx={{flexGrow: 1}}>{GetEditableTitle(props.item)} (Group)</Box>
+                        <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetEditableTitle(props.item)} (Group)</Box>
                         <IconButton
                             sx={{
                                 visibility: props.item.id === selected ? 'normal' : 'hidden'
@@ -227,15 +233,15 @@ export function Navigation() {
                         </IconButton>
                     </Box>
                 )}>
-                    {props.item.children.map(c => (
-                        <NavTreeItem type={props.type} item={c} key={`nav-${c.id}`} />
-                    ))}
+                {props.item.children.map(c => (
+                    <NavTreeItem type={props.type} item={c} key={`nav-${c.id}`} />
+                ))}
             </TreeItem>)
             :
             (<TreeItem
                 nodeId={props.item.id}
                 key={props.item.id}
-                ref={ref}
+                // ref={ref}
                 id={props.item.id}
                 onClick={(e) => {
                     e.preventDefault()
@@ -244,7 +250,7 @@ export function Navigation() {
                 }}
                 onDragOver={(e) => e.preventDefault()}
                 onFocusCapture={e => e.stopPropagation()}
-                sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                // sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
                 label={(
                     <Box
                         component='span'
@@ -446,36 +452,38 @@ export function Navigation() {
 
     return (
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', paddingRight: '24px' }}>
-            <TreeView
-                disableSelection
-                id='navigation'
-                key='navigation'
-                aria-label='request navigator'
-                defaultCollapseIcon={<ExpandMoreIcon />}
-                defaultExpandIcon={<ChevronRightIcon />}
-                defaultExpanded={['hdr-request', 'hdr-auth', 'hdr-env']}
-                onNodeSelect={(e: React.SyntheticEvent) => e.stopPropagation()}
-                selected={selected}
-                // onNodeFocus={(e: React.SyntheticEvent, id: string) => handleNodeFocus(id)}
-                sx={{ height: '100vh', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
-            >
-                <NavTreeSection key='nav-section-request' type='request' title='Requests' onAdd={() => { }}>
-                    {
-                        requests.map(t => <NavTreeItem item={t} type='request' key={`nav-section-${t.id}`} />)
-                    }
-                </NavTreeSection>
-                <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' onAdd={handleAddAuth}>
-                    {
-                        authorizations.map(t => <NavTreeItem item={t} type='auth' key={`nav-section-${t.id}`} />)
-                    }
-                </NavTreeSection>
-                <NavTreeSection key='nav-section-env' type='env' title='Environments' onAdd={handleAddEnv}>
-                    {
-                        environments.map(t => <NavTreeItem item={t} type='env' key={`nav-section-${t.id}`} />)
-                    }
-                </NavTreeSection>
-            </TreeView>
-            <RequestsMenu />
+            <DndContext>
+                <TreeView
+                    disableSelection
+                    id='navigation'
+                    key='navigation'
+                    aria-label='request navigator'
+                    defaultCollapseIcon={<ExpandMoreIcon />}
+                    defaultExpandIcon={<ChevronRightIcon />}
+                    defaultExpanded={['hdr-request', 'hdr-auth', 'hdr-env']}
+                    onNodeSelect={(e: React.SyntheticEvent) => e.stopPropagation()}
+                    selected={selected}
+                    // onNodeFocus={(e: React.SyntheticEvent, id: string) => handleNodeFocus(id)}
+                    sx={{ height: '100vh', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
+                >
+                    <NavTreeSection key='nav-section-request' type='request' title='Requests' onAdd={() => { }}>
+                        {
+                            requests.map(t => <NavTreeItem item={t} type='request' key={`nav-section-${t.id}`} />)
+                        }
+                    </NavTreeSection>
+                    <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' onAdd={handleAddAuth}>
+                        {
+                            authorizations.map(t => <NavTreeItem item={t} type='auth' key={`nav-section-${t.id}`} />)
+                        }
+                    </NavTreeSection>
+                    <NavTreeSection key='nav-section-env' type='env' title='Environments' onAdd={handleAddEnv}>
+                        {
+                            environments.map(t => <NavTreeItem item={t} type='env' key={`nav-section-${t.id}`} />)
+                        }
+                    </NavTreeSection>
+                </TreeView>
+                <RequestsMenu />
+            </DndContext>
         </Stack>
     )
 }

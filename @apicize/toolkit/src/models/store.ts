@@ -351,7 +351,7 @@ const apicizeSlice = createSlice({
       updateRequestNavList(state)
       const g = isGroup(action.payload.id, state.requests)
       const r = state.requests.entities[action.payload.id]
-      updateActive(state, g ? undefined : r as EditableWorkbookRequest, g ? e as EditableWorkbookRequestGroup : undefined, undefined, undefined) 
+      updateActive(state, g ? undefined : r as EditableWorkbookRequest, g ? r as EditableWorkbookRequestGroup : undefined, undefined, undefined) 
     },
 
     setActiveRequest: (

@@ -1,5 +1,5 @@
 import { Dispatcher, EditableWorkbookRequest, RequestRunner, Result, WorkbookAuthorization, WorkbookEnvironment, WorkbookRequest } from "@apicize/definitions"
-import mime from 'mime/lite'
+import mime from 'mime'
 import { TestEvaluationService } from "./test-evaluation-service";
 import { RequestPreparation } from "./request-preparation";
 

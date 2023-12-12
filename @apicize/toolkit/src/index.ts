@@ -1,5 +1,3 @@
-import { DndProvider } from 'react-dnd'
-
 export { RequestViewer } from './controls/viewers/request-viewer'
 export { AuthorizationEditor } from './controls/editors/authorization-editor'
 export { EnvironmentEditor } from './controls/editors/environment-editor'
@@ -11,5 +9,5 @@ export { FileDialog } from './dialogs/file-dialog'
 export { ConfirmationServiceProvider } from './services/confirmation-service'
 export { ToastServiceProvider, useToast } from './services/toast-service'
 export { ToastSeverity } from './controls/toast'
-export { DndProvider } from 'react-dnd'
-export { HTML5Backend } from 'react-dnd-html5-backend'
+export { DndContext } from '@dnd-kit/core'
+export { Provider } from 'react-redux'

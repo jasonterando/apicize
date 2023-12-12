@@ -4,7 +4,7 @@ import { RootState, updateRequest } from '../../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
 import { Method, Methods } from '@apicize/definitions'
 
-import './request-editor.css'
+// import './request-editor.css'
 
 export function RequestParametersEditor() {
     const dispatch = useDispatch()
