@@ -1,48 +1,52 @@
-import React, { ReactNode } from "react";
-import { Toast, ToastOptions } from "../controls/toast";
+import React, { ReactNode, SetStateAction, createContext, useState } from "react";
+import { createSelectorHook, useSelector, useStore } from "react-redux";
+import { PayloadAction, configureStore, createSlice } from '@reduxjs/toolkit'
+import { ToastSeverity } from "../controls/toast";
+import { Alert, Snackbar } from "@mui/material";
 
-const ToastServiceContext = React.createContext<(request: ToastOptions) =>
-    Promise<void>>(Promise.reject)
+interface ToastContent {
+    message: string,
+    severity: ToastSeverity
+}
 
-export const useToast = () => React.useContext(ToastServiceContext);
+const initialState = {
+    open: false,
+    message: '',
+    severity: ToastSeverity.Info
+}
 
-export const ToastServiceProvider = ({children}: any) => {
+export interface ToastStore {
+    open: (message: string, severity: ToastSeverity) => void
+}
 
-    const [toastOptions, setToastOptions] = React.useState<ToastOptions | null>(null)
-    const [open, setOpen] = React.useState<boolean>(false);
-    const awaitingPromiseRef = React.useRef<{ 
-        resolve: () => void; 
-        reject: () => void; 
-    }>();
+export const ToastContext = createContext<ToastStore>({
+    open: (message: string, severity: ToastSeverity = ToastSeverity.Info) => {}
+})
 
-    const showToast = (options: ToastOptions) => {
-        setToastOptions(options)
-        setOpen(true)
-        return new Promise<void>((resolve, reject) => {
-            awaitingPromiseRef.current = { resolve, reject }
-        })
-    }
+export function ToastProvider({ children }: { children?: ReactNode }) {
+    const [open, setOpen] = useState(false)
+    const [message, setMessage] = useState('')
+    const [severity, setSeverity] = useState(ToastSeverity.Info)
 
-    const handleClose = () => {
-        setOpen(false)
-    }
-
-    if(! toastOptions) return (
-        <ToastServiceContext.Provider 
-        value={showToast} 
-        children={children} />
-    )
+    const closeToast = () => setOpen(false)
 
     return (
-        <>
-            <ToastServiceContext.Provider 
-                value={showToast} 
-                children={children} />
-            <Toast
-                open={open}
-                onClose={handleClose}
-                {...toastOptions}
-            />
-        </>
+        <ToastContext.Provider value={{
+            open: (message: string, severity: ToastSeverity = ToastSeverity.Info) => {
+                setMessage(message)
+                setSeverity(severity)
+                setOpen(true)
+            }
+        }}>
+            {children}
+            <Snackbar open={open} autoHideDuration={6000} onClose={() => closeToast()}>
+                <Alert onClose={() => closeToast()} severity={severity} sx={{ width: '100%' }}>
+                    {message}
+                </Alert>
+            </Snackbar>
+        </ToastContext.Provider>
     )
 }
+
+
+

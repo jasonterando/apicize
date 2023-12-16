@@ -7,7 +7,7 @@ export { store, RootState, initializeState, saveWorkbook, setWorkbookDirty, setS
     setRequestRunning, setRequestResults, setNavigationMenu } from './models/store'
 export { FileDialog } from './dialogs/file-dialog'
 export { ConfirmationServiceProvider } from './services/confirmation-service'
-export { ToastServiceProvider, useToast } from './services/toast-service'
+export { ToastProvider, ToastContext, ToastStore } from './services/toast-service'
 export { ToastSeverity } from './controls/toast'
 export { DndContext } from '@dnd-kit/core'
 export { Provider } from 'react-redux'

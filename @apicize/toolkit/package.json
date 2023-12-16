@@ -14,15 +14,6 @@
     "rebuild": "rm -rf dist && rm ./tsconfig.tsbuildinfo && tsc"
   },
   "devDependencies": {
-    "@apicize/definitions": "^0.0.1",
-    "@emotion/react": "^11.11.1",
-    "@emotion/styled": "^11.11.0",
-    "@mui/icons-material": "^5.14.19",
-    "@mui/material": "^5.14.20",
-    "@mui/system": "^5.14.20",
-    "@mui/x-data-grid": "^6.18.3",
-    "@mui/x-tree-view": "^6.17.0",
-    "@reduxjs/toolkit": "^1.9.7",
     "@types/jest": "^29.5.3",
     "@types/js-beautify": "^1.14.3",
     "@types/node": "^18.17.6",
@@ -41,7 +32,21 @@
     "undici-types": "^5.27.2"
   },
   "dependencies": {
+    "@apicize/definitions": "^0.0.1",
+    "@dnd-kit/core": "^6.1.0",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.19",
+    "@mui/material": "^5.14.20",
+    "@mui/system": "^5.14.20",
+    "@mui/x-data-grid": "^6.18.3",
+    "@mui/x-tree-view": "^6.17.0",
+    "@reduxjs/toolkit": "^1.9.7",
+    "dnd-kit": "^0.0.0-2",
     "js-beautify": "^1.14.11",
+    "react": "^18.2.0",
+    "react-dnd": "^16.0.1",
+    "react-dom": "^18.2.0",
     "react-redux": "^9.0.4",
     "redux": "^5.0.0"
   }

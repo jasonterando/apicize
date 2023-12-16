@@ -19,11 +19,14 @@ import {
 } from '../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
 import AddIcon from '@mui/icons-material/Add'
-import React, { ReactNode, SyntheticEvent, useRef } from 'react'
+import React, { ReactNode, SyntheticEvent, DragEvent } from 'react'
 import { useConfirmation } from '../../services/confirmation-service'
-import { DndContext, useDraggable } from '@dnd-kit/core'
+import { DndContext, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core'
 import './navigation.css'
 import { GetEditableTitle } from '@apicize/definitions/dist/models/identifiable';
+import { EditableWorkbookRequestItem } from '@apicize/definitions';
+import Draggable from '../dragdrop/draggable';
+import {CSS, useCombinedRefs} from '@dnd-kit/utilities';
 
 export function Navigation() {
 
@@ -39,6 +42,15 @@ export function Navigation() {
     const activeEnv = useSelector((state: RootState) => state.activeEnvironment)
     const navigationMenu = useSelector((state: RootState) => state.navigationMenu)
     const [selected, setSelected] = React.useState<string>('')
+
+    interface DraggableData {
+        type: string,
+        move: (destinationID: string) => void
+    }
+
+    interface DroppableData {
+        acceptsType: string
+    }
 
     React.useEffect(() => {
         if (activeRequest) {
@@ -71,17 +83,6 @@ export function Navigation() {
         title: string
         onAdd: () => void
     }) {
-        // const ref = useRef(null)
-        // const [{ isOver, canDrop }, drop] = useDrop(() => ({
-        //     accept: props.type,
-        //     drop: () => ({ id: null }),
-        //     collect: (monitor) => ({
-        //         isOver: monitor.isOver(),
-        //         canDrop: monitor.canDrop()
-        //     })
-        // }))
-
-        // drop(ref)
         return (<TreeItem
             key={`hdr-${props.type}`}
             nodeId={`hdr-${props.type}`}
@@ -93,7 +94,7 @@ export function Navigation() {
                     display='flex'
                     justifyContent='space-between'
                     alignItems='center'
-                    // sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                // sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
                 >
                     {
                         props.type === 'request' ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
@@ -158,99 +159,85 @@ export function Navigation() {
                 throw new Error('Invalid nav type')
         }
 
-        // const ref = useRef(null)
-        // const [{ isOver, canDrop }, drop] = useDrop(() => ({
-        //     accept: props.type,
-        //     drop: () => (props.item),
-        //     collect: (monitor) => ({
-        //         isOver: monitor.isOver(),
-        //         canDrop: monitor.canDrop()
-        //     })
-        // }))
+        const {attributes, listeners, setNodeRef: setDragRef, transform} = useDraggable({
+            id: props.item.id,
+            data: {
+                type: props.type,
+                move: (destinationID: string) => onMove(props.item.id, destinationID)
+            } as DraggableData
+        })
 
-        // const dragRef = useDraggable({
-        //     id: props.item.id,
-        //     data: {
-        //         type: props.type
-        //     }
-        // })
+        const dragStyle = {
+            transform: CSS.Translate.toString(transform)
+        }
 
-        // const [{ isDragging }, drag] = useDraggable(() => ({
-        //     type: props.type,
-        //     options: {
-        //         id: props.item.id,
-        //         dropEffect: 'move'
-        //     },
-        //     end: (item, monitor) => {
-        //         const dropResult = monitor.getDropResult<NavigationListItem | null>()
-        //         if (item && dropResult) {
-        //             onMove(props.item.id, dropResult.id)
-        //         }
-        //     },
-        //     collect: (monitor) => ({
-        //         isDragging: monitor.isDragging(),
-        //         handlerId: monitor.getHandlerId(),
-        //     }),
-        // }))
+        const {isOver, setNodeRef: setDropRef} = useDroppable({
+            id: props.item.id,
+            data: {
+                acceptsType: props.type
+            } as DroppableData
+        })
 
-        // drag(drop(ref))
         return Array.isArray(props.item.children)
             ?
-            (<TreeItem
-                key={`hdr-${props.type}`}
-                nodeId={props.item.id}
-                id={props.item.id}
-                onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    onSelect(props.item.id)
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onFocusCapture={e => e.stopPropagation()}
-                // sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
-                label={(
-                    <Box
-                        // ref={ref}
-                        component='span'
-                        display='flex'
-                        justifyContent='space-between'
-                        alignItems='center'
+            (
+                <TreeItem
+                    id={props.item.id}
+                    key={`hdr-${props.type}`}
+                    nodeId={props.item.id}
+                    onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onSelect(props.item.id)
+                    }}
+                    onFocusCapture={e => e.stopPropagation()}
+                    // sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                    label={(
+                        <Box
+                            // ref={ref}
+                            component='span'
+                            display='flex'
+                            justifyContent='space-between'
+                            alignItems='center'
                         // sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
-                    >
-                        <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
-                        <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetEditableTitle(props.item)} (Group)</Box>
-                        <IconButton
-                            sx={{
-                                visibility: props.item.id === selected ? 'normal' : 'hidden'
-                            }}
-                            onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                onDelete(props.item)
-                            }}
                         >
-                            <DeleteIcon />
-                        </IconButton>
-                    </Box>
-                )}>
-                {props.item.children.map(c => (
-                    <NavTreeItem type={props.type} item={c} key={`nav-${c.id}`} />
-                ))}
-            </TreeItem>)
+                            <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
+                            <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetEditableTitle(props.item)} (Group)</Box>
+                            <IconButton
+                                sx={{
+                                    visibility: props.item.id === selected ? 'normal' : 'hidden'
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    onDelete(props.item)
+                                }}
+                            >
+                                <DeleteIcon />
+                            </IconButton>
+                        </Box>
+                    )}>
+                    {props.item.children.map(c => (
+                        <NavTreeItem type={props.type} item={c} key={`nav-${c.id}`} />
+                    ))}
+                </TreeItem>
+            )
             :
             (<TreeItem
                 nodeId={props.item.id}
                 key={props.item.id}
-                // ref={ref}
+                ref={useCombinedRefs(setDragRef, setDropRef)}
                 id={props.item.id}
+                style={dragStyle}
+                {...listeners}
+                {...attributes}
                 onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
                     onSelect(props.item.id)
                 }}
-                onDragOver={(e) => e.preventDefault()}
                 onFocusCapture={e => e.stopPropagation()}
-                // sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                sx={{ backgroundColor: isOver ? 'green' : 'default' }}
                 label={(
                     <Box
                         component='span'
@@ -449,10 +436,22 @@ export function Navigation() {
             </Menu>
         )
     }
+    const onDragEnd = (e: DragEndEvent) => {
+        const {active, over} = e
+        if (! over) return
+        const activeData = active.data.current as unknown as DraggableData
+        const overData = over.data.current as unknown as DroppableData
+
+
+        if (activeData.type === overData.acceptsType) {
+            activeData.move(over.id.toString())
+        }
+    }
+
 
     return (
-        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', paddingRight: '24px' }}>
-            <DndContext>
+        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginTop: '24px', paddingRight: '24px' }}>
+            <DndContext onDragEnd={onDragEnd}>
                 <TreeView
                     disableSelection
                     id='navigation'
@@ -482,8 +481,8 @@ export function Navigation() {
                         }
                     </NavTreeSection>
                 </TreeView>
-                <RequestsMenu />
             </DndContext>
+            <RequestsMenu />
         </Stack>
     )
 }

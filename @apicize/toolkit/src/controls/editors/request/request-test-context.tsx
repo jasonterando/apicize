@@ -6,12 +6,12 @@ import { RootState, setSelectedAuthorization, setRequestRunning, setRequestResul
 import '../../styles.css'
 import { Stack } from '@mui/system';
 import { useEffect, useState } from 'react';
-import { useToast } from '../../../services/toast-service';
+// import { useToast } from '../../../services/toast-service';
 import { ToastSeverity } from '../../toast';
 
 export function RequestTestContext(props: { runRequests: RunRequestsFunction }) {
     const dispatch = useDispatch()
-    const toast = useToast()
+    // const toast = useToast()
 
     const request = useSelector((state: RootState) => state.activeRequest)
     const selectedAuthorization = useSelector((state: RootState) => state.selectedAuthorization)
@@ -43,10 +43,10 @@ export function RequestTestContext(props: { runRequests: RunRequestsFunction }) 
             dispatch(setRequestResults(results))
         } catch (e) {
             dispatch(setRequestRunning({ id: request.id, onOff: false }))
-            await toast({
-                message: `${e}`,
-                severity: ToastSeverity.Error
-            })
+            // await toast({
+            //     message: `${e}`,
+            //     severity: ToastSeverity.Error
+            // })
         }
     }
 

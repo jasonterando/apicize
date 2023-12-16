@@ -30,6 +30,7 @@ import { MAX_TEXT_RENDER_LENGTH } from '../controls/viewers/text-viewer'
 export interface NavigationListItem {
   id: string
   name: string
+  type: string
   children?: NavigationListItem[]
 }
 
@@ -92,7 +93,7 @@ const updateRunningCount = (state: ApicizeState) => {
 const updateRequestNavList = (state: ApicizeState) => {
   const mapItem = (id: string) => {
     const requestItem = state.requests.entities[id]
-    const result: NavigationListItem = { id, name: GetEditableTitle(requestItem) }
+    const result: NavigationListItem = { id, name: GetEditableTitle(requestItem), type: 'request' }
     const children = state.requests.childIDs ? state.requests.childIDs[id] : undefined
       if (children) {
         result.children = children.map(id => mapItem(id))
@@ -107,14 +108,14 @@ const updateRequestNavList = (state: ApicizeState) => {
 // Generate authorization navigation list
 const updateAuthorizationNavList = (state: ApicizeState) => {
   state.authorizationList = state.authorizations.allIDs.map(id => (
-    { id, name: GetEditableTitle(state.authorizations.entities[id]) }
+    { id, name: GetEditableTitle(state.authorizations.entities[id]), type: 'auth' }
   ))
 }
 
 // Generate environment navigation list
 const updateEnvrionmentNavList = (state: ApicizeState) => {
   state.environmentList = state.environments.allIDs.map(id => (
-    { id, name: GetEditableTitle(state.environments.entities[id]) }
+    { id, name: GetEditableTitle(state.environments.entities[id]), type: 'env' }
   ))
 }
 
