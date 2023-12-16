@@ -24,9 +24,7 @@ import { useConfirmation } from '../../services/confirmation-service'
 import { DndContext, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core'
 import './navigation.css'
 import { GetEditableTitle } from '@apicize/definitions/dist/models/identifiable';
-import { EditableWorkbookRequestItem } from '@apicize/definitions';
-import Draggable from '../dragdrop/draggable';
-import {CSS, useCombinedRefs} from '@dnd-kit/utilities';
+import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
 
 export function Navigation() {
 
@@ -45,10 +43,11 @@ export function Navigation() {
 
     interface DraggableData {
         type: string,
-        move: (destinationID: string) => void
+        move: (destinationID: string | null) => void
     }
 
     interface DroppableData {
+        isHeader: boolean
         acceptsType: string
     }
 
@@ -83,19 +82,29 @@ export function Navigation() {
         title: string
         onAdd: () => void
     }) {
+        const { isOver, setNodeRef: setDropRef } = useDroppable({
+            id: `hdr-${props.type}`,
+            data: {
+                isHeader: true,
+                acceptsType: props.type
+            } as DroppableData
+        })
+
         return (<TreeItem
-            key={`hdr-${props.type}`}
             nodeId={`hdr-${props.type}`}
+            key={`hdr-${props.type}`}
+            id={`hdr-${props.type}`}
             onClick={e => handleSelectHeader(e)}
+            onFocusCapture={e => e.stopPropagation()}
             label={(
                 <Box
-                    // ref={ref}
                     component='span'
                     display='flex'
                     justifyContent='space-between'
                     alignItems='center'
-                // sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
-                >
+                    ref={setDropRef}
+                    sx={{ backgroundColor: isOver ? 'green' : 'default' }}
+                    >
                     {
                         props.type === 'request' ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
                             props.type === 'auth' ? (<LockIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
@@ -159,7 +168,7 @@ export function Navigation() {
                 throw new Error('Invalid nav type')
         }
 
-        const {attributes, listeners, setNodeRef: setDragRef, transform} = useDraggable({
+        const { attributes, listeners, setNodeRef: setDragRef, transform } = useDraggable({
             id: props.item.id,
             data: {
                 type: props.type,
@@ -171,9 +180,10 @@ export function Navigation() {
             transform: CSS.Translate.toString(transform)
         }
 
-        const {isOver, setNodeRef: setDropRef} = useDroppable({
+        const { isOver, setNodeRef: setDropRef } = useDroppable({
             id: props.item.id,
             data: {
+                isHeader: false,
                 acceptsType: props.type
             } as DroppableData
         })
@@ -182,16 +192,20 @@ export function Navigation() {
             ?
             (
                 <TreeItem
-                    id={props.item.id}
-                    key={`hdr-${props.type}`}
                     nodeId={props.item.id}
+                    key={`hdr-${props.type}`}
+                    ref={useCombinedRefs(setDragRef, setDropRef)}
+                    id={props.item.id}
+                    style={dragStyle}
+                    {...listeners}
+                    {...attributes}
                     onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
                         onSelect(props.item.id)
                     }}
                     onFocusCapture={e => e.stopPropagation()}
-                    // sx={{ opacity: isDragging ? 0.4 : 1, backgroundColor: isOver && canDrop ? 'green' : 'default' }}
+                    sx={{ backgroundColor: isOver ? 'green' : 'default' }}
                     label={(
                         <Box
                             // ref={ref}
@@ -199,7 +213,6 @@ export function Navigation() {
                             display='flex'
                             justifyContent='space-between'
                             alignItems='center'
-                        // sx={{ backgroundColor: isOver && canDrop ? 'green' : 'default' }}
                         >
                             <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
                             <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetEditableTitle(props.item)} (Group)</Box>
@@ -437,20 +450,18 @@ export function Navigation() {
         )
     }
     const onDragEnd = (e: DragEndEvent) => {
-        const {active, over} = e
-        if (! over) return
+        const { active, over } = e
+        if (!over) return
         const activeData = active.data.current as unknown as DraggableData
         const overData = over.data.current as unknown as DroppableData
 
-
         if (activeData.type === overData.acceptsType) {
-            activeData.move(over.id.toString())
+            activeData.move(overData.isHeader ? null : over.id.toString())
         }
     }
 
-
     return (
-        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginTop: '24px', paddingRight: '24px' }}>
+        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginTop: '24px', paddingRight: '48px' }}>
             <DndContext onDragEnd={onDragEnd}>
                 <TreeView
                     disableSelection

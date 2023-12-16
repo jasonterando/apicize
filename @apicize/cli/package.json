@@ -1,0 +1,22 @@
+{
+  "name": "@apicize/cli",
+  "version": "0.0.1",
+  "description": "CLI to execute Apicize tests",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@apicize/definitions": "^0.0.1",
+    "isolated-vm": "^4.6.0",
+    "tap": "^18.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.4",
+    "chai": "^4.3.10",
+    "minify": "^11.0.0",
+    "ts-node": "^10.9.2"
+  }
+}

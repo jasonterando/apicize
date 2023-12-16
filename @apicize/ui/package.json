@@ -11,19 +11,18 @@
   "dependencies": {
     "@apicize/toolkit": "^0.0.1",
     "@dnd-kit/core": "^6.1.0",
+    "@mui/material": "^5.14.20",
+    "@mui/system": "^5.14.20",
     "@tauri-apps/api": "^1.5.2",
     "next": "14.0.4",
-    "react": "^18",
-    "react-dom": "^18",
-    "@mui/material": "^5.14.20",
-    "@mui/system": "^5.14.20"
+    "react":  "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-redux": "^9.0.4",
+    "redux": "^5.0.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.7",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "@types/react-redux": "^7.1.32",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "typescript": "^5"

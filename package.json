@@ -3,6 +3,7 @@
     "private": true,
     "workspaces": {
         "packages": [
+            "@apicize/cli",
             "@apicize/definitions",
             "@apicize/engine",
             "@apicize/toolkit",

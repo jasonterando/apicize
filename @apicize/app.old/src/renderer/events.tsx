@@ -17,7 +17,7 @@ let forceExit = false
 export function Events() {
     const dispatch = useDispatch()
     const confirm = useConfirmation()
-    const toast = useToast()
+    // const toast = useToast()
 
     const dirty = useSelector((state: RootState) => state.dirty)
 
@@ -97,10 +97,10 @@ export function Events() {
             case FileDialogMode.WorkbookSave:
                 results = await window.apicize.listWorkbooks(directory)
                 if (results instanceof Error) {
-                    await toast({
-                        message: `${results}`,
-                        severity: ToastSeverity.Error
-                    })
+                    // await toast({
+                    //     message: `${results}`,
+                    //     severity: ToastSeverity.Error
+                    // })
                     return []
                 } else {
                     return results
@@ -129,10 +129,10 @@ export function Events() {
             environments: results.environments
         }))
 
-        toast({
-            message: `Opened ${results.fullName}`,
-            severity: ToastSeverity.Success
-        })
+        // toast({
+        //     message: `Opened ${results.fullName}`,
+        //     severity: ToastSeverity.Success
+        // })
 
         return results
     }
@@ -152,16 +152,16 @@ export function Events() {
                 fullName: results.fullName,
                 displayName: results.displayName,
             }))
-            toast({
-                message: `Saved to ${results.fullName}`,
-                severity: ToastSeverity.Success
-            })
+            // toast({
+            //     message: `Saved to ${results.fullName}`,
+            //     severity: ToastSeverity.Success
+            // })
             window.apicize.updateLastWorkbookFileName(results.fullName)
         } catch (e) {
-            toast({
-                message: `${e}`,
-                severity: ToastSeverity.Error
-            })
+            // toast({
+            //     message: `${e}`,
+            //     severity: ToastSeverity.Error
+            // })
         }
     }
 
@@ -175,10 +175,10 @@ export function Events() {
                     }
                     setFileDialogOpen(false)
                 } catch (e) {
-                    toast({
-                        message: `${e}`,
-                        severity: ToastSeverity.Error
-                    })
+                    // toast({
+                    //     message: `${e}`,
+                    //     severity: ToastSeverity.Error
+                    // })
                 }
                 break
             case FileDialogMode.WorkbookSave:
@@ -205,16 +205,16 @@ export function Events() {
             try {
                 const result = await window.apicize.deleteFile(entry.fullName)
                 if (result instanceof Error) throw result
-                toast({
-                    message: `Delete ${entry.fullName}`,
-                    severity: ToastSeverity.Success
-                })
+                // toast({
+                //     message: `Delete ${entry.fullName}`,
+                //     severity: ToastSeverity.Success
+                // })
                 return true
             } catch (e) {
-                toast({
-                    message: `${e}`,
-                    severity: ToastSeverity.Error
-                })
+                // toast({
+                //     message: `${e}`,
+                //     severity: ToastSeverity.Error
+                // })
                 return false
             }
         }

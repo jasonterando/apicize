@@ -1,14 +1,33 @@
 'use client'
 
-import styles from './page.module.css'
 import {
-  ConfirmationServiceProvider, Provider, ToastServiceProvider, Navigation, store,
-  AuthorizationEditor, EnvironmentEditor, RequestGroupEditor, RequestViewer
+  ConfirmationServiceProvider, Navigation, store,
+  AuthorizationEditor, EnvironmentEditor, RequestGroupEditor, RequestViewer, Provider
 } from '@apicize/toolkit'
 import { RunRequestsFunction, WorkbookRequest, WorkbookAuthorization, WorkbookEnvironment, CancelRequestsFunction } from '@apicize/definitions'
-import { Stack, Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material'
+import { Stack, Box, CssBaseline, ThemeProvider, createTheme, Button } from '@mui/material'
+import { appConfigDir, appDataDir } from '@tauri-apps/api/path';
+import { register } from '@tauri-apps/api/globalShortcut';
+import { emit } from '@tauri-apps/api/event'
+import { ToastProvider } from '@apicize/toolkit'
+import { ChangeEvent, useContext, useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api';
+import { OpenWorkbookServiceProvider } from './services/open-workbook-service';
+import { TestControl } from './test';
+
+let _configDirectory: string | undefined = undefined
+let _dataDirectory: string | undefined = undefined
 
 export default function Home() {
+
+  const getConfigDirectory = async (): Promise<string> => {
+    return _configDirectory ??= await appConfigDir()
+  }
+
+  const getDataDirectory = async (): Promise<string> => {
+    return _dataDirectory ??= await appDataDir()
+  }
+
 
   const runRequests: RunRequestsFunction = (requests: WorkbookRequest[], authorization: WorkbookAuthorization, environment: WorkbookEnvironment) => {
     console.log('runRequests')
@@ -109,121 +128,34 @@ export default function Home() {
   })
 
 
+
+
+
   return (
     <Provider store={store}>
       {/* <main className={styles.main}> */}
       <main>
         <ThemeProvider theme={darkTheme}>
-          <ConfirmationServiceProvider>
-            <CssBaseline />
-            <ToastServiceProvider>
-              {/* <CssBaseline /> */}
-              <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex' }}>
-                <Navigation />
-                <Box sx={{
-                  height: '100vh',
-                  display: 'flex',
-                  flexGrow: 1
-                }}>
-                  <RequestViewer runRequests={runRequests} cancelRequests={cancelRequests} />
-                  <RequestGroupEditor />
-                  <AuthorizationEditor />
-                  <EnvironmentEditor />
-                </Box>
-
-              </Stack>
-              {/* <Events /> */}
-            </ToastServiceProvider>
-          </ConfirmationServiceProvider>
-
-
-          {/* <Greet />
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>src/app/page.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
-
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-        </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p>Explore starter templates for Next.js.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p>
-              Instantly deploy your Next.js site to a shareable URL with Vercel.
-            </p>
-          </a>
-        </div> */}
+          <CssBaseline />
+          <ToastProvider>
+            <OpenWorkbookServiceProvider>
+              <ConfirmationServiceProvider>
+                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex' }}>
+                  <Navigation />
+                  <Box sx={{
+                    height: '100vh',
+                    display: 'flex',
+                    flexGrow: 1
+                  }}>
+                    <RequestViewer runRequests={runRequests} cancelRequests={cancelRequests} />
+                    <RequestGroupEditor />
+                    <AuthorizationEditor />
+                    <EnvironmentEditor />
+                  </Box>
+                </Stack>
+              </ConfirmationServiceProvider>
+            </OpenWorkbookServiceProvider>
+          </ToastProvider>
         </ThemeProvider>
       </main>
     </Provider>
