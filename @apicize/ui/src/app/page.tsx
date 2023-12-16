@@ -12,7 +12,7 @@ import { emit } from '@tauri-apps/api/event'
 import { ToastProvider } from '@apicize/toolkit'
 import { ChangeEvent, useContext, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api';
-import { OpenWorkbookServiceProvider } from './services/open-workbook-service';
+import { WorkbookServiceProvider } from './services/workbook-service';
 import { TestControl } from './test';
 
 let _configDirectory: string | undefined = undefined
@@ -138,7 +138,7 @@ export default function Home() {
         <ThemeProvider theme={darkTheme}>
           <CssBaseline />
           <ToastProvider>
-            <OpenWorkbookServiceProvider>
+            <WorkbookServiceProvider>
               <ConfirmationServiceProvider>
                 <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex' }}>
                   <Navigation />
@@ -154,7 +154,7 @@ export default function Home() {
                   </Box>
                 </Stack>
               </ConfirmationServiceProvider>
-            </OpenWorkbookServiceProvider>
+            </WorkbookServiceProvider>
           </ToastProvider>
         </ThemeProvider>
       </main>

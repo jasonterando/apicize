@@ -23,6 +23,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/services/open-workbook-service.tsx", "../toolkit/src/services/toast-service.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/services/workbook-service.tsx", "../toolkit/src/services/toast-service.tsx"],
   "exclude": ["node_modules", "src-tauri"]
 }

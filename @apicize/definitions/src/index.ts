@@ -13,7 +13,6 @@ export { Settings } from './models/settings'
 export { RequestAuthorization, RequestAuthorizationData, RequestAuthorizationType,
     BasicAuthorizationData, OAuth2ClientAuthorizationData, ApiKeyAuthorizationData } from './models/request-authorization';
 export { AuthorizationProvider } from './services/auth-provider';
-export { StorageProvider } from './services/storage-provider';
 export { Dispatcher } from './services/dispatcher';
 export { ApicizeEvents } from './events'
 export { StorageEntry } from './models/storage/storage-entry'

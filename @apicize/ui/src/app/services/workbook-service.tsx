@@ -14,20 +14,19 @@ const getDataDirectory = async (): Promise<string> => {
     }
     return _dataDirectory
 }
-export interface OpenWorkbookServiceStore {
+export interface WorkbookServiceStore {
     open: (fileName?: string) => void
 }
 
-export const OpenWorkbookServiceContext = createContext<OpenWorkbookServiceStore>({
+export const WorkbookServiceContext = createContext<WorkbookServiceStore>({
     open: () => {}
 })
 
-export const OpenWorkbookServiceProvider = ({ children }: { children?: ReactNode }) => {
+export const WorkbookServiceProvider = ({ children }: { children?: ReactNode }) => {
     const dispatch = useDispatch()
     const toastContext = useContext<ToastStore>(ToastContext)
 
     register('CommandOrControl+O', async (e) => {
-        console.log('Ctrl-o pressed')
         openWorkbook()
     })
 
@@ -50,7 +49,6 @@ export const OpenWorkbookServiceProvider = ({ children }: { children?: ReactNode
 
         try {
             const results = JSON.parse(await readTextFile(fileName)) as unknown as StoredWorkbook
-            console.log('loaded workbook', results)
 
             // Cursory validation
             if (!(
@@ -89,9 +87,9 @@ export const OpenWorkbookServiceProvider = ({ children }: { children?: ReactNode
 
     return (
         <>
-            <OpenWorkbookServiceContext.Provider value={{open: openWorkbook}}>
+            <WorkbookServiceContext.Provider value={{open: openWorkbook}}>
                 {children}
-            </OpenWorkbookServiceContext.Provider>
+            </WorkbookServiceContext.Provider>
         </>
     )
 }
