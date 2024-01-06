@@ -1,28 +1,29 @@
 import { ButtonGroup, FormControl, Grid, InputLabel, MenuItem, Select, ToggleButton } from '@mui/material';
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
 import { useDispatch, useSelector } from 'react-redux';
-import { NO_AUTHORIZATION, NO_ENVIRONMENT, RunRequestsFunction } from '@apicize/definitions';
-import { RootState, setSelectedAuthorization, setRequestRunning, setRequestResults, setSelectedEnvironment } from '../../../models/store';
+import { NO_AUTHORIZATION, NO_ENVIRONMENT } from '@apicize/common';
+import { WorkbookState, setSelectedAuthorization, setRequestRunning, setRequestResults, setSelectedEnvironment } from '../../../models/store';
 import '../../styles.css'
 import { Stack } from '@mui/system';
 import { useEffect, useState } from 'react';
 // import { useToast } from '../../../services/toast-service';
 import { ToastSeverity } from '../../toast';
 
-export function RequestTestContext(props: { runRequests: RunRequestsFunction }) {
+export function RequestTestContext(props: { triggerRun: () => void }) {
     const dispatch = useDispatch()
     // const toast = useToast()
 
-    const request = useSelector((state: RootState) => state.activeRequest)
-    const selectedAuthorization = useSelector((state: RootState) => state.selectedAuthorization)
-    const selectedEnvironment = useSelector((state: RootState) => state.selectedEnvironment)
-    const authorizations = useSelector((state: RootState) => state.authorizationList)
-    const environments = useSelector((state: RootState) => state.environmentList)
+    const request = useSelector((state: WorkbookState) => state.activeRequest)
+    const execution = useSelector((state: WorkbookState) => state.activeExecution)
+    const selectedAuthorization = useSelector((state: WorkbookState) => state.selectedAuthorization)
+    const selectedEnvironment = useSelector((state: WorkbookState) => state.selectedEnvironment)
+    const authorizations = useSelector((state: WorkbookState) => state.authorizationList)
+    const environments = useSelector((state: WorkbookState) => state.environmentList)
     const [disableRun, setDisableRun] = useState(false)
 
     useEffect(() => {
-        setDisableRun(request?.running ?? false)
-    }, [request])
+        setDisableRun((execution?.requestID === request?.id && execution?.running) ?? false)
+    }, [request, execution])
 
     if (!request) {
         return null
@@ -37,17 +38,18 @@ export function RequestTestContext(props: { runRequests: RunRequestsFunction }) 
     }
 
     const handleRunClick = () => async () => {
-        dispatch(setRequestRunning({ id: request.id, onOff: true }))
-        try {
-            const results = await props.runRequests([request], selectedAuthorization, selectedEnvironment)
-            dispatch(setRequestResults(results))
-        } catch (e) {
-            dispatch(setRequestRunning({ id: request.id, onOff: false }))
-            // await toast({
-            //     message: `${e}`,
-            //     severity: ToastSeverity.Error
-            // })
-        }
+        props.triggerRun()
+        // dispatch(setRequestRunning({ id: request.id, onOff: true }))
+        // try {
+        //     const results = await props.runRequests([request], selectedAuthorization, selectedEnvironment)
+        //     dispatch(setRequestResults(results))
+        // } catch (e) {
+        //     dispatch(setRequestRunning({ id: request.id, onOff: false }))
+        //     // await toast({
+        //     //     message: `${e}`,
+        //     //     severity: ToastSeverity.Error
+        //     // })
+        // }
     }
 
     return (

@@ -17,7 +17,8 @@ tauri-build = { version = "1.5.0", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.5.3", features = [ "notification-all", "fs-write-file", "global-shortcut-all", "fs-exists", "dialog-all", "fs-read-file", "path-all"] }
+apicize_lib = { version = "0.1.0", path = "../../rust/lib" }
+tauri = { version = "1.5.3", features = [ "window-set-title", "fs-read-dir", "notification-all", "fs-write-file", "global-shortcut-all", "fs-exists", "dialog-all", "fs-read-file", "path-all"] }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

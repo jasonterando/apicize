@@ -2,25 +2,25 @@ import { TextField, Box, Grid, Select, MenuItem, FormControl, InputLabel, Typogr
 import LockIcon from '@mui/icons-material/Lock';
 import { useSelector } from "react-redux";
 import { useEffect, useState } from 'react'
-import { RootState, updateAuthorization } from '../../models/store'
+import { WorkbookState, updateAuthorization } from '../../models/store'
 import { useDispatch } from 'react-redux'
-import { RequestAuthorizationType } from '@apicize/definitions'
 
 import '../styles.css'
 import { AuthorizationBasicPanel } from './authorization/authorization-basic';
 import { AuthorizationOAuth2ClientPanel } from './authorization/authorization-oauth2-client';
 import { AuthorizationApiKeyPanel } from './authorization/authorization-api-key';
+import { WorkbookAuthorizationType } from '@apicize/common';
 
 export function AuthorizationEditor() {
-    const authorization = useSelector((state: RootState) => state.activeAuthorization)
+    const authorization = useSelector((state: WorkbookState) => state.activeAuthorization)
     const dispatch = useDispatch()
 
     const [name, setName] = useState<string | undefined>(authorization?.name ?? '')
-    const [type, setType] = useState<string | undefined>(authorization?.type ?? RequestAuthorizationType.Basic)
+    const [type, setType] = useState<string | undefined>(authorization?.type ?? WorkbookAuthorizationType.Basic)
 
     useEffect(() => {
         setName(authorization?.name ?? '')
-        setType(authorization?.type ?? RequestAuthorizationType.Basic)
+        setType(authorization?.type ?? WorkbookAuthorizationType.Basic)
     }, [authorization])
 
     if (!authorization) {
@@ -68,17 +68,17 @@ export function AuthorizationEditor() {
                                 label='Type'
                                 onChange={e => updateType(e.target.value)}
                             >
-                                <MenuItem value={RequestAuthorizationType.Basic}>Basic Authentication</MenuItem>
-                                <MenuItem value={RequestAuthorizationType.ApiKey}>API Key Authentication</MenuItem>
-                                <MenuItem value={RequestAuthorizationType.OAuth2Client}>OAuth2 Client Flow</MenuItem>
+                                <MenuItem value={WorkbookAuthorizationType.Basic}>Basic Authentication</MenuItem>
+                                <MenuItem value={WorkbookAuthorizationType.ApiKey}>API Key Authentication</MenuItem>
+                                <MenuItem value={WorkbookAuthorizationType.OAuth2Client}>OAuth2 Client Flow</MenuItem>
                             </Select>
                         </FormControl>
                     </Grid>
                 </Grid>
             </Box>
-            {authorization.type === RequestAuthorizationType.Basic ? <AuthorizationBasicPanel /> :
-                authorization.type === RequestAuthorizationType.OAuth2Client ? <AuthorizationOAuth2ClientPanel /> :
-                    authorization.type === RequestAuthorizationType.ApiKey ? <AuthorizationApiKeyPanel /> :
+            {authorization.type === WorkbookAuthorizationType.Basic ? <AuthorizationBasicPanel /> :
+                authorization.type === WorkbookAuthorizationType.OAuth2Client ? <AuthorizationOAuth2ClientPanel /> :
+                    authorization.type === WorkbookAuthorizationType.ApiKey ? <AuthorizationApiKeyPanel /> :
                         null
             }
         </Stack>

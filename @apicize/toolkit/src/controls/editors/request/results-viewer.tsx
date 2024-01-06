@@ -1,16 +1,15 @@
-import { useDispatch, useSelector } from "react-redux"
+import { useSelector } from "react-redux"
 import { Box, Stack, SxProps, Theme, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
-import { RootState } from "../../../models/store"
+import { WorkbookState } from "../../../models/store"
 import ScienceIcon from '@mui/icons-material/Science'
 import SendIcon from '@mui/icons-material/Send';
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import PreviewIcon from '@mui/icons-material/Preview'
-import React, { useEffect, useState } from "react"
+import React, { useEffect } from "react"
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-markup'
 // import 'prismjs/themes/prism-tomorrow.css''
-import { CancelRequestsFunction, Result } from "@apicize/definitions"
 import "../../styles.css"
 import { ResultResponsePreview } from "./result/response-preview-viewer";
 import { ResultRawPreview } from "./result/response-raw-viewer";
@@ -23,24 +22,21 @@ import { RequestRunProgress } from "./result/requuest-run-progress";
 
 export function ResultsViewer(props: {
     sx: SxProps<Theme>,
-    className?: string,
-    cancelRequests: CancelRequestsFunction
+    className?: string
 }) {
-    const request = useSelector((state: RootState) => state.activeRequest)
-    const result = useSelector((state: RootState) => state.activeResult)
-    const longTextInResponse = useSelector((state: RootState) => state.longTextInResponse)
-    const runningRequestCount = useSelector((state: RootState) => state.runningCount)
+    const execution = useSelector((state: WorkbookState) => state.activeExecution)
+    const result = useSelector((state: WorkbookState) => state.activeExecution?.result)
+    const longTextInResponse = useSelector((state: WorkbookState) => state.longTextInResponse)
+    const runningRequestCount = useSelector((state: WorkbookState) => state.runningCount)
     const [inProgress, setInProgress] = React.useState(false)
     const [panel, setPanel] = React.useState<string>('Info')
     
     useEffect(() => {
-        setInProgress(request?.running === true)
-        const result = request?.result
+        setInProgress(execution?.running === true)
         if (!(result?.response) && panel !== 'Info') {
             setPanel('Info')
         }
-
-    }, [request, runningRequestCount])
+    }, [execution, result, runningRequestCount])
 
     if (! (result || inProgress)) {
         return null
@@ -52,6 +48,8 @@ export function ResultsViewer(props: {
     const RequestLongTextWarning = () => longTextInResponse ? <Box className='text-warning'>Text Has Been Truncated</Box> : null
 
     let header: string
+
+    const success = result?.tests?.reduce((r, t) => t.success && r, true) ?? true
 
     if (inProgress) {
         header = 'Request In Progress...'
@@ -70,7 +68,7 @@ export function ResultsViewer(props: {
                 header = 'Request'
                 break
             default:
-                header = result?.success ? 'Request Execution Completed' : 'Unable to Execute Request'
+                header = success ? 'Request Execution Completed' : 'Unable to Execute Request'
                 break
         }
     }
@@ -85,17 +83,17 @@ export function ResultsViewer(props: {
                 value={panel}
                 aria-label="text alignment">
                 <ToggleButton value="Info" title="Show Result Info" aria-label='show info' disabled={inProgress}><ScienceIcon /></ToggleButton>
-                <ToggleButton value="Headers" title="Show Response Headers" aria-label='show headers' disabled={inProgress || !result?.response}><ViewListOutlinedIcon /></ToggleButton>
-                <ToggleButton value="Text" title="Show Response Body as Text" aria-label='show body text' disabled={inProgress || !result?.response}><ArticleOutlinedIcon /></ToggleButton>
-                <ToggleButton value="Preview" title="Show Body as Preview" aria-label='show body preview' disabled={longTextInResponse || inProgress || !result?.response}><PreviewIcon /></ToggleButton>
-                <ToggleButton value="Request" title="Show Request" aria-label='show request' disabled={inProgress || !result?.response}><SendIcon /></ToggleButton>
+                <ToggleButton value="Headers" title="Show Response Headers" aria-label='show headers' disabled={inProgress || !execution?.result?.response}><ViewListOutlinedIcon /></ToggleButton>
+                <ToggleButton value="Text" title="Show Response Body as Text" aria-label='show body text' disabled={inProgress || !execution?.result?.response}><ArticleOutlinedIcon /></ToggleButton>
+                <ToggleButton value="Preview" title="Show Body as Preview" aria-label='show body preview' disabled={longTextInResponse || inProgress || !execution?.result?.response}><PreviewIcon /></ToggleButton>
+                <ToggleButton value="Request" title="Show Request" aria-label='show request' disabled={inProgress || !execution?.result?.response}><SendIcon /></ToggleButton>
             </ToggleButtonGroup>
             <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                 <Typography variant='h1' sx={{ marginTop: 0 }}>{header}</Typography>
                 { panel == 'Text' ? <RequestLongTextWarning /> : null }
                 {
-                    inProgress ? <RequestRunProgress cancelRequests={props.cancelRequests} /> :
-                        result === undefined ? <Box /> :
+                    inProgress ? <RequestRunProgress /> :
+                        execution === undefined ? <Box /> :
                             panel === 'Info' ? <ResultInfoViewer />
                                 : panel === 'Headers' ? <ResponseHeadersViewer />
                                     : panel === 'Preview' ? <ResultResponsePreview />

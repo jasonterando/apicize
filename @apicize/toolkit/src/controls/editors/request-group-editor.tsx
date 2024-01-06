@@ -1,33 +1,28 @@
 import { TextField, Box, Grid, Typography, Stack } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder';
 import { useSelector } from "react-redux";
-import { useState } from 'react'
-import { RootState, updateRequestGroup } from '../../models/store'
+import { useEffect, useState } from 'react'
+import { WorkbookState, updateRequestGroup } from '../../models/store'
 import { useDispatch } from 'react-redux'
 
 import '../styles.css'
 
 export function RequestGroupEditor() {
-    const groupID = useSelector((state: RootState) => state.activeRequestGroup?.id)
+    const group = useSelector((state: WorkbookState) => state.activeRequestGroup)
     const dispatch = useDispatch()
 
     const [name, setName] = useState<string>('')
 
-    if(! groupID) return (<></>)
+    useEffect(() => {
+        setName(group?.name ?? '')
+    }, [group])
 
-    // useEffect((state) => {
-    //     const group = state.
-    //     setName(group?.name ?? '')
-    // }, [groupID])
-
-    // if (!group) {
-    //     return null
-    // }
+    if(! group) return (<></>)
 
     const updateName = (name: string | undefined) => {
         setName(name ?? '')
         dispatch(updateRequestGroup({
-            id: groupID,
+            id: group.id,
             name
         }))
     }
@@ -39,7 +34,7 @@ export function RequestGroupEditor() {
                 <Grid container direction={'column'} spacing={3} maxWidth={1000}>
                     <Grid item>
                         <TextField
-                            id='gorup-name'
+                            id='group-name'
                             label='Name'
                             aria-label='name'
                             // size='small'

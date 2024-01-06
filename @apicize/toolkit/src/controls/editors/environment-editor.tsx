@@ -2,9 +2,9 @@ import { TextField, Grid, Typography, Stack, Button, Box } from '@mui/material'
 import LanguageIcon from '@mui/icons-material/Language';
 import { useEffect, useState } from 'react'
 import { useSelector } from "react-redux";
-import { RootState, updateEnvironment } from '../../models/store'
+import { WorkbookState, updateEnvironment } from '../../models/store'
 import { useDispatch } from 'react-redux'
-import { EditableNameValuePair, EditableWorkbookEnvironment, NameValuePair } from '@apicize/definitions'
+import { NameValuePair } from '@apicize/common'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
@@ -14,6 +14,7 @@ import '../styles.css'
 import React from 'react';
 import { DataGrid, GridActionsCellItem, GridColDef, GridEventListener, GridFooterContainer, GridRowEditStopReasons, GridRowId, GridRowModes, GridRowModesModel } from '@mui/x-data-grid';
 import { GenerateIdentifier } from '../../services/random-identifier-generator';
+import { EditableNameValuePair } from '../../models/workbook/editable-name-value-pair';
 
 const setupEnvVariables = (variables: NameValuePair[] | undefined) =>
     (variables ?? []).map(h => ({
@@ -24,7 +25,7 @@ const setupEnvVariables = (variables: NameValuePair[] | undefined) =>
 
 export function EnvironmentEditor() {
     const dispatch = useDispatch()
-    const environment = useSelector((state: RootState) => state.activeEnvironment)
+    const environment = useSelector((state: WorkbookState) => state.activeEnvironment)
 
     const [name, setName] = useState<string | undefined>(environment?.name ?? '')
     const [variables, setVariables] = React.useState<EditableNameValuePair[]>(setupEnvVariables(environment?.variables))

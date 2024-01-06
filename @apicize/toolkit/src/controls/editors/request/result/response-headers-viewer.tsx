@@ -1,20 +1,23 @@
 import { useSelector } from "react-redux"
-import { RootState } from "../../../../models/store"
+import { WorkbookState } from "../../../../models/store"
 import { DataGrid } from "@mui/x-data-grid"
 import { GenerateIdentifier } from "../../../../services/random-identifier-generator"
 
 export function ResponseHeadersViewer() {
-    const result = useSelector((state: RootState) => state.activeResult)
+    const result = useSelector((state: WorkbookState) => state.activeExecution?.result)
     const response = result?.response
     if (! response) {
         return null
     }
 
-    const headers = Object.keys(response.headers).map(h => ({
-        id: GenerateIdentifier(),
-        name: h,
-        value: response.headers[h]
-    }))
+    const headers = []
+    for(const [name, value] of Object.entries(response.headers ?? {})) {
+        headers.push({
+            id: GenerateIdentifier(),
+            name,
+            value
+        })
+    }
 
     return (
         <DataGrid

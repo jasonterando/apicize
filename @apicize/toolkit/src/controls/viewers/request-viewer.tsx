@@ -12,14 +12,13 @@ import SendIcon from '@mui/icons-material/Send';
 import ScienceIcon from '@mui/icons-material/Science';
 import { RequestQueryStringEditor } from '../editors/request/request-query-string-editor'
 import { RequestBodyEditor } from '../editors/request/request-body-editor'
-import { CancelRequestsFunction, EditableWorkbookRequest, RunRequestsFunction } from '@apicize/definitions'
 import { RequestTestEditor } from '../editors/request/request-test-editor'
 import { RequestTestContext } from '../editors/request/request-test-context'
 import { ResultsViewer } from '../editors/request/results-viewer'
-import { RootState } from '../../models/store'
+import { WorkbookState } from '../../models/store'
 
-export function RequestViewer(props: { runRequests: RunRequestsFunction, cancelRequests: CancelRequestsFunction }) {
-    const request = useSelector((state: RootState) => state.activeRequest)
+export function RequestViewer(props: { triggerRun: () => {} }) {
+    const request = useSelector((state: WorkbookState) => state.activeRequest)
     
     const [panel, setPanel] = React.useState<string>('Parameters')
 
@@ -64,10 +63,9 @@ export function RequestViewer(props: { runRequests: RunRequestsFunction, cancelR
                                             : null}
                     </Box>
                 </Box>
-                <RequestTestContext runRequests={props.runRequests} />
+                <RequestTestContext triggerRun={props.triggerRun} />
             </Stack>
-            <ResultsViewer className='section' sx={{display: 'flex', flexDirection: 'row', flexGrow: 2, flexShrink: 1, bottom: 0}}
-                cancelRequests={props.cancelRequests} />
+            <ResultsViewer className='section' sx={{display: 'flex', flexDirection: 'row', flexGrow: 2, flexShrink: 1, bottom: 0}} />
         </Stack>
     )
 }

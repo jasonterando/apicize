@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { RootState, updateRequest } from '../../../models/store'
+import { WorkbookState, updateRequest } from '../../../models/store'
 import Editor from 'react-simple-code-editor'
 import { highlight, languages } from 'prismjs'
 import 'prismjs/components/prism-javascript'
@@ -10,7 +10,7 @@ import 'prismjs/themes/prism-tomorrow.css'
 export function RequestTestEditor() {
   const dispatch = useDispatch()
 
-  const request = useSelector((state: RootState) => state.activeRequest)
+  const request = useSelector((state: WorkbookState) => state.activeRequest)
   const [test, setTest] = React.useState<string | undefined>(request?.test)
 
   React.useEffect(() => {

@@ -1,15 +1,15 @@
 import { TextField, Grid, Select, MenuItem, FormControl, InputLabel } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { RootState, updateRequest } from '../../../models/store'
+import { WorkbookState, updateRequest } from '../../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
-import { Method, Methods } from '@apicize/definitions'
+import { Method, Methods } from '@apicize/common'
 
 // import './request-editor.css'
 
 export function RequestParametersEditor() {
     const dispatch = useDispatch()
 
-    const request = useSelector((state: RootState) => state.activeRequest)
+    const request = useSelector((state: WorkbookState) => state.activeRequest)
     const [name, setName] = useState<string | undefined>(request?.name)
     const [url, setURL] = useState<string | undefined>(request?.url)
     const [method, setMethod] = useState<string | undefined>(request?.method ?? Method.Get)

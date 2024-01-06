@@ -1,45 +1,18 @@
-'use client'
+  'use client'
 
 import {
-  ConfirmationServiceProvider, Navigation, store,
-  AuthorizationEditor, EnvironmentEditor, RequestGroupEditor, RequestViewer, Provider
+  ConfirmationServiceProvider, Navigation, workbookStore,
+  AuthorizationEditor, EnvironmentEditor, RequestGroupEditor, RequestViewer, defaultWorkbookState,
 } from '@apicize/toolkit'
-import { RunRequestsFunction, WorkbookRequest, WorkbookAuthorization, WorkbookEnvironment, CancelRequestsFunction } from '@apicize/definitions'
-import { Stack, Box, CssBaseline, ThemeProvider, createTheme, Button } from '@mui/material'
-import { appConfigDir, appDataDir } from '@tauri-apps/api/path';
-import { register } from '@tauri-apps/api/globalShortcut';
-import { emit } from '@tauri-apps/api/event'
+import { WorkbookRequest, WorkbookAuthorization, WorkbookEnvironment } from '@apicize/common'
+import { Stack, Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import { ToastProvider } from '@apicize/toolkit'
-import { ChangeEvent, useContext, useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api';
-import { WorkbookServiceProvider } from './services/workbook-service';
-import { TestControl } from './test';
-
-let _configDirectory: string | undefined = undefined
-let _dataDirectory: string | undefined = undefined
+import { WorkbookProvider } from './providers/workbook-provider';
+import { Provider } from 'react-redux';
+import React from 'react'
+import { emit } from '@tauri-apps/api/event'
 
 export default function Home() {
-
-  const getConfigDirectory = async (): Promise<string> => {
-    return _configDirectory ??= await appConfigDir()
-  }
-
-  const getDataDirectory = async (): Promise<string> => {
-    return _dataDirectory ??= await appDataDir()
-  }
-
-
-  const runRequests: RunRequestsFunction = (requests: WorkbookRequest[], authorization: WorkbookAuthorization, environment: WorkbookEnvironment) => {
-    console.log('runRequests')
-    return Promise.resolve([])
-  }
-  // window.apicize.runRequests(requests, authorization, environment)
-
-  const cancelRequests: CancelRequestsFunction = (ids: string[]) =>
-    console.log('cancelRequets')
-  // window.apicize.cancelRequests(ids)
-
-
   const darkTheme = createTheme({
     components: {
       // MuiOutlinedInput: {
@@ -128,33 +101,35 @@ export default function Home() {
   })
 
 
-
-
-
   return (
-    <Provider store={store}>
+    <Provider store={workbookStore}>
       {/* <main className={styles.main}> */}
       <main>
         <ThemeProvider theme={darkTheme}>
           <CssBaseline />
           <ToastProvider>
-            <WorkbookServiceProvider>
-              <ConfirmationServiceProvider>
+            <ConfirmationServiceProvider>
+              <WorkbookProvider>
                 <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex' }}>
-                  <Navigation />
+                  <Navigation
+                    triggerNew={() => emit('new')}
+                    triggerOpen={() => emit('open')}
+                    triggerSave={() => emit('save')}
+                    triggerSaveAs={() => emit('saveAs')}
+                  />
                   <Box sx={{
                     height: '100vh',
                     display: 'flex',
                     flexGrow: 1
                   }}>
-                    <RequestViewer runRequests={runRequests} cancelRequests={cancelRequests} />
+                    <RequestViewer triggerRun={() => emit("run")} />
                     <RequestGroupEditor />
                     <AuthorizationEditor />
                     <EnvironmentEditor />
                   </Box>
                 </Stack>
-              </ConfirmationServiceProvider>
-            </WorkbookServiceProvider>
+              </WorkbookProvider>
+            </ConfirmationServiceProvider>
           </ToastProvider>
         </ThemeProvider>
       </main>

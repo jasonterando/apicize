@@ -16,8 +16,14 @@
         "all": true
       },
       "fs": {
+        "scope": [
+          "$APPDATA",
+          "$APPDATA/*",
+          "$APPCONFIG/settings.json"
+        ],
         "readFile": true,
         "writeFile": true,
+        "readDir": true,
         "exists": true
       },
       "globalShortcut": {
@@ -28,6 +34,9 @@
       },
       "path": {
         "all": true
+      },
+      "window": {
+        "setTitle": true
       }
     },
     "bundle": {

@@ -15,17 +15,16 @@ import {
   GridEventListener,
   GridRowId,
   GridRowEditStopReasons,
-  GridValidRowModel,
   GridFooterContainer,
 } from '@mui/x-data-grid'
-import { EditableNameValuePair, EditableWorkbookRequest, NameValuePair } from '@apicize/definitions'
 import { useDispatch, useSelector } from 'react-redux'
-import { RootState, updateRequest } from '../../../models/store'
+import { WorkbookState, updateRequest } from '../../../models/store'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
+import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 
-const setupRequestQueryStrings = (queryStringParams: NameValuePair[] | undefined) =>
+const setupRequestQueryStrings = (queryStringParams: EditableNameValuePair[] | undefined) =>
   (queryStringParams ?? []).map(h => ({
-    id: GenerateIdentifier(),
+    id: h.id,
     name: h.name,
     value: h.value
   }))
@@ -33,7 +32,7 @@ const setupRequestQueryStrings = (queryStringParams: NameValuePair[] | undefined
 export function RequestQueryStringEditor() {
   const dispatch = useDispatch()
 
-  const request = useSelector((state: RootState) => state.activeRequest)
+  const request = useSelector((state: WorkbookState) => state.activeRequest)
   const [requestQueryString, setRequestQueryString] = React.useState<EditableNameValuePair[]>(setupRequestQueryStrings(request?.queryStringParams))
   const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({})
 

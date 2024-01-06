@@ -1,20 +1,21 @@
 import { useDispatch, useSelector } from "react-redux"
-import { RootState, setRequestRunning } from "../../../../models/store"
+import { WorkbookState, setRequestRunning } from "../../../../models/store"
 import { Button } from "@mui/material"
 import { Box } from "@mui/system"
-import { CancelRequestsFunction, WorkbookRequest } from "@apicize/definitions"
+import { EditableWorkbookRequest } from "../../../../models/workbook/editable-workbook-request"
 
-export function RequestRunProgress(props: { cancelRequests: CancelRequestsFunction }) {
+export function RequestRunProgress() {
     const dispatch = useDispatch()
 
-    const request = useSelector((state: RootState) => state.activeRequest)
+    const request = useSelector((state: WorkbookState) => state.activeRequest)
     if(! request) {
         return null
     }
 
-    const handleCancel = (request: WorkbookRequest) => {
-        props.cancelRequests([request.id])
-        dispatch(setRequestRunning({ id: request.id, onOff: false }))
+    const handleCancel = (request: EditableWorkbookRequest) => {
+        throw new Error('Cancel test not implemented');
+        // props.cancelRequests([request.id])
+        // dispatch(setRequestRunning({ id: request.id, onOff: false }))
     }
 
     return (

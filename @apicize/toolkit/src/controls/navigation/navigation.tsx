@@ -1,5 +1,9 @@
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import FolderIcon from '@mui/icons-material/Folder'
+import FileOpenIcon from '@mui/icons-material/FileOpen'
+import PostAddIcon from '@mui/icons-material/PostAdd'
+import SaveIcon from '@mui/icons-material/Save'
+import SaveAsIcon from '@mui/icons-material/SaveAs'
 import SendIcon from '@mui/icons-material/Send'
 import LockIcon from '@mui/icons-material/Lock'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -11,7 +15,7 @@ import { TreeItem } from '@mui/x-tree-view/TreeItem'
 import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack } from '@mui/material'
 import {
     NavigationListItem,
-    RootState, addNewAuthorization, addNewEnvironment, addNewRequest, addNewRequestGroup, deleteAuthorization, deleteEnvironment, deleteRequest,
+    WorkbookState, addNewAuthorization, addNewEnvironment, addNewRequest, addNewRequestGroup, deleteAuthorization, deleteEnvironment, deleteRequest,
     moveAuthorization,
     moveEnvironment,
     moveRequest,
@@ -19,27 +23,41 @@ import {
 } from '../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
 import AddIcon from '@mui/icons-material/Add'
-import React, { ReactNode, SyntheticEvent, DragEvent } from 'react'
+import React, { ReactNode, SyntheticEvent } from 'react'
 import { useConfirmation } from '../../services/confirmation-service'
-import { DndContext, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core'
+import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensors, useSensor, PointerSensor } from '@dnd-kit/core'
 import './navigation.css'
-import { GetEditableTitle } from '@apicize/definitions/dist/models/identifiable';
+import { GetTitle } from '@apicize/common';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
 
-export function Navigation() {
+export function Navigation(props: {
+    triggerNew: () => void,
+    triggerOpen: () => void,
+    triggerSave: () => void,
+    triggerSaveAs: () => void,
+}) {
 
     const dispatch = useDispatch()
     const confirm = useConfirmation()
 
-    const requests = useSelector((state: RootState) => state.requestList)
-    const authorizations = useSelector((state: RootState) => state.authorizationList)
-    const environments = useSelector((state: RootState) => state.environmentList)
-    const activeRequest = useSelector((state: RootState) => state.activeRequest)
-    const activeRequestGroup = useSelector((state: RootState) => state.activeRequestGroup)
-    const activeAuth = useSelector((state: RootState) => state.activeAuthorization)
-    const activeEnv = useSelector((state: RootState) => state.activeEnvironment)
-    const navigationMenu = useSelector((state: RootState) => state.navigationMenu)
+    const requests = useSelector((state: WorkbookState) => state.requestList)
+    const authorizations = useSelector((state: WorkbookState) => state.authorizationList)
+    const environments = useSelector((state: WorkbookState) => state.environmentList)
+    const activeRequest = useSelector((state: WorkbookState) => state.activeRequest)
+    const activeRequestGroup = useSelector((state: WorkbookState) => state.activeRequestGroup)
+    const activeAuth = useSelector((state: WorkbookState) => state.activeAuthorization)
+    const activeEnv = useSelector((state: WorkbookState) => state.activeEnvironment)
+    const navigationMenu = useSelector((state: WorkbookState) => state.navigationMenu)
+    const workbookFullName = useSelector((state: WorkbookState) => state.workbookFullName)
     const [selected, setSelected] = React.useState<string>('')
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8
+            }
+        })
+    )
 
     interface DraggableData {
         type: string,
@@ -215,7 +233,7 @@ export function Navigation() {
                             alignItems='center'
                         >
                             <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
-                            <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetEditableTitle(props.item)} (Group)</Box>
+                            <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetTitle(props.item)} (Group)</Box>
                             <IconButton
                                 sx={{
                                     visibility: props.item.id === selected ? 'normal' : 'hidden'
@@ -257,13 +275,14 @@ export function Navigation() {
                         display='flex'
                         justifyContent='space-between'
                         alignItems='center'
+                        onFocusCapture={e => e.stopPropagation()}
                     >
                         {
                             Array.isArray(props.item.children)
                                 ? <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
                                 : null
                         }
-                        <Box className='nav-node-text'>{GetEditableTitle(props.item)}</Box>
+                        <Box className='nav-node-text'>{GetTitle(props.item)}</Box>
                         <IconButton
                             sx={{
                                 visibility: props.item.id === selected ? 'normal' : 'hidden'
@@ -344,7 +363,7 @@ export function Navigation() {
     const handleDeleteRequest = (item: NavigationListItem) => {
         confirm({
             title: 'Delete Request',
-            message: `Are you are you sure you want to delete ${GetEditableTitle(item)}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(item)}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
@@ -372,7 +391,7 @@ export function Navigation() {
     const handleDeleteAuth = (item: NavigationListItem) => {
         confirm({
             title: 'Delete Authorization',
-            message: `Are you are you sure you want to delete ${GetEditableTitle(item)}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(item)}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
@@ -390,7 +409,6 @@ export function Navigation() {
     }
 
     const handleMoveAuth = (id: string, destinationID: string | null) => {
-        console.log(`Moving auth ${id} to ${destinationID}`)
         dispatch(moveAuthorization({ id, destinationID }))
     }
 
@@ -460,9 +478,24 @@ export function Navigation() {
         }
     }
 
+    
     return (
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginTop: '24px', paddingRight: '48px' }}>
-            <DndContext onDragEnd={onDragEnd}>
+            <Box sx={{marginLeft: '24px', marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px', backgroundColor: '#202020'}}>
+                <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
+                    <PostAddIcon />
+                </IconButton>
+                <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => props.triggerOpen()} sx={{marginLeft: '4px'}}>
+                    <FileOpenIcon />
+                </IconButton>
+                <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={(workbookFullName?.length ?? 0) == 0} onClick={() => props.triggerSave()} sx={{marginLeft: '4px'}}>
+                    <SaveIcon />
+                </IconButton>
+                <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => props.triggerSaveAs()} sx={{marginLeft: '4px'}}>
+                    <SaveAsIcon />
+                </IconButton>
+            </Box>
+            <DndContext onDragEnd={onDragEnd} sensors={sensors}>
                 <TreeView
                     disableSelection
                     id='navigation'

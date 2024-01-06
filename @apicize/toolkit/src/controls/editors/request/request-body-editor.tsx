@@ -1,19 +1,20 @@
 import * as React from 'react'
 import Box from '@mui/material/Box'
 import { useDispatch, useSelector } from 'react-redux'
-import { RootState, updateRequest } from '../../../models/store'
+import { WorkbookState, updateRequest } from '../../../models/store'
 import Editor from 'react-simple-code-editor'
 import { highlight, languages } from 'prismjs'
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
 import { Button, FormControl, InputLabel, MenuItem, Select, Stack } from '@mui/material'
-import { BodyType, BodyTypes } from '@apicize/definitions'
+import { BodyType, BodyTypes } from '@apicize/common'
+import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 
 export function RequestBodyEditor() {
   const dispatch = useDispatch()
 
-  const request = useSelector((state: RootState) => state.activeRequest)
+  const request = useSelector((state: WorkbookState) => state.activeRequest)
   const [body, setBody] = React.useState<BodyInit | undefined>(request?.body)
   const [bodyType, setBodyType] = React.useState<BodyType | undefined>(request?.bodyType ?? BodyType.Text)
   const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(false)
@@ -80,6 +81,7 @@ export function RequestBodyEditor() {
       contentTypeHeader.value = mimeType
     } else {
       headers.push({
+        id: GenerateIdentifier(),
         name: 'Content-Type',
         value: mimeType
       })

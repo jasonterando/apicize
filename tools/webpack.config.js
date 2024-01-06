@@ -15,7 +15,7 @@ module.exports = {
     optimization: {
         minimizer: [
             new UglifyPlugin({
-                extractComments: false,
+                extractComments: true,
                 uglifyOptions: {
                     output: {
                         comments: false,

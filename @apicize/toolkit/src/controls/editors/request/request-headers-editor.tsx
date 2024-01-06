@@ -17,21 +17,21 @@ import {
   GridRowEditStopReasons,
   GridFooterContainer,
 } from '@mui/x-data-grid'
-import { EditableNameValuePair, EditableWorkbookRequest, NameValuePair } from '@apicize/definitions'
 import { useDispatch, useSelector } from 'react-redux'
-import { RootState, updateRequest } from '../../../models/store'
+import { WorkbookState, updateRequest } from '../../../models/store'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
+import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 
 export function RequestHeadersEditor() {
-  const setupRequestHeaders = (headers: NameValuePair[] | undefined) =>
+  const setupRequestHeaders = (headers: EditableNameValuePair[] | undefined) =>
   (headers ?? []).map(h => ({
-    id: GenerateIdentifier(),
+    id: h.id,
     name: h.name,
     value: h.value
   }))
 
   const dispatch = useDispatch()
-  const request = useSelector((state: RootState) => state.activeRequest)
+  const request = useSelector((state: WorkbookState) => state.activeRequest)
   const [requestHeaders, setRequestHeaders] = React.useState<EditableNameValuePair[]>(setupRequestHeaders(request?.headers))
   const [rowModesModel, setRowModesModel] = React.useState<GridRowModesModel>({})
 
@@ -169,6 +169,7 @@ export function RequestHeadersEditor() {
         ]
       },
     },
+    { field: 'id', headerName: 'ID', width: 128, editable: false },
     { field: 'name', headerName: 'Name', width: 320, editable: true },
     { field: 'value', headerName: 'Value', flex: 1, editable: true, sortable: false },
   ]

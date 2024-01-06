@@ -1,20 +1,19 @@
 import { Grid, TextField } from "@mui/material"
-import { BasicAuthorizationData } from "@apicize/definitions"
-import { RootState, updateAuthorization } from "../../../models/store"
+import { WorkbookState, updateAuthorization } from "../../../models/store"
 import { useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
+import { EditableWorkbookBasicAuthorization } from "../../../models/workbook/editable-workbook-authorization"
 
 export function AuthorizationBasicPanel() {
     const dispatch = useDispatch()
 
-    const authorization = useSelector((state: RootState) => state.activeAuthorization)
-    const [username, setUsername] = useState<string>((authorization?.data as BasicAuthorizationData)?.username ?? '')
-    const [password, setPassword] = useState<string>((authorization?.data as BasicAuthorizationData)?.password ?? '')
+    const authorization = useSelector((state: WorkbookState) => state.activeAuthorization as EditableWorkbookBasicAuthorization)
+    const [username, setUsername] = useState<string>(authorization?.username ?? '')
+    const [password, setPassword] = useState<string>(authorization?.password ?? '')
 
     useEffect(() => {
-        const data = authorization?.data as BasicAuthorizationData
-        setUsername(data?.username ?? '')
-        setPassword(data?.password ?? '')
+        setUsername(authorization?.username ?? '')
+        setPassword(authorization?.password ?? '')
     }, [authorization])
 
     if(! authorization) {
@@ -25,10 +24,7 @@ export function AuthorizationBasicPanel() {
         setUsername(updatedUsername)
         dispatch(updateAuthorization({
             id: authorization.id,
-            data: {
-                username: updatedUsername ?? '',
-                password: password ?? ''
-            }
+            username: updatedUsername ?? '',
         }))
     }
 
@@ -36,10 +32,7 @@ export function AuthorizationBasicPanel() {
         setPassword(updatedPassword)
         dispatch(updateAuthorization({
             id: authorization.id,
-            data: {
-                username: username ?? '',
-                password: updatedPassword ?? ''
-            }
+            password: updatedPassword ?? ''
         }))
     }
 

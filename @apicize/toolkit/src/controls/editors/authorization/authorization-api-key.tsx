@@ -1,20 +1,19 @@
 import { Grid, TextField } from "@mui/material"
-import { RootState, updateAuthorization } from "../../../models/store"
+import { WorkbookState, updateAuthorization } from "../../../models/store"
 import { useEffect, useState } from "react"
-import { ApiKeyAuthorizationData } from "@apicize/definitions"
 import { useDispatch, useSelector } from "react-redux"
+import { EditableWorkbookApiKeyAuthorization } from "../../../models/workbook/editable-workbook-authorization"
 
 export function AuthorizationApiKeyPanel() {
     const dispatch = useDispatch()
 
-    const authorization = useSelector((state: RootState) => state.activeAuthorization)
-    const [header, setHeader] = useState<string>((authorization?.data as ApiKeyAuthorizationData)?.header ?? '')
-    const [value, setValue] = useState<string>((authorization?.data as ApiKeyAuthorizationData)?.value ?? '')
+    const authorization = useSelector((state: WorkbookState) => state.activeAuthorization as EditableWorkbookApiKeyAuthorization)
+    const [header, setHeader] = useState<string>(authorization?.header ?? '')
+    const [value, setValue] = useState<string>(authorization?.value ?? '')
 
     useEffect(() => {
-        const data = authorization?.data as ApiKeyAuthorizationData
-        setHeader(data?.header ?? '')
-        setValue(data?.value ?? '')
+        setHeader(authorization?.header ?? '')
+        setValue(authorization?.value ?? '')
     }, [authorization])
 
     if (!authorization) {
@@ -25,10 +24,7 @@ export function AuthorizationApiKeyPanel() {
         setHeader(updatedHeader)
         dispatch(updateAuthorization({
             id: authorization.id,
-            data: {
-                header: updatedHeader,
-                value: value ?? ''
-            }
+            header: updatedHeader,
         }))
     }
 
@@ -36,10 +32,7 @@ export function AuthorizationApiKeyPanel() {
         setValue(updatedValue)
         dispatch(updateAuthorization({
             id: authorization.id,
-            data: {
-                header: header ?? '',
-                value: updatedValue
-            }
+            value: updatedValue
         }))
     }
 

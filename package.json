@@ -3,25 +3,15 @@
     "private": true,
     "workspaces": {
         "packages": [
-            "@apicize/cli",
-            "@apicize/definitions",
-            "@apicize/engine",
+            "@apicize/common",
             "@apicize/toolkit",
             "@apicize/ui"
-        ],
-        "nohoist": [
-            "electron",
-            "electron/**",
-            "electron-squirrel-startup",
-            "electron-squirrel-startup/**",
-            "@electron-forge",
-            "@electron-forge/**"
         ]
     },
     "scripts": {
-        "build-deps": "yarn workspace @apicize/definitions build && yarn workspace @apicize/engine build && yarn workspace @apicize/toolkit build",
-        "watch-deps": "concurrently \"yarn workspace @apicize/definitions watch\" \"yarn workspace @apicize/engine watch\" \"yarn workspace @apicize/toolkit watch\"",
-        "dev": "concurrently \"yarn workspace @apicize/definitions watch\" \"yarn workspace @apicize/engine watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn run build-deps && yarn workspace @apicize/ui tauri dev\""
+        "build-deps": "yarn workspace @apicize/common build && yarn workspace @apicize/toolkit build",
+        "watch-deps": "concurrently \"yarn workspace @apicize/common watch\" \"yarn workspace @apicize/toolkit watch\"",
+        "dev": "concurrently \"yarn workspace @apicize/common watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn run build-deps && yarn workspace @apicize/ui tauri dev\""
     },
     "devDependencies": {
         "concurrently": "^8.2.2"
