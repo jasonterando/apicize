@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use apicize_lib::{
     models::{
         Workbook, WorkbookAuthorization,
-        WorkbookEnvironment, WorkbookRequest, ApicizeResult,
+        WorkbookEnvironment, WorkbookRequestEntry, ApicizeResult,
     },
     FileSystem, Runnable,
 };
@@ -36,7 +36,7 @@ fn save_workbook(workbook: Workbook, path: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn run_request(
-    request: WorkbookRequest,
+    request: WorkbookRequestEntry,
     authorization: Option<WorkbookAuthorization>,
     environment: Option<WorkbookEnvironment>,
 ) -> HashMap<String, ApicizeResult> {

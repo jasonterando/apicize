@@ -35,10 +35,10 @@ export interface WorkbookBasicAuthorization extends WorkbookAuthorizationBase {
 export interface WorkbookOAuth2ClientAuthorization extends WorkbookAuthorizationBase {
     type: WorkbookAuthorizationType.OAuth2Client
     accessTokenUrl: string
-    clientID: string
+    clientId: string
     clientSecret: string
     scope: string
-    sendCredentialsInBody: boolean
+    // sendCredentialsInBody: boolean
 }
 
 /**

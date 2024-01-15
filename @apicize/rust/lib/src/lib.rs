@@ -1,3 +1,14 @@
+#![warn(missing_docs)]
+//! Apicize test routine persistence and execution.
+//! 
+//! This library supports the opening, saving and dispatching Apicize functional web tests
+
+#[macro_use]
+extern crate lazy_static;
+
+pub mod models;
+pub mod oauth2_client_flow;
+
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
@@ -9,16 +20,17 @@ use std::sync::Once;
 use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, vec};
 
-pub mod models;
-
 use models::{
-    ApicizeRequest, ApicizeResponse, Method, RequestBody, RequestInfo, ApicizeTestResult, Workbook,
-    WorkbookAuthorization, WorkbookEnvironment, WorkbookError, WorkbookRequest, ApicizeResults, ApicizeResult,
+    ApicizeRequest, ApicizeResponse, WorkbookRequestMethod, WorkbookRequestBody, WorkbookRequest, ApicizeTestResult, Workbook,
+    WorkbookAuthorization, WorkbookEnvironment, WorkbookRequestEntry, ApicizeResults, ApicizeResult, ApicizeBody, 
+    SerializationError, ExecutionError,
 };
+
+use oauth2_client_flow::oauth2_client_credentials;
 
 static V8_INIT: Once = Once::new();
 
-/// Cleanup V8 platform, should be called once at end of application
+/// Cleanup V8 platform, should only be called once at end of application
 pub fn cleanup_v8() {
     unsafe {
         v8::V8::dispose();
@@ -26,21 +38,26 @@ pub fn cleanup_v8() {
     v8::V8::dispose_platform();
 }
 
-// Trait defining file system persistence for Workbooks
+/// Trait defining file system persistence for Apicize Workbooks
 pub trait FileSystem<T> {
-    fn open_from_path(path: &String) -> Result<T, WorkbookError>;
-    fn save_to_path(&self, path: &String) -> Result<(), WorkbookError>;
+    /// Open an Apicize workbook from the specified path
+    fn open_from_path(path: &String) -> Result<T, SerializationError>;
+    /// Save an Apicize workbook to the specified path
+    fn save_to_path(&self, path: &String) -> Result<(), SerializationError>;
 }
 
-// Trait defining serialization methods for Workbooks
+/// Trait for JSON serialization methods for Workbooks
 pub trait Serializable<T> {
+    /// Deserialize an Apicize Workbook from the specified JSON text
     fn deserialize(text: String) -> Result<T, serde_json::Error>;
+    /// Serialize the specified Apicize Workbook to JSON text
     fn serialize(&self) -> Result<String, serde_json::Error>;
 }
 
-// Trait defining method to run requests (dispatch and test)
+/// Trait for running Apicize Requests (dispatch and test)
 #[async_trait]
 pub trait Runnable {
+    /// Dispatch the associated Apicize Request (dispatching the web call and executing defined  tests, if any)
     async fn run(
         &self,
         authorization: Option<WorkbookAuthorization>,
@@ -48,31 +65,33 @@ pub trait Runnable {
     ) -> ApicizeResults;
 }
 
-/// Trait defining request info behaviors
+/// Trait for dispatching Apicize Requests
 #[async_trait]
 pub trait Dispatchable<T> {
-    // Dispatch HTTP request defined in request info and get response
+    /// Dispatch HTTP request defined in Apicize Request info and coolect response
     async fn dispatch(
         &self,
         authorization: Option<WorkbookAuthorization>,
         environment: Option<WorkbookEnvironment>,
-    ) -> Result<(ApicizeRequest, ApicizeResponse), reqwest::Error>;
+    ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError>;
 
-    // Dispatch HTTP requests defined in multiple request infos and get response
+    /// Dispatch HTTP requests defined in multiple Apicize Requests and collect responses
     async fn dispatch_multi(
         requests: &Vec<T>,
         authorization: Option<WorkbookAuthorization>,
         environment: Option<WorkbookEnvironment>,
-    ) -> HashMap<String, Result<(ApicizeRequest, ApicizeResponse), reqwest::Error>>;
+    ) -> HashMap<String, Result<(ApicizeRequest, ApicizeResponse), ExecutionError>>;
 }
 
+/// Trait for testing Apicize Requests
 pub trait Testable {
-    // Executes any defined tests in request info and receives test results
-    fn execute(&self, response: &ApicizeResponse) -> Result<Vec<ApicizeTestResult>, WorkbookError>;
+    /// Executes any defined tests in Apicize Request and returns test results
+    fn execute(&self, response: &ApicizeResponse) -> Result<Vec<ApicizeTestResult>, ExecutionError>;
 
+    /// Executes any defined tests in Apicize Requests and returns test results
     fn execute_multi(
-        requests_and_responses: Vec<(&RequestInfo, &ApicizeResponse)>,
-    ) -> HashMap<String, Result<Vec<ApicizeTestResult>, WorkbookError>>;
+        requests_and_responses: Vec<(&WorkbookRequest, &ApicizeResponse)>,
+    ) -> HashMap<String, Result<Vec<ApicizeTestResult>, ExecutionError>>;
 }
 
 impl Serializable<Workbook> for Workbook {
@@ -89,12 +108,12 @@ impl Serializable<Workbook> for Workbook {
 
 impl FileSystem<Workbook> for Workbook {
     // Open from specified path
-    fn open_from_path(path: &String) -> Result<Workbook, WorkbookError> {
+    fn open_from_path(path: &String) -> Result<Workbook, SerializationError> {
         Ok(Workbook::deserialize(fs::read_to_string(path)?)?)
     }
 
     /// Save to specified path
-    fn save_to_path(&self, path: &String) -> Result<(), WorkbookError> {
+    fn save_to_path(&self, path: &String) -> Result<(), SerializationError> {
         Ok(fs::write(path, self.serialize()?)?)
     }
 }
@@ -116,13 +135,13 @@ fn clone_and_sub(text: &str, subs: &Vec<(String, String)>) -> String {
 #[async_recursion]
 async fn run_int<'a>(
     parent_request_name: &'async_recursion Vec<String>,
-    request: &'async_recursion WorkbookRequest,
+    request: &'async_recursion WorkbookRequestEntry,
     authorization: Option<WorkbookAuthorization>,
     environment: Option<WorkbookEnvironment>,
     results: &'async_recursion mut HashMap<String, ApicizeResult>,
 ) {
     match request {
-        WorkbookRequest::Info(info) => {
+        WorkbookRequestEntry::Info(info) => {
             let now = SystemTime::now();
             let mut request_name = parent_request_name.clone();
             request_name.push(info.name.clone());
@@ -141,7 +160,6 @@ async fn run_int<'a>(
                                 milliseconds: now.elapsed().unwrap().as_millis(),
                                 success: true,
                                 error_message: None,
-
                             });
                         }
                         Err(err) => {
@@ -170,16 +188,13 @@ async fn run_int<'a>(
                 }
             }
         }
-        WorkbookRequest::Group(group) => {
+        WorkbookRequestEntry::Group(group) => {
             // Recursively run requests located in groups...
-
             let mut request_name = parent_request_name.clone();
             request_name.push(group.name.clone());
 
-            // TODO... it *might* be cool to capture groups in this while loop
-            // and wait for their futures to resolve together, since we should be
-            // able to run groups concurrently.  We'd have to sort out the
-            // sort order though of the results...
+            // TODO... Capture groups in this while loop and wait for their futures to resolve together, 
+            // since we should be able to run groups concurrently.
             let mut items = group.requests.iter();
             while let Some(item) = items.next() {
                 run_int(
@@ -196,15 +211,14 @@ async fn run_int<'a>(
 }
 
 #[async_trait]
-impl Runnable for WorkbookRequest {
+impl Runnable for WorkbookRequestEntry {
     /// Dispatch the request (info or group) and test results
     async fn run(
-        self: &WorkbookRequest,
+        self: &WorkbookRequestEntry,
         authorization: Option<WorkbookAuthorization>,
         environment: Option<WorkbookEnvironment>,
     ) -> ApicizeResults {
         let mut results: HashMap<String, ApicizeResult> = HashMap::new();
-
         run_int(&vec![], self, authorization, environment, &mut results).await;
         return results;
     }
@@ -212,21 +226,22 @@ impl Runnable for WorkbookRequest {
 
 /// Implementation for http/https dispatchable requests
 #[async_trait]
-impl Dispatchable<RequestInfo> for RequestInfo {
+impl Dispatchable<WorkbookRequest> for WorkbookRequest {
     /// Dispatch the specified request (via reqwest), returning either the repsonse or error
     async fn dispatch(
-        self: &RequestInfo,
+        self: &WorkbookRequest,
         authorization: Option<WorkbookAuthorization>,
         environment: Option<WorkbookEnvironment>,
-    ) -> Result<(ApicizeRequest, ApicizeResponse), reqwest::Error> {
+    ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError> {
+        
         let method: reqwest::Method;
         match self.method {
-            Some(Method::Get) => method = reqwest::Method::GET,
-            Some(Method::Post) => method = reqwest::Method::POST,
-            Some(Method::Put) => method = reqwest::Method::PUT,
-            Some(Method::Delete) => method = reqwest::Method::DELETE,
-            Some(Method::Head) => method = reqwest::Method::HEAD,
-            Some(Method::Options) => method = reqwest::Method::OPTIONS,
+            Some(WorkbookRequestMethod::Get) => method = reqwest::Method::GET,
+            Some(WorkbookRequestMethod::Post) => method = reqwest::Method::POST,
+            Some(WorkbookRequestMethod::Put) => method = reqwest::Method::PUT,
+            Some(WorkbookRequestMethod::Delete) => method = reqwest::Method::DELETE,
+            Some(WorkbookRequestMethod::Head) => method = reqwest::Method::HEAD,
+            Some(WorkbookRequestMethod::Options) => method = reqwest::Method::OPTIONS,
             None => method = reqwest::Method::GET,
             _ => panic!("Invalid method \"{:?}\"", self.method),
         }
@@ -273,7 +288,7 @@ impl Dispatchable<RequestInfo> for RequestInfo {
             .build()?;
 
         let mut request_builder = client
-            .request(method, clone_and_sub(self.url.as_str(), &subs));
+            .request(method.clone(), clone_and_sub(self.url.as_str(), &subs));
 
         // Add headers, including authorization if applicable
         let mut headers = reqwest::header::HeaderMap::new();
@@ -309,14 +324,16 @@ impl Dispatchable<RequestInfo> for RequestInfo {
                 );
             }
             Some(WorkbookAuthorization::OAuth2Client {
-                name: _,
-                access_token_url: _,
-                client_id: _,
-                client_secret: _,
-                scope: _,
-                send_credentials_in_body: _,
+                name,
+                access_token_url,
+                client_id,
+                client_secret,
+                scope
+                // send_credentials_in_body: _,
             }) => {
-                panic!("Not yet implemented")
+                request_builder = request_builder.bearer_auth(
+                    oauth2_client_credentials(name, access_token_url, client_id, client_secret, scope).await?
+                );
             }
             None => {}
         }
@@ -340,29 +357,36 @@ impl Dispatchable<RequestInfo> for RequestInfo {
         }
 
         // Add body, if applicable
-        let request_body_as_text: Option<String>;
         match &self.body {
-            Some(RequestBody::Text { data }) => {
+            Some(WorkbookRequestBody::Text { data }) => {
                 let s = clone_and_sub(data, &subs);
                 request_builder = request_builder.body(reqwest::Body::from(s.clone()));
-                request_body_as_text = Some(s);
             }
-            Some(RequestBody::JSON { data }) => {
+            Some(WorkbookRequestBody::JSON { data }) => {
                 let s = clone_and_sub(serde_json::to_string(&data).unwrap().as_str(), &subs);
                 request_builder = request_builder.body(reqwest::Body::from(s.clone()));
-                request_body_as_text = Some(s);
             }
-            Some(RequestBody::XML { data }) => {
+            Some(WorkbookRequestBody::XML { data }) => {
                 let s = clone_and_sub(data.as_str(), &subs);
                 request_builder = request_builder.body(reqwest::Body::from(s.clone()));
-                request_body_as_text = Some(s);
             }
-            Some(RequestBody::Base64(rec)) => {
-                request_builder = request_builder.body(reqwest::Body::from(rec.data.clone()));
-                request_body_as_text = None;
+            Some(WorkbookRequestBody::Form { data }) => {
+                println!("Adding form data");
+                let form_data = data
+                    .iter()
+                    .map(|pair| {
+                        (
+                            String::from(pair.name.as_str()),
+                            String::from(pair.value.as_str()),
+                        )
+                    })
+                    .collect::<HashMap<String, String>>();
+                request_builder = request_builder.form(&form_data);
+            },
+            Some(WorkbookRequestBody::Base64 {data }) => {
+                request_builder = request_builder.body(reqwest::Body::from(data.clone()));
             }
             None => {
-                request_body_as_text = None;
             }
         }
 
@@ -380,12 +404,33 @@ impl Dispatchable<RequestInfo> for RequestInfo {
                 )
             })
             .collect::<HashMap<String, String>>();
-        let request_body_as_data: Option<Vec<u8>>;
+        let request_body: Option<ApicizeBody>;
         let ref_body = request.body_mut();
         match ref_body {
-            Some(data) => request_body_as_data = Some(data.as_bytes().unwrap().to_vec()),
-            None => request_body_as_data = None,
+            Some(data) => {
+                let bytes = data.as_bytes().unwrap();
+                if bytes.len() > 0 {
+                    let request_encoding = UTF_8;
+
+                    let data = bytes.to_vec();
+                    let (decoded, _, malformed) = request_encoding.decode(&data);
+                    request_body = Some(ApicizeBody {
+                        data: Some(data.clone()),
+                        text: if malformed {
+                            None
+                        } else {
+                            Some(decoded.to_string())
+                        }
+                    })
+                } else {
+                    request_body = None;
+                }
+            },
+            None => {
+                request_body = None;
+            }
         }
+
 
         // Execute the request
         let response = client.execute(request).await?;
@@ -410,16 +455,17 @@ impl Dispatchable<RequestInfo> for RequestInfo {
         }
 
         // Determine the default text encoding
-        let content_type = response_headers
+        let response_content_type = response_headers
             .get(reqwest::header::CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
             .and_then(|value| value.parse::<Mime>().ok());
 
-        let encoding_name = content_type
+        let response_encoding_name = response_content_type
             .as_ref()
             .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
             .unwrap_or("utf-8");
-        let encoding = Encoding::for_label(encoding_name.as_bytes()).unwrap_or(UTF_8);
+        
+        let response_encoding = Encoding::for_label(response_encoding_name.as_bytes()).unwrap_or(UTF_8);
 
         // Collect status for response
         let status = response.status();
@@ -428,44 +474,45 @@ impl Dispatchable<RequestInfo> for RequestInfo {
         // Retrieve response bytes and convert raw data to string
         let bytes = response.bytes().await?;
 
-        let response_data: Option<Vec<u8>>;
-        let response_text: Option<String>;
+        let response_body: Option<ApicizeBody>;
         if bytes.len() > 0 {
-            response_data = Some(Vec::from(bytes.as_ref()));
-            let (text, _, _) = encoding.decode(&bytes);
-            if text.len() > 0 {
-                response_text = Some(text.into_owned());
-            } else {
-                response_text = None
-            }
+            let data = Vec::from(bytes.as_ref());
+            let (decoded, _, malformed) = response_encoding.decode(&data);
+
+            response_body = Some(ApicizeBody {
+                data: Some(data.clone()),
+                text: if malformed {
+                    None
+                } else {
+                    Some(decoded.to_string())
+                }
+            });
         } else {
-            response_data = None;
-            response_text = None;
+            response_body = None;
         }
 
         return Ok((
             ApicizeRequest {
                 url: request_url,
+                method: self.method.as_ref().unwrap().as_str().to_string(),
                 headers: request_headers,
-                data: request_body_as_data,
-                text: request_body_as_text,
+                body: request_body,
             },
             ApicizeResponse {
                 status: status.as_u16(),
                 status_text,
                 headers,
-                data: response_data,
-                text: response_text
+                body: response_body,
             },
         ));
     }
 
     /// Dispatch multiple requests and retrieve HTTP responses
     async fn dispatch_multi(
-        requests: &Vec<RequestInfo>,
+        requests: &Vec<WorkbookRequest>,
         authorization: Option<WorkbookAuthorization>,
         environment: Option<WorkbookEnvironment>,
-    ) -> HashMap<String, Result<(ApicizeRequest, ApicizeResponse), reqwest::Error>> {
+    ) -> HashMap<String, Result<(ApicizeRequest, ApicizeResponse), ExecutionError>> {
         let responses = future::join_all(requests.iter().map(|r| async {
             (
                 r.id.clone(),
@@ -483,19 +530,19 @@ impl Dispatchable<RequestInfo> for RequestInfo {
 }
 
 /// Implementation for testable requests
-impl Testable for RequestInfo {
+impl Testable for WorkbookRequest {
     /// Execute a request's tests, if defined, and return test reults
-    fn execute(&self, response: &ApicizeResponse) -> Result<Vec<ApicizeTestResult>, WorkbookError> {
+    fn execute(&self, response: &ApicizeResponse) -> Result<Vec<ApicizeTestResult>, ExecutionError> {
         let results = Self::execute_multi(vec![(self, response)]);
         let m = results.get(&self.id);
         match m {
             Some(result) => {
-                // Clone the result since it was returned in a vector
-                Ok(result.as_ref().unwrap().clone())
+                match result {
+                    Ok(success) => Ok(success.clone()),
+                    Err(err) => Err(ExecutionError::FailedTest(format!("{}", err)))
+                }
             }
-            None => Err(WorkbookError::FailedTest {
-                message: String::from("No response for the specified request"),
-            }),
+            None => Err(ExecutionError::FailedTest(String::from("No response for the specified request"))),
         }
     }
 
@@ -503,8 +550,8 @@ impl Testable for RequestInfo {
     /// Note:  initialize_v8 must be called once, and only once,
     /// before calling this method
     fn execute_multi(
-        requests_responses: Vec<(&RequestInfo, &ApicizeResponse)>,
-    ) -> HashMap<String, Result<Vec<ApicizeTestResult>, WorkbookError>> {
+        requests_responses: Vec<(&WorkbookRequest, &ApicizeResponse)>,
+    ) -> HashMap<String, Result<Vec<ApicizeTestResult>, ExecutionError>> {
         // let callid = Uuid::new_v4().to_string();
         // println!();
         // println!("{} Before V8 call_once: {}", callid, V8_INIT.is_completed());
@@ -561,14 +608,14 @@ impl Testable for RequestInfo {
                 let Some(script) = v8::Script::compile(tc, v8_code, None) else {
                     let message = tc.message().unwrap();
                     let message = message.get(tc).to_rust_string_lossy(tc);
-                    results.insert(req.id.clone(), Err(WorkbookError::FailedTest { message }));
+                    results.insert(req.id.clone(), Err(ExecutionError::FailedTest(message)));
                     continue;
                 };
 
                 let Some(value) = script.run(tc) else {
                     let message = tc.message().unwrap();
                     let message = message.get(tc).to_rust_string_lossy(tc);
-                    results.insert(req.id.clone(), Err(WorkbookError::FailedTest { message }));
+                    results.insert(req.id.clone(), Err(ExecutionError::FailedTest(message)));
                     continue;
                 };
 
@@ -587,11 +634,11 @@ impl Testable for RequestInfo {
 mod lib_tests {
     use std::vec;
 
-    use super::models::{ApicizeResponse, Method, RequestInfo, ApicizeTestResult};
-    use crate::{Dispatchable, Testable};
+    use super::models::{ApicizeResponse, WorkbookRequestMethod, WorkbookRequest, ApicizeTestResult};
+    use crate::{Dispatchable, Testable, ExecutionError};
 
     #[tokio::test]
-    async fn test_dispatch_success() -> Result<(), reqwest::Error> {
+    async fn test_dispatch_success() -> Result<(), ExecutionError> {
         let mut server = mockito::Server::new();
 
         // Use one of these addresses to configure your client
@@ -606,11 +653,11 @@ mod lib_tests {
             .with_body("ok")
             .create();
 
-        let request = RequestInfo {
+        let request = WorkbookRequest {
             id: String::from(""),
             name: String::from("test"),
             url,
-            method: Some(Method::Get),
+            method: Some(WorkbookRequestMethod::Get),
             timeout: None,
             keep_alive: None,
             headers: None,
@@ -625,7 +672,7 @@ mod lib_tests {
         match result {
             Ok((_, response)) => {
                 assert_eq!(response.status, 200);
-                assert_eq!(response.text.unwrap(), String::from("ok"));
+                assert_eq!(response.body.unwrap().text.unwrap(), String::from("ok"));
                 Ok(())
             }
             Err(err) => Err(err),
@@ -634,11 +681,11 @@ mod lib_tests {
 
     #[test]
     fn test_perform_test_success() {
-        let request = RequestInfo {
+        let request = WorkbookRequest {
             id: String::from(""),
             name: String::from("Test #1"),
             url: String::from("https://foo"),
-            method: Some(Method::Get),
+            method: Some(WorkbookRequestMethod::Get),
             timeout: None,
             body: None,
             headers: None,
@@ -650,8 +697,7 @@ mod lib_tests {
             status: 200,
             status_text: String::from("Ok"),
             headers: None,
-            text: None,
-            data: None
+            body: None,
         };
 
         let result = request.execute(&response).unwrap();
@@ -669,11 +715,11 @@ mod lib_tests {
 
     #[test]
     fn test_perform_test_fail() {
-        let request = RequestInfo {
+        let request = WorkbookRequest {
             id: String::from(""),
             name: String::from("Test #1"),
             url: String::from("https://foo"),
-            method: Some(Method::Get),
+            method: Some(WorkbookRequestMethod::Get),
             timeout: None,
             body: None,
             headers: None,
@@ -686,8 +732,7 @@ mod lib_tests {
             status: 404,
             status_text: String::from("Not Found"),
             headers: None,
-            text: None,
-            data: None
+            body: None,
         };
 
         let result = request.execute(&response).unwrap();

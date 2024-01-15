@@ -20,6 +20,7 @@ import { addRequestItem, castRequestItem, deleteRequestItem } from './workbook/h
 import { StateStorage, isGroup, moveInStorage } from './state-storage'
 import { EditableNameValuePair } from './workbook/editable-name-value-pair'
 import { ApicizeResult } from '@apicize/common/dist/models/lib/apicize-result'
+import { WorkbookBodyData } from '@apicize/common/dist/models/workbook/workbook-request'
 
 export interface NavigationListItem {
   id: string
@@ -44,6 +45,40 @@ export const noEnvironment = {
   id: NO_ENVIRONMENT,
   name: '(None)'
 }
+
+const encodeFormData = (data: EditableNameValuePair[]) => {
+  if (data.length === 0) return ''
+
+  const result = data.map(nv =>
+    `${encodeURIComponent(nv.name)}=${encodeURIComponent(nv.value)}`
+  ).join('&')
+  // console.log(`Encoding ${JSON.stringify(data)} to ${result}`)
+  return result
+}
+
+const decodeFormData = (bodyData: string | ArrayBuffer | undefined) => {
+  let data: string | undefined;
+  if (bodyData instanceof ArrayBuffer) {
+    data = (new TextDecoder()).decode(bodyData)
+  } else {
+    data = bodyData
+  }
+  if (data && data.length > 0) {
+    const parts = data.split('&')
+    return parts.map(p => {
+      const id = GenerateIdentifier()
+      const nv = p.split('=')
+      if (nv.length == 1) {
+        return { id, name: decodeURIComponent(nv[0]), value: "" } as EditableNameValuePair
+      } else {
+        return { id, name: decodeURIComponent(nv[0]), value: decodeURIComponent(nv[1]) } as EditableNameValuePair
+      }
+    })
+  } else {
+    return []
+  }
+}
+
 
 interface ApicizeWorkbookState {
   workbookFullName?: string
@@ -127,7 +162,7 @@ const updateActive = (
   state.activeAuthorization = authorization
   state.activeEnvironment = environment
   state.activeExecution = request ? state.executions[request.id] : undefined
-  state.longTextInResponse = (state.activeExecution?.result?.response?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH
+  state.longTextInResponse = (state.activeExecution?.result?.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH
 }
 
 export const defaultWorkbookState: ApicizeWorkbookState = {
@@ -238,8 +273,8 @@ const apicizeSlice = createSlice({
         timeout?: number
         headers?: EditableNameValuePair[]
         queryString?: EditableNameValuePair[]
-        body?: string | null
-        bodyType?: BodyType | null
+        bodyType?: BodyType
+        bodyData?: WorkbookBodyData
         test?: string | null
       }>
     ) => {
@@ -269,12 +304,52 @@ const apicizeSlice = createSlice({
           ? action.payload.headers
           : undefined
       }
-      if (action.payload.body !== undefined) {
-        match.body = (action.payload.body && action.payload.body.length > 0) ? action.payload.body : undefined
-      }
       if (action.payload.bodyType !== undefined) {
-        match.bodyType = action.payload.bodyType ? action.payload.bodyType : undefined
+
+        let newBodyData = match.body?.data
+        let newBodyType = action.payload.bodyType
+        let oldBodyType = match.body?.type ?? BodyType.Text
+
+        if (newBodyType !== match.body?.type) {
+          switch (newBodyType) {
+            case BodyType.Base64:
+              newBodyData = new ArrayBuffer(0)
+              break
+            case BodyType.Form:
+              if ([BodyType.Text, BodyType.JSON, BodyType.XML].indexOf(oldBodyType) !== -1) {
+                const formData = decodeFormData(newBodyData as string)
+                formData.forEach(d => (d as EditableNameValuePair).id = GenerateIdentifier())
+                newBodyData = formData
+              } else {
+                newBodyData = []
+              }
+              break
+            default:
+              switch (oldBodyType) {
+                case BodyType.Form:
+                  newBodyData = encodeFormData(newBodyData as EditableNameValuePair[])
+                  break
+                case BodyType.Base64:
+                  newBodyData = ''
+                  break
+              }
+              break
+          }
+        }
+
+        match.body = {
+          type: newBodyType,
+          data: newBodyData
+        }
       }
+
+      if (action.payload.bodyData !== undefined) {
+        match.body = {
+          type: match.body?.type ?? BodyType.Text,
+          data: action.payload.bodyData
+        }
+      }
+
       if (action.payload.test !== undefined) {
         match.test = (action.payload.test && action.payload.test.length > 0) ? action.payload.test : undefined
       }
@@ -374,7 +449,7 @@ const apicizeSlice = createSlice({
           clientID: '',
           clientSecret: '',
           scope: '',
-          sendCredentialsInBody: false,
+          // sendCredentialsInBody: false,
           header: 'x-api-key',
           value: ''
         },
@@ -442,7 +517,7 @@ const apicizeSlice = createSlice({
         clientID?: string
         clientSecret?: string
         scope?: string
-        sendCredentialsInBody?: boolean
+        // sendCredentialsInBody?: boolean
       }>
     ) => {
       const match = state.authorizations.entities[action.payload.id]
@@ -454,9 +529,9 @@ const apicizeSlice = createSlice({
       }
       if (action.payload.type !== undefined) {
         match.type = (action.payload.type as WorkbookAuthorizationType) ??
-        WorkbookAuthorizationType.Basic
+          WorkbookAuthorizationType.Basic
       }
-      switch(match.type) {
+      switch (match.type) {
         case WorkbookAuthorizationType.ApiKey:
           if (action.payload.header !== undefined) {
             (match as EditableWorkbookApiKeyAuthorization).header = action.payload.header
@@ -478,7 +553,7 @@ const apicizeSlice = createSlice({
             (match as EditableWorkbookOAuth2ClientAuthorization).accessTokenUrl = action.payload.accessTokenUrl
           }
           if (action.payload.clientID !== undefined) {
-            (match as EditableWorkbookOAuth2ClientAuthorization).clientID = action.payload.clientID
+            (match as EditableWorkbookOAuth2ClientAuthorization).clientId = action.payload.clientID
           }
           if (action.payload.clientSecret !== undefined) {
             (match as EditableWorkbookOAuth2ClientAuthorization).clientSecret = action.payload.clientSecret
@@ -486,9 +561,9 @@ const apicizeSlice = createSlice({
           if (action.payload.scope !== undefined) {
             (match as EditableWorkbookOAuth2ClientAuthorization).scope = action.payload.scope
           }
-          if (action.payload.sendCredentialsInBody !== undefined) {
-            (match as EditableWorkbookOAuth2ClientAuthorization).sendCredentialsInBody = action.payload.sendCredentialsInBody
-          }
+          // if (action.payload.sendCredentialsInBody !== undefined) {
+          //   (match as EditableWorkbookOAuth2ClientAuthorization).sendCredentialsInBody = action.payload.sendCredentialsInBody
+          // }
           break;
       }
 

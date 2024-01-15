@@ -63,9 +63,7 @@ export const WorkbookProvider = (props: {
             _loaded.current = true;
             (async () => {
                 let settings = await loadSettings()
-                console.log('Settings: ' + JSON.stringify(settings))
                 if ((settings?.lastWorkbookFileName?.length ?? 0) > 0) {
-                    console.log('Opening: ' + settings.lastWorkbookFileName)
                     await doOpenWorkbook(settings.lastWorkbookFileName)
                 }
             })()
@@ -93,7 +91,7 @@ export const WorkbookProvider = (props: {
 
         const unlistenNew = listen('new', async () => { await doNewWorkbook() })
         const unlistenOpen = listen('open', async () => { await doOpenWorkbook() })
-        const unlistenSave = listen('save', async () => { if (workbookFullName && workbookFullName.length > 0) await doWorkbookSave(workbookFullName) })
+        const unlistenSave = listen('save', async () => { await doWorkbookSave() })
         const unlistenSaveAs = listen('saveAs', async () => { await doSaveWorkbookAs() })
         const unlistenRun = listen('run', async () => { await doRunRequest() })
 
@@ -205,24 +203,28 @@ export const WorkbookProvider = (props: {
         }
     }
 
-    const doWorkbookSave = async (fileName: string) => {
+    const doWorkbookSave = async () => {
         try {
+            if (! (workbookFullName && workbookFullName.length > 0)) {
+                return
+            }
             const api = await getTauriApi()
             const path = await getTauriPath()
 
             const state = workbookStore.getState()
-            const workbook = WorkbookSerializer.serialize(
+            const workbook = WorkbookSerializer.convertFromStateStorage(
                 state.requests,
                 state.authorizations,
                 state.environments
             )
 
-            await api.invoke('save_workbook', { workbook, path: fileName })
-            await updateSettings({ lastWorkbookFileName: fileName })
-            toast.open(`Saved ${fileName}`, ToastSeverity.Success)
+            await api.invoke('save_workbook', { workbook, path: workbookFullName })
+
+            await updateSettings({ lastWorkbookFileName: workbookFullName })
+            toast.open(`Saved ${workbookFullName}`, ToastSeverity.Success)
             dispatch(saveWorkbook({
-                fullName: fileName,
-                displayName: await path.basename(fileName, '.json')
+                fullName: workbookFullName,
+                displayName: await path.basename(workbookFullName, '.json')
             }))
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
@@ -285,8 +287,15 @@ export const WorkbookProvider = (props: {
                     authorization: selectedAuthorization == noAuthorization ? undefined : selectedAuthorization,
                     environment: selectedEnvironment == noEnvironment ? undefined : selectedEnvironment })
             
-            console.log('Results', results)
+            let result = results[id]
+            if (! result) {
+                throw new Error('Result not returned')
+            }
 
+            if (! result.success) {
+                throw new Error(result.errorMessage)
+            }
+            // console.log('Run results', results)
             dispatch(setRequestResults(results))
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)

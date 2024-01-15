@@ -10,42 +10,44 @@ import 'prismjs/themes/prism-tomorrow.css'
 import { Button, FormControl, InputLabel, MenuItem, Select, Stack } from '@mui/material'
 import { BodyType, BodyTypes } from '@apicize/common'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
+import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
+import { NameValueEditor } from '../name-value-editor'
 
 export function RequestBodyEditor() {
   const dispatch = useDispatch()
 
   const request = useSelector((state: WorkbookState) => state.activeRequest)
-  const [body, setBody] = React.useState<BodyInit | undefined>(request?.body)
-  const [bodyType, setBodyType] = React.useState<BodyType | undefined>(request?.bodyType ?? BodyType.Text)
+  const [bodyType, setBodyType] = React.useState(request?.body?.type ?? BodyType.Text)
+  const [bodyData, setBodyData] = React.useState(request?.body?.data ?? '')
   const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(false)
 
   React.useEffect(() => {
-    setBody(request?.body)
-    const useBodyType = request?.bodyType ?? BodyType.Text
+    const useBodyType = request?.body?.type ?? BodyType.Text
     setBodyType(useBodyType)
+    setBodyData(request?.body?.data ?? '')
     checkTypeHeader(useBodyType)
+    // console.log(`Body type: ${useBodyType}`)
   }, [request])
 
-  if(! request) {
+  if (!request) {
     return null
   }
 
-  const updateBody = React.useCallback((val: string | undefined) => {
-    setBody(val)
+  const updateBodyAsText = React.useCallback((val: string | undefined) => {
+    // setBodyData(val ?? '')
     dispatch(updateRequest({
       id: request.id,
-      body: val
+      bodyData: val
     }))
   }, [])
 
   const updateBodyType = React.useCallback((val: BodyType | string) => {
-    const bodyType = val == "" ? undefined : val as unknown as BodyType
-    setBodyType(bodyType)
+    const newBodyType = (val == "" ? undefined : val as unknown as BodyType) ?? BodyType.Text
     dispatch(updateRequest({
       id: request.id,
-      bodyType: bodyType ?? null
+      bodyType: newBodyType
     }))
-    checkTypeHeader(bodyType)
+    checkTypeHeader(newBodyType)
   }, [])
 
   const checkTypeHeader = (val: BodyType | undefined | null) => {
@@ -61,7 +63,7 @@ export function RequestBodyEditor() {
 
   const updateTypeHeader = () => {
     let mimeType: string
-    switch(bodyType) {
+    switch (bodyType) {
       case BodyType.JSON:
         mimeType = 'application/json'
         break
@@ -70,6 +72,9 @@ export function RequestBodyEditor() {
         break
       case BodyType.Text:
         mimeType = 'text/plain'
+        break
+      case BodyType.Form:
+        mimeType = 'application/x-www-form-urlencoded'
         break
       default:
         return
@@ -110,6 +115,13 @@ export function RequestBodyEditor() {
     }
   }
 
+  const onUpdateFormData = (data: EditableNameValuePair[]) => {
+    dispatch(updateRequest({
+      id: request.id,
+      bodyData: data
+    }))
+  }
+
   return (
     <Stack direction='column' spacing={3}>
       <Stack direction='row' sx={{ justifyContent: 'space-between' }}>
@@ -130,21 +142,24 @@ export function RequestBodyEditor() {
         </FormControl>
         <Button disabled={!allowUpdateHeader} onClick={updateTypeHeader}>Update Content-Type Header</Button>
       </Stack>
-      <Box
-        sx={{
-          width: '100%',
-          border: 0
-        }}
-      >
-        <Editor
-          autoFocus
-          padding={10}
-          className='code-editor'
-          value={body?.toString() ?? ""}
-          highlight={code => processHighlight(code)}
-          onValueChange={updateBody}
-        />
-      </Box>
+      {bodyType == BodyType.Form
+        ? <NameValueEditor values={bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={onUpdateFormData} />
+        : <Box
+          sx={{
+            width: '100%',
+            border: 0
+          }}
+        >
+          <Editor
+            autoFocus
+            padding={10}
+            className='code-editor'
+            value={bodyData as string}
+            highlight={code => processHighlight(code)}
+            onValueChange={updateBodyAsText}
+          />
+        </Box>
+      }
     </Stack>
   )
 }

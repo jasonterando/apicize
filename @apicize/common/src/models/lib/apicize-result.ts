@@ -4,12 +4,13 @@ import { ApicizeTestResult } from "./apicize-test-result";
 
 
 export interface ApicizeResult {
-    request?: ApicizeRequest,
-    response?: ApicizeResponse,
-    tests?: ApicizeTestResult[],
-    executedAt: number,
-    milliseconds: number,
-    errorMessage?: string,
+    request?: ApicizeRequest
+    response?: ApicizeResponse
+    tests?: ApicizeTestResult[]
+    executedAt: number
+    milliseconds: number
+    success: boolean
+    errorMessage?: string
 }
 
 export type ApicizeResults = { [id: string]: ApicizeResult }

@@ -4,18 +4,19 @@ import {
     ReferrerPolicy,
     RequestDuplex,
     RequestMode,
-    RequestRedirect} from 'undici-types'
+    RequestRedirect
+} from 'undici-types'
 
 /**
  * Used to represent headers, query string parameters, etc.
  */
-export interface NameValuePair {
+export interface WorkbookNameValuePair {
     name: string
     value: string
     disabled?: boolean
 }
 
-export enum Method {
+export enum WorkbookMethod {
     Get = 'GET',
     Post = 'POST',
     Put = 'PUT',
@@ -25,27 +26,41 @@ export enum Method {
     Options = 'OPTIONS'
 }
 
-export const Methods = [Method.Get, Method.Post, Method.Put, Method.Delete, Method.Patch, Method.Head, Method.Options]
+export const WorkbookMethods = [
+    WorkbookMethod.Get,
+    WorkbookMethod.Post,
+    WorkbookMethod.Put,
+    WorkbookMethod.Delete,
+    WorkbookMethod.Patch,
+    WorkbookMethod.Head,
+    WorkbookMethod.Options
+]
 
-export enum BodyType {
+export enum WorkbookBodyType {
     Text = 'Text',
     JSON = 'JSON',
-    XML = 'XML'
+    XML = 'XML',
+    Form = 'Form',
+    Base64 = 'Base64',
 }
 
-export type Body = string | ArrayBuffer
+export type WorkbookBodyData = string | ArrayBuffer | WorkbookNameValuePair[]
 
-export const BodyTypes = [BodyType.Text, BodyType.JSON, BodyType.XML]
+export const WorkbookBodyTypes = [WorkbookBodyType.Text, WorkbookBodyType.JSON, WorkbookBodyType.XML, WorkbookBodyType.Form, WorkbookBodyType.Base64]
+
+export interface WorkbookBody {
+    type?: WorkbookBodyType
+    data?: WorkbookBodyData
+}
 
 export interface WorkbookRequest extends Named {
     url: string
-    method?: Method
+    method?: WorkbookMethod
     timeout?: number
     keepalive?: boolean
-    headers?: NameValuePair[]
-    queryStringParams?: NameValuePair[]
-    body?: Body,
-    bodyType?: BodyType,
+    headers?: WorkbookNameValuePair[]
+    queryStringParams?: WorkbookNameValuePair[]
+    body?: WorkbookBody
     redirect?: RequestRedirect
     integrity?: string
     mode?: RequestMode

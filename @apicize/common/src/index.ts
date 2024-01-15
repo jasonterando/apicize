@@ -1,4 +1,4 @@
-export { NameValuePair, BodyType, BodyTypes, Method, Methods, WorkbookRequest } from './models/workbook/workbook-request'
+export { WorkbookNameValuePair as NameValuePair, WorkbookBodyType as BodyType, WorkbookBodyTypes as BodyTypes, WorkbookMethod as Method, WorkbookMethods as Methods, WorkbookRequest } from './models/workbook/workbook-request'
 export { ApicizeRequest } from './models/lib/apicize-request'
 export { ApicizeResponse } from './models/lib/apicize-response'
 export { ApicizeTestResult } from './models/lib/apicize-test-result'

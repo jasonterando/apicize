@@ -17,7 +17,8 @@ export function ResultResponsePreview() {
             }
         }
     }
-    return  (KNOWN_IMAGE_EXTENSIONS.indexOf(extension) === -1) 
-        ? <TextViewer text={result.response?.text} extension={extension} />
-        : <ImageViewer base64ToRender={result.response?.data} extensionToRender={extension} />
+    console.log('Response data', result.response?.body?.data)
+    return  (result.response?.body?.data && KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1) 
+        ? <ImageViewer base64ToRender={result.response?.body?.data} extensionToRender={extension} />
+        : <TextViewer text={result.response?.body?.text} extension={extension} />
 }
