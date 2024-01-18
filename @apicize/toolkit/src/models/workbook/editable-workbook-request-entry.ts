@@ -1,4 +1,4 @@
 import { EditableWorkbookRequest } from "./editable-workbook-request"
 import { EditableWorkbookRequestGroup } from "./editable-workbook-request-group"
 
-export type EditableWorkbookRequestItem = (EditableWorkbookRequest | EditableWorkbookRequestGroup)
+export type EditableWorkbookRequestEntry = EditableWorkbookRequest | EditableWorkbookRequestGroup

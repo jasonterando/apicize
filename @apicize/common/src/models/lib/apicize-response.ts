@@ -11,4 +11,5 @@ export interface ApicizeResponse {
     headers?: {[name: string]: string }
     body?: ApicizeResponseBody
     logs?: string
+    authTokenCached?: boolean
 }

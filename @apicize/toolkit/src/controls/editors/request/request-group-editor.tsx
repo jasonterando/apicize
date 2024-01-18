@@ -1,13 +1,15 @@
-import { TextField, Box, Grid, Typography, Stack } from '@mui/material'
+import { TextField, Box, Grid, Typography, Stack, SxProps } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder';
 import { useSelector } from "react-redux";
 import { useEffect, useState } from 'react'
-import { WorkbookState, updateRequestGroup } from '../../models/store'
+import { WorkbookState, updateRequestGroup } from '../../../models/store'
 import { useDispatch } from 'react-redux'
 
-import '../styles.css'
+import '../../styles.css'
 
-export function RequestGroupEditor() {
+export function RequestGroupEditor(props: {
+    sx?: SxProps
+}) {
     const group = useSelector((state: WorkbookState) => state.activeRequestGroup)
     const dispatch = useDispatch()
 
@@ -28,7 +30,7 @@ export function RequestGroupEditor() {
     }
 
     return (
-        <Stack direction={'column'} className='section no-button-column' sx={{ flexGrow: 1 }}>
+        <Stack direction={'column'} className='section no-button-column' sx={props.sx}>
             <Typography variant='h1'><FolderIcon /> {name?.length ?? 0 > 0 ? name : '(Unnamed)'}</Typography>
             <Box className='section'>
                 <Grid container direction={'column'} spacing={3} maxWidth={1000}>

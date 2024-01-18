@@ -1,21 +1,25 @@
 import { useSelector } from "react-redux"
 import { WorkbookState } from "../../../../models/store"
 import { Box } from "@mui/system"
+import { Typography } from "@mui/material"
 
 export function ResultInfoViewer() {
-    const result = useSelector((state: WorkbookState) => state.activeExecution?.result)
+    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
     if (! result) {
         return null
     }
 
     let testIndex = 0
+    let cached = result.response?.authTokenCached === true
     return (
         <Box>
+            <Typography variant='h1'>Request Execution {result.success ? "Completed" : "Failed"}</Typography>
             {((result.errorMessage?.length ?? 0) == 0) ? null : (<h3 className='result-fail'>{result.errorMessage}</h3>)}
             <ul>
-                {result.response === undefined ? null : (<li key='result-status'>Status: {result.response.status} {result.response.statusText}</li>)}
+                {result.response?.status === undefined ? null : (<li key='result-status'>Status: {result.response.status} {result.response.statusText}</li>)}
                 <li key='result-executed-at'>Exeucted At: {new Date(result.executedAt).toLocaleTimeString()}</li>
                 {(result.milliseconds && result.milliseconds  > 0) ? (<li key='test-duration'>Duration: {result.milliseconds.toLocaleString()} ms</li>) : null}
+                {cached ? (<li>OAuth bearer token retrieved from cached</li>) : <></>}
             </ul>
 
             {(result.tests && result.tests.length > 0) ?

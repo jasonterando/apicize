@@ -1,4 +1,4 @@
-import { Named } from "../named"
+import { Identifiable } from "../identifiable"
 
 export const NO_AUTHORIZATION = '\0'
 
@@ -13,12 +13,10 @@ export enum WorkbookAuthorizationType { None = 'none', Basic = 'Basic', OAuth2Cl
 
 export type WorkbookAuthorization = WorkbookBasicAuthorization | WorkbookOAuth2ClientAuthorization | WorkbookApiKeyAuthorization
 
-export interface WorkbookAuthorizationBase {
+export interface WorkbookAuthorizationBase extends Identifiable {
     name: string
     type: WorkbookAuthorizationType
 }
-
-
 
 /**
  * Information required for basic authentication

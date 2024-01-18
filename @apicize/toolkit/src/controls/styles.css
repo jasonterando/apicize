@@ -1,19 +1,22 @@
 .section {
     display: flex;
     margin-top: 24px;
+    margin-right: 18px;
+}
+
+.section:last-of-type {
     margin-bottom: 24px;
-    margin-right: 24px;
 }
 
 .section.no-button-column {
-    margin-left: 24px;
-    flex-grow: 1;
-    flex-shrink: 0;
+    margin-left: 18px;
+    /* flex-grow: 1;
+    flex-shrink: 0; */
 }
 
 .section .button-column {
     width: 48px;
-    margin-right: 24px;
+    margin-right: 18px;
 }
 
 .section .panels {
@@ -75,8 +78,8 @@ h2.MuiTypography-h2 {
 }
 
 .flex-code-viewer {
-    flex-grow: 1;
-    flex-basis: 0;
+    /* flex-grow: 1;
+    flex-basis: 0; */
     overflow: auto;
     max-width: 100%;
     max-height: 100%;
@@ -92,14 +95,14 @@ h2.MuiTypography-h2 {
     border-top-width: 1px;
     border-bottom-style: solid;
     border-bottom-width: 1px; */
-    padding-top: 24px;
-    padding-bottom: 24px;
-    padding-right: 24px;
+    padding-top: 18px;
+    padding-bottom: 18px;
+    padding-right: 18px;
 }
 
 .request-definition .button-column {
     width: 64px;
-    margin-right: 24px;
+    margin-right: 18px;
 }
 
 .request-definition .panels {

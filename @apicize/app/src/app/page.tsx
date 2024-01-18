@@ -2,14 +2,13 @@
 
 import {
   ConfirmationServiceProvider, Navigation, workbookStore,
-  AuthorizationEditor, EnvironmentEditor, RequestGroupEditor, RequestViewer, defaultWorkbookState,
+  AuthorizationEditor, EnvironmentEditor, RequestEditor,
 } from '@apicize/toolkit'
-import { WorkbookRequest, WorkbookAuthorization, WorkbookEnvironment } from '@apicize/common'
 import { Stack, Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import { ToastProvider } from '@apicize/toolkit'
-import { WorkbookProvider } from './providers/workbook-provider';
+import { WorkbookProvider, registerKeyboardShortcuts } from './providers/workbook-provider';
 import { Provider } from 'react-redux';
-import React from 'react'
+import React, { useEffect } from 'react'
 import { emit } from '@tauri-apps/api/event'
 
 export default function Home() {
@@ -87,6 +86,16 @@ export default function Home() {
             fontSize: '24px',
             marginTop: '8px',
             marginBottom: '24px'
+          },
+          h2: {
+            fontSize: '22px',
+            marginTop: '8px',
+            marginBottom: '22px'
+          },
+          h3: {
+            fontSize: '20px',
+            marginTop: '8px',
+            marginBottom: '20px'
           }
         }
       }
@@ -100,7 +109,10 @@ export default function Home() {
     // spacing: 1
   })
 
-
+  useEffect(() => {
+    registerKeyboardShortcuts()
+  })
+  
   return (
     <Provider store={workbookStore}>
       {/* <main className={styles.main}> */}
@@ -110,7 +122,7 @@ export default function Home() {
           <ToastProvider>
             <ConfirmationServiceProvider>
               <WorkbookProvider>
-                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex' }}>
+                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', bottom: 0 }}>
                   <Navigation
                     triggerNew={() => emit('new')}
                     triggerOpen={() => emit('open')}
@@ -120,11 +132,12 @@ export default function Home() {
                   <Box sx={{
                     height: '100vh',
                     display: 'flex',
-                    flexGrow: 1
+                    flexDirection: 'row',
+                    flexGrow: 1,
+                    bottom: 0
                   }}>
-                    <RequestViewer triggerRun={() => emit("run")} />
-                    <RequestGroupEditor />
-                    <AuthorizationEditor />
+                    <RequestEditor triggerRun={() => emit("run")} triggerCancel={() => emit("cancel")} />
+                    <AuthorizationEditor triggerClearToken={() => emit("clearToken")} />
                     <EnvironmentEditor />
                   </Box>
                 </Stack>

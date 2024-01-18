@@ -7,7 +7,7 @@
 extern crate lazy_static;
 
 pub mod models;
-pub mod oauth2_client_flow;
+pub mod oauth2;
 
 use async_recursion::async_recursion;
 use async_trait::async_trait;
@@ -15,6 +15,8 @@ use encoding_rs::{Encoding, UTF_8};
 use futures::future;
 use mime::Mime;
 use reqwest;
+use tokio::select;
+use tokio_util::sync::CancellationToken;
 use std::fs;
 use std::sync::Once;
 use std::time::{Duration, SystemTime};
@@ -22,11 +24,11 @@ use std::{collections::HashMap, vec};
 
 use models::{
     ApicizeRequest, ApicizeResponse, WorkbookRequestMethod, WorkbookRequestBody, WorkbookRequest, ApicizeTestResult, Workbook,
-    WorkbookAuthorization, WorkbookEnvironment, WorkbookRequestEntry, ApicizeResults, ApicizeResult, ApicizeBody, 
-    SerializationError, ExecutionError,
+    WorkbookAuthorization, WorkbookEnvironment, WorkbookRequestEntry, ApicizeResult, ApicizeBody, 
+    SerializationError, ExecutionError, RunError,
 };
 
-use oauth2_client_flow::oauth2_client_credentials;
+use oauth2::oauth2_client_credentials;
 
 static V8_INIT: Once = Once::new();
 
@@ -59,10 +61,11 @@ pub trait Serializable<T> {
 pub trait Runnable {
     /// Dispatch the associated Apicize Request (dispatching the web call and executing defined  tests, if any)
     async fn run(
-        &self,
+        self,
         authorization: Option<WorkbookAuthorization>,
         environment: Option<WorkbookEnvironment>,
-    ) -> ApicizeResults;
+        cancellation: Option<CancellationToken>,
+    ) -> Result<Vec<ApicizeResult>, RunError>;
 }
 
 /// Trait for dispatching Apicize Requests
@@ -134,12 +137,12 @@ fn clone_and_sub(text: &str, subs: &Vec<(String, String)>) -> String {
 
 #[async_recursion]
 async fn run_int<'a>(
-    parent_request_name: &'async_recursion Vec<String>,
-    request: &'async_recursion WorkbookRequestEntry,
+    parent_request_name: Vec<String>,
+    request: WorkbookRequestEntry,
     authorization: Option<WorkbookAuthorization>,
     environment: Option<WorkbookEnvironment>,
-    results: &'async_recursion mut HashMap<String, ApicizeResult>,
-) {
+) -> Vec<ApicizeResult> {
+    let mut results: Vec<ApicizeResult> = Vec::new();
     match request {
         WorkbookRequestEntry::Info(info) => {
             let now = SystemTime::now();
@@ -152,7 +155,10 @@ async fn run_int<'a>(
                     let test_response = info.execute(&response);
                     match test_response {
                         Ok(test_results) => {
-                            results.insert(info.id.clone(), ApicizeResult {
+                            results.push(ApicizeResult {
+                                request_id: info.id,
+                                attempt: 0,
+                                total_attempts: 1,
                                 request: Some(request),
                                 response: Some(response),
                                 tests: Some(test_results),
@@ -163,7 +169,10 @@ async fn run_int<'a>(
                             });
                         }
                         Err(err) => {
-                            results.insert(info.id.clone(), ApicizeResult {
+                            results.push(ApicizeResult {
+                                request_id: info.id,
+                                attempt: 0,
+                                total_attempts: 1,
                                 request: Some(request),
                                 response: Some(response),
                                 tests: None,
@@ -176,7 +185,10 @@ async fn run_int<'a>(
                     }
                 }
                 Err(err) => {
-                    results.insert(info.id.clone(), ApicizeResult {
+                    results.push(ApicizeResult {
+                        request_id: info.id,
+                        attempt: 0,
+                        total_attempts: 1,
                         request: None,
                         response: None,
                         tests: None,
@@ -195,36 +207,67 @@ async fn run_int<'a>(
 
             // TODO... Capture groups in this while loop and wait for their futures to resolve together, 
             // since we should be able to run groups concurrently.
-            let mut items = group.requests.iter();
+            let mut items = group.children.iter();
             while let Some(item) = items.next() {
-                run_int(
-                    &request_name,
-                    item,
-                    authorization.clone(),
-                    environment.clone(),
-                    results,
-                )
-                .await
+                results.append(
+                    &mut run_int(
+                        request_name.clone(),
+                        item.clone(),
+                        authorization.clone(),
+                        environment.clone(),
+                    )
+                    .await
+                );
             }
         }
     }
+    results
 }
 
 #[async_trait]
 impl Runnable for WorkbookRequestEntry {
     /// Dispatch the request (info or group) and test results
     async fn run(
-        self: &WorkbookRequestEntry,
+        self: WorkbookRequestEntry,
         authorization: Option<WorkbookAuthorization>,
         environment: Option<WorkbookEnvironment>,
-    ) -> ApicizeResults {
-        let mut results: HashMap<String, ApicizeResult> = HashMap::new();
-        run_int(&vec![], self, authorization, environment, &mut results).await;
-        return results;
+        cancellation: Option<CancellationToken>,
+    ) -> Result<Vec<ApicizeResult>, RunError> {
+        let entry = self.clone();
+        match cancellation {
+            Some(token) => {
+                let cloned_token = token.clone();
+                let spawn = tokio::spawn(async move {
+                    select! {
+                        _ = cloned_token.cancelled() => None,
+                        // _ = tokio::time::sleep(std::time::Duration::from_secs(9999)) => {
+                        //     None
+                        // }
+                        result = run_int(vec![], entry, authorization, environment) => Some(result),
+                    }
+                });
+                match spawn.await {
+                    Ok(result_or_cancel) => {
+                        match result_or_cancel {
+                            Some(result) => Ok(result),
+                            None => Err(RunError::Cancelled)
+                        }
+                    },
+                    Err(err) => Err(RunError::Other(err)),
+                }
+            },
+            None => {
+                match tokio::spawn(async {
+                    run_int(vec![], entry, authorization, environment).await
+                }).await {
+                    Ok(r) => Ok(r),
+                    Err(err) => Err(RunError::Other(err))
+                }
+            }
+        }
     }
 }
 
-/// Implementation for http/https dispatchable requests
 #[async_trait]
 impl Dispatchable<WorkbookRequest> for WorkbookRequest {
     /// Dispatch the specified request (via reqwest), returning either the repsonse or error
@@ -233,7 +276,7 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
         authorization: Option<WorkbookAuthorization>,
         environment: Option<WorkbookEnvironment>,
     ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError> {
-        
+
         let method: reqwest::Method;
         match self.method {
             Some(WorkbookRequestMethod::Get) => method = reqwest::Method::GET,
@@ -305,8 +348,10 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
             }
         }
 
+        let mut auth_token_cached: Option<bool> = None;
         match authorization {
             Some(WorkbookAuthorization::Basic {
+                id: _,
                 name: _,
                 username,
                 password,
@@ -314,6 +359,7 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
                 request_builder = request_builder.basic_auth(username, Some(password));
             }
             Some(WorkbookAuthorization::ApiKey {
+                id: _,
                 name: _,
                 header,
                 value,
@@ -324,16 +370,17 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
                 );
             }
             Some(WorkbookAuthorization::OAuth2Client {
-                name,
+                id,
+                name: _,
                 access_token_url,
                 client_id,
                 client_secret,
                 scope
                 // send_credentials_in_body: _,
             }) => {
-                request_builder = request_builder.bearer_auth(
-                    oauth2_client_credentials(name, access_token_url, client_id, client_secret, scope).await?
-                );
+                let (token, cached) = oauth2_client_credentials(id, access_token_url, client_id, client_secret, scope).await?;
+                auth_token_cached = Some(cached);
+                request_builder = request_builder.bearer_auth(token);
             }
             None => {}
         }
@@ -371,7 +418,6 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
                 request_builder = request_builder.body(reqwest::Body::from(s.clone()));
             }
             Some(WorkbookRequestBody::Form { data }) => {
-                println!("Adding form data");
                 let form_data = data
                     .iter()
                     .map(|pair| {
@@ -503,6 +549,7 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
                 status_text,
                 headers,
                 body: response_body,
+                auth_token_cached
             },
         ));
     }
@@ -552,19 +599,12 @@ impl Testable for WorkbookRequest {
     fn execute_multi(
         requests_responses: Vec<(&WorkbookRequest, &ApicizeResponse)>,
     ) -> HashMap<String, Result<Vec<ApicizeTestResult>, ExecutionError>> {
-        // let callid = Uuid::new_v4().to_string();
-        // println!();
-        // println!("{} Before V8 call_once: {}", callid, V8_INIT.is_completed());
         V8_INIT.call_once(|| {
             // Initialize V8
-            // println!("{} Beginning V8 init", callid);
-            // let platform = v8::new_default_platform(0, false).make_shared();
             let platform = v8::new_unprotected_default_platform(0, false).make_shared();
             v8::V8::initialize_platform(platform);
             v8::V8::initialize();
-            // println!("{} Completed V8 init", callid);
         });
-        // println!("{} After V8 call_once: {}", callid, V8_INIT.is_completed());
 
         let mut results = HashMap::new();
         {
@@ -698,6 +738,7 @@ mod lib_tests {
             status_text: String::from("Ok"),
             headers: None,
             body: None,
+            auth_token_cached: None,
         };
 
         let result = request.execute(&response).unwrap();
@@ -733,6 +774,7 @@ mod lib_tests {
             status_text: String::from("Not Found"),
             headers: None,
             body: None,
+            auth_token_cached: None,
         };
 
         let result = request.execute(&response).unwrap();

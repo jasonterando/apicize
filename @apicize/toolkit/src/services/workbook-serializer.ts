@@ -1,13 +1,13 @@
-import { BodyType, StoredWorkbook, WorkbookAuthorization, WorkbookEnvironment, WorkbookRequest, WorkbookRequestGroup } from "@apicize/common";
+import { BodyType, Identifiable, NO_AUTHORIZATION, NO_ENVIRONMENT, StoredWorkbook, WorkbookAuthorization, WorkbookEnvironment, WorkbookRequest, WorkbookRequestGroup } from "@apicize/common";
 import { GenerateIdentifier } from "./random-identifier-generator";
 import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization";
 import { EditableWorkbookEnvironment } from "../models/workbook/editable-workbook-environment";
-import { EditableWorkbookRequestItem } from "../models/workbook/editable-workbook-request-item";
-import { StateStorage } from '../models/state-storage'
+import { StateStorage, isGroup } from '../models/state-storage'
 import { Editable } from "../models/editable";
 import { Hierarchical } from "../models/hierarchical";
 import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request";
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair";
+import { EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request-entry";
 
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -17,7 +17,7 @@ for (let i = 0; i < chars.length; i++) {
     lookup[chars.charCodeAt(i)] = i;
 }
 
-export const base64Encode = (arraybuffer: ArrayBuffer): string => {
+export function base64Encode(arraybuffer: ArrayBuffer): string {
     let bytes = new Uint8Array(arraybuffer),
         i,
         len = bytes.length,
@@ -37,9 +37,9 @@ export const base64Encode = (arraybuffer: ArrayBuffer): string => {
     }
 
     return base64;
-};
+}
 
-export const base64Decode = (base64: string): ArrayBuffer => {
+export function base64Decode(base64: string): ArrayBuffer {
     let bufferLength = base64.length * 0.75,
         len = base64.length,
         i,
@@ -71,180 +71,182 @@ export const base64Decode = (base64: string): ArrayBuffer => {
     }
 
     return arraybuffer;
-};
+}
 
-export class WorkbookSerializer {
-    public static convertToStateStorage(data: StoredWorkbook): {
-        requests: StateStorage<EditableWorkbookRequestItem>,
-        authorizations: StateStorage<EditableWorkbookAuthorization>,
-        environments: StateStorage<EditableWorkbookEnvironment>
-    } {
-        if (data.version !== 1) {
-            throw new Error(`Invalid stored workbook version: ${data.version}`)
-        }
+export function workbookToStateStorage(data: StoredWorkbook): {
+    requests: StateStorage<EditableWorkbookRequestEntry>,
+    authorizations: StateStorage<EditableWorkbookAuthorization>,
+    environments: StateStorage<EditableWorkbookEnvironment>,
+    selectedAuthorization: EditableWorkbookAuthorization | undefined,
+    selectedEnvironment: EditableWorkbookEnvironment | undefined,
+} {
+    if (data.version !== 1) {
+        throw new Error(`Invalid stored workbook version: ${data.version}`)
+    }
 
-        // Transform hierarchical workbook data to state storage
-        const toStateStorage = <S extends object | Hierarchical<S>, E extends S | Editable>(
-            items: S[],
-            postProcessor?: (entity: E) => void
-        ): StateStorage<E> => {
-            const entities: { [id: string]: E } = {}
-            const topLevelIDs: string[] = []
-            const childIDs: { [id: string]: string[] } = {}
+    // Transform hierarchical workbook data to state storage
+    const toStateStorage = <S extends Identifiable | Hierarchical<S>, E extends S | Editable>(
+        items: S[],
+        postProcessor?: (entity: E) => void
+    ): StateStorage<E> => {
+        const entities: { [id: string]: E } = {}
+        const topLevelIDs: string[] = []
+        const childIDs: { [id: string]: string[] } = {}
 
-            const process = (data: S[], parentID?: string) =>
-                data?.forEach(item => {
-                    const id = GenerateIdentifier()
-                    const asGroup = item as Hierarchical<S>
-                    if (Array.isArray(asGroup.requests)) {
-                        childIDs[id] = []
-                        process(asGroup.requests, id)
-                    }
-                    if (parentID) {
-                        childIDs[parentID].push(id)
-                    } else {
-                        topLevelIDs.push(id)
-                    }
-                    const entity = { ...item } as E;
-                    (entity as Editable).id = id
-                    if (postProcessor) postProcessor(entity)
-                    entities[id] = entity
-                })
-
-            process(items)
-            return { entities, topLevelIDs, childIDs: Object.keys(childIDs).length > 0 ? childIDs : undefined }
-        }
-
-        return {
-            requests: toStateStorage<(WorkbookRequest | WorkbookRequestGroup), EditableWorkbookRequestItem>(data.requests, (request) => {
-                const stored = request as WorkbookRequest
-                const r = request as EditableWorkbookRequest
-                r.headers?.forEach(h => h.id = GenerateIdentifier())
-                r.queryStringParams?.forEach(p => p.id = GenerateIdentifier())
-                if (r.body && r.body.type === BodyType.Form && r.body.data) {
-                    (r.body.data as EditableNameValuePair[])
-                        .forEach(h => h.id = GenerateIdentifier())
+        const process = (data: S[], parentID?: string) =>
+            data?.forEach(item => {
+                const id = item.id ?? GenerateIdentifier()
+                const asGroup = item as Hierarchical<S>
+                if (Array.isArray(asGroup.children)) {
+                    childIDs[id] = []
+                    process(asGroup.children, id)
+                    delete asGroup.children
                 }
-            }),
-            authorizations: toStateStorage<WorkbookAuthorization, EditableWorkbookAuthorization>(data.authorizations),
-            environments: toStateStorage<WorkbookEnvironment, EditableWorkbookEnvironment>(data.environments)
-        }
+                if (parentID) {
+                    childIDs[parentID].push(id)
+                } else {
+                    topLevelIDs.push(id)
+                }
+                const entity = { ...item } as E;
+                (entity as Editable).id = id
+                if (postProcessor) postProcessor(entity)
+                entities[id] = entity
+            })
+
+        process(items)
+        return { entities, topLevelIDs, childIDs: Object.keys(childIDs).length > 0 ? childIDs : undefined }
     }
 
-    public static deserialize(text: string): {
-        requests: StateStorage<EditableWorkbookRequestItem>,
-        authorizations: StateStorage<EditableWorkbookAuthorization>,
-        environments: StateStorage<EditableWorkbookEnvironment>
-    } {
-        const data = JSON.parse(text) as StoredWorkbook
-        return WorkbookSerializer.convertToStateStorage(data)
-    }
-
-    // Transform state storage to hierarchical workbook data
-    public static serialize(
-        requests: StateStorage<EditableWorkbookRequestItem>,
-        authorizations: StateStorage<EditableWorkbookAuthorization>,
-        environments: StateStorage<EditableWorkbookEnvironment>
-    ): string {
-        return JSON.stringify(WorkbookSerializer.convertFromStateStorage(requests, authorizations, environments))
-    }
-
-    public static convertFromStateStorage(
-        requests: StateStorage<EditableWorkbookRequestItem>,
-        authorizations: StateStorage<EditableWorkbookAuthorization>,
-        environments: StateStorage<EditableWorkbookEnvironment>
-    ): StoredWorkbook {
-
-        const toHierarchical = <S extends object | Hierarchical<S>, E extends S | Editable>(
-            storage: StateStorage<E>,
-            processor: (entity: E) => S
-        ): S[] => {
-            const process = (ids: string[]): S[] =>
-                ids?.map(id => {
-                    const source = structuredClone(storage.entities[id])
-                    const result = processor(source)
-                    const childIDs = storage.childIDs ? storage.childIDs[id] : undefined
-                    const children = childIDs === undefined
-                        ? undefined
-                        : process(childIDs)
-
-                    const editable = result as any
-                    delete editable['id']
-                    delete editable['dirty']
-                    if (children) {
-                        editable.children = children
-                    }
-                    return result
-                }) ?? []
-
-            return process(storage.topLevelIDs)
-        }
-
-        const editableToNameValuePair = (pair: EditableNameValuePair) => ({
-            name: pair.name,
-            value: pair.value,
-            disabled: pair.disabled
+    const stateAuthorizations = toStateStorage<WorkbookAuthorization, EditableWorkbookAuthorization>(data.authorizations)
+    const stateEnvironments = toStateStorage<WorkbookEnvironment, EditableWorkbookEnvironment>(data.environments, (e) => {
+        e.variables?.forEach(v => {
+            if (! v.id) v.id = GenerateIdentifier()
         })
+    })
 
-        return {
-            version: 1.0,
-            requests: toHierarchical<(WorkbookRequest | WorkbookRequestGroup), EditableWorkbookRequestItem>(requests, (request) => {
-                const r = structuredClone(request as EditableWorkbookRequest)
-                const stored = r as WorkbookRequest
-                stored.headers = r.headers?.map(editableToNameValuePair)
-                stored.queryStringParams = r.queryStringParams?.map(editableToNameValuePair)
-                let bodyIsValid = false
-                if (r.body?.data) {
-                    switch (r.body?.type) {
-                        case BodyType.Form:
-                            const bodyAsForm = r.body.data as EditableNameValuePair[]
-                            bodyIsValid = bodyAsForm.length > 0
-                            if (bodyIsValid) {
-                                stored.body = {
-                                    type: BodyType.Form,
-                                    data: bodyAsForm.map(editableToNameValuePair)
-                                }
-                            }
-                            break
-                        case BodyType.Base64:
-                            const bodyAsData = r.body.data as ArrayBuffer
-                            bodyIsValid = bodyAsData.byteLength > 0
-                            if (bodyIsValid) {
-                                stored.body = {
-                                    type: BodyType.Base64,
-                                    data: base64Encode(bodyAsData)
-                                }
-                            }
-                            break
-                        default:
-                            const bodyAsText = r.body.data as string
-                            bodyIsValid = bodyAsText.length > 0
-                            if (bodyIsValid) {
-                                stored.body = {
-                                    type: BodyType.Base64,
-                                    data: bodyAsText
-                                }
-                            }
-                            break
+    return {
+        requests: toStateStorage<(WorkbookRequest | WorkbookRequestGroup), EditableWorkbookRequestEntry>(data.requests, (request) => {
+            const r = request as EditableWorkbookRequest
+            r.headers?.forEach(h => h.id = GenerateIdentifier())
+            r.queryStringParams?.forEach(p => p.id = GenerateIdentifier())
+            if (r.body && r.body.type === BodyType.Form && r.body.data) {
+                (r.body.data as EditableNameValuePair[])
+                    .forEach(h => h.id = GenerateIdentifier())
+            }
+        }),
+        authorizations: stateAuthorizations,
+        environments: stateEnvironments,
+        selectedAuthorization: data.settings?.selectedAuthorizationId
+            ? stateAuthorizations?.entities[data.settings?.selectedAuthorizationId] : undefined,
+        selectedEnvironment: data.settings?.selectedEnvironmentId
+            ? stateEnvironments?.entities[data.settings?.selectedEnvironmentId] : undefined,
+    }
+}
+
+export function editableToNameValuePair(pair: EditableNameValuePair) {
+    return {
+        name: pair.name,
+        value: pair.value,
+        disabled: pair.disabled
+    }
+}
+
+export function stateStorageToRequestEntry(id: string, storage: StateStorage<EditableWorkbookRequestEntry>) {
+    const entity = storage.entities[id]
+    if (!entity) throw new Error(`Invalid request ID ${id}`)
+
+    if (isGroup(id, storage)) {
+        const group = structuredClone(entity) as WorkbookRequestGroup
+        const childIDs = storage.childIDs ? storage.childIDs[id] : []
+        group.children = childIDs ? Object.values(childIDs).map(childId =>
+            stateStorageToRequestEntry(childId, storage)
+        ) : []
+        return group
+    } else {
+        const r = structuredClone(entity as EditableWorkbookRequest)
+        delete r.dirty
+        delete r.invalid
+        const stored = r as WorkbookRequest
+        stored.headers = r.headers?.map(editableToNameValuePair)
+        stored.queryStringParams = r.queryStringParams?.map(editableToNameValuePair)
+        let bodyIsValid = false
+        if (r.body?.data) {
+            switch (r.body?.type) {
+                case BodyType.Form:
+                    const bodyAsForm = r.body.data as EditableNameValuePair[]
+                    bodyIsValid = bodyAsForm.length > 0
+                    if (bodyIsValid) {
+                        stored.body = {
+                            type: BodyType.Form,
+                            data: bodyAsForm.map(editableToNameValuePair)
+                        }
                     }
-                }
-                if (! bodyIsValid) {
-                    delete stored.body
-                }
-                if ((stored.headers?.length ?? 0) === 0) {
-                    delete stored.headers
-                }
-                if ((stored.queryStringParams?.length ?? 0) === 0) {
-                    delete stored.queryStringParams
-                }
-                return stored
-            }),
-            authorizations: toHierarchical<WorkbookAuthorization, EditableWorkbookAuthorization>(
-                authorizations, (auth) => structuredClone(auth) as unknown as WorkbookAuthorization
-            ),
-            environments: toHierarchical<WorkbookEnvironment, EditableWorkbookEnvironment>(
-                environments, (env) => structuredClone(env) as unknown as WorkbookEnvironment
-            )
+                    break
+                case BodyType.Base64:
+                    const bodyAsData = r.body.data as ArrayBuffer
+                    bodyIsValid = bodyAsData.byteLength > 0
+                    if (bodyIsValid) {
+                        stored.body = {
+                            type: BodyType.Base64,
+                            data: base64Encode(bodyAsData)
+                        }
+                    }
+                    break
+                default:
+                    const bodyAsText = r.body.data as string
+                    bodyIsValid = bodyAsText.length > 0
+                    if (bodyIsValid) {
+                        stored.body = {
+                            type: BodyType.Base64,
+                            data: bodyAsText
+                        }
+                    }
+                    break
+            }
+        }
+        if (!bodyIsValid) {
+            delete stored.body
+        }
+        if ((stored.headers?.length ?? 0) === 0) {
+            delete stored.headers
+        } else {
+            stored.headers?.forEach(h => delete (h as unknown as any).id)
+        }
+        if ((stored.queryStringParams?.length ?? 0) === 0) {
+            delete stored.queryStringParams
+        } else {
+            stored.queryStringParams?.forEach(p => delete (p as unknown as any).id)
+        }
+        return stored
+    }
+}
+
+export function stateStorageToWorkbook(
+    requests: StateStorage<EditableWorkbookRequestEntry>,
+    authorizations: StateStorage<EditableWorkbookAuthorization>,
+    environments: StateStorage<EditableWorkbookEnvironment>,
+    selectedAuthorization: EditableWorkbookAuthorization | undefined,
+    selectedEnvironment: EditableWorkbookEnvironment | undefined,
+): StoredWorkbook {
+
+    return {
+        version: 1.0,
+        requests: requests.topLevelIDs.map(id => stateStorageToRequestEntry(id, requests)),
+        authorizations: authorizations.topLevelIDs.map(id => {
+            const result = structuredClone(authorizations.entities[id])
+            delete (result as unknown as any).id
+            return result as WorkbookAuthorization
+        }),
+        environments: environments.topLevelIDs.map(id => {
+            const result = structuredClone(environments.entities[id])
+            delete (result as unknown as any).id
+            return result
+    }),
+        settings: {
+            selectedAuthorizationId: (selectedAuthorization && selectedAuthorization.id !== NO_AUTHORIZATION)
+                ? selectedAuthorization.id : undefined,
+            selectedEnvironmentId: (selectedEnvironment && selectedEnvironment.id !== NO_ENVIRONMENT)
+                ? selectedEnvironment.id : undefined,
         }
     }
 }

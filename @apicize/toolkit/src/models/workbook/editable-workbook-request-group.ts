@@ -1,9 +1,9 @@
 import { WorkbookRequestGroup } from "@apicize/common"
 import { Editable } from "../editable"
-import { EditableWorkbookRequestItem } from "./editable-workbook-request-item"
+import { EditableWorkbookRequestEntry } from "./editable-workbook-request-entry"
 
 export interface EditableWorkbookRequestGroup extends Editable, WorkbookRequestGroup {
-    requests: EditableWorkbookRequestItem[]
+    children: EditableWorkbookRequestEntry[]
 }
 
 /**

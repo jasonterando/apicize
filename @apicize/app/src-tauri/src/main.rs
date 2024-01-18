@@ -1,27 +1,34 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#[macro_use]
+extern crate lazy_static;
+
 
 use std::collections::HashMap;
+use tokio_util::sync::CancellationToken;
 
 use apicize_lib::{
     models::{
-        Workbook, WorkbookAuthorization,
-        WorkbookEnvironment, WorkbookRequestEntry, ApicizeResult,
+        Workbook, WorkbookAuthorization, WorkbookEnvironment, WorkbookRequestEntry, ApicizeResult, 
     },
-    FileSystem, Runnable,
+    FileSystem, Runnable, oauth2::{clear_oauth2_token, clear_all_oauth2_tokens},
 };
+use tauri::async_runtime::Mutex;
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request])
+        .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request, cancel_request, clear_cached_authorization])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
 #[tauri::command]
-fn open_workbook(path: String) -> Result<Workbook, String> {
+async fn open_workbook(path: String) -> Result<Workbook, String> {
     match Workbook::open_from_path(&path) {
-        Ok(result) => Ok(result),
+        Ok(result) => {
+            clear_all_oauth2_tokens().await;
+            Ok(result)
+        },
         Err(err) => Err(format!("{}", err)),
     }
 }
@@ -34,11 +41,59 @@ fn save_workbook(workbook: Workbook, path: String) -> Result<(), String> {
     }
 }
 
+lazy_static! {
+    static ref CANCELLATION_TOKENS: Mutex<HashMap<String, CancellationToken>> = Mutex::new(HashMap::new());
+}
+
+
 #[tauri::command]
 async fn run_request(
     request: WorkbookRequestEntry,
     authorization: Option<WorkbookAuthorization>,
     environment: Option<WorkbookEnvironment>,
-) -> HashMap<String, ApicizeResult> {
-    request.run(authorization, environment).await
+) -> Result<Vec<ApicizeResult>, String> {
+    let cancellation = CancellationToken::new();
+    let id = match &request {
+        WorkbookRequestEntry::Info(info) => info.id.clone(),
+        WorkbookRequestEntry::Group(group) => group.id.clone()
+    };
+    {
+        let mut tokens = CANCELLATION_TOKENS.lock().await;
+        tokens.insert(id.clone(), cancellation.clone());
+    }
+    let result = match request.run(authorization, environment, Some(cancellation)).await {
+        Ok(response) => Ok(response),
+        Err(err) => Err(format!("{}", err))
+    };
+    {
+        let mut tokens = CANCELLATION_TOKENS.lock().await;
+        tokens.remove(& id.clone());
+    }
+    result
+}
+
+#[tauri::command]
+async fn cancel_request(
+    request: WorkbookRequestEntry
+) {
+    let tokens = CANCELLATION_TOKENS.lock().await;
+    let id = match &request {
+        WorkbookRequestEntry::Info(info) => info.id.clone(),
+        WorkbookRequestEntry::Group(group) => group.id.clone()
+    };
+    let token = tokens.get(&id);
+    if token.is_some() {
+        token.unwrap().cancel()
+    }
+}
+
+#[tauri::command]
+async fn clear_cached_authorization(
+    authorization: WorkbookAuthorization
+) -> Option<bool> {
+    match authorization {
+        WorkbookAuthorization::OAuth2Client { id, name: _, access_token_url: _, client_id: _, client_secret: _, scope: _ } => 
+            Some(clear_oauth2_token(id).await),
+        _ => None
+    }
 }

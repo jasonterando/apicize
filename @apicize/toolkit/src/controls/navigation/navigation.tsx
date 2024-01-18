@@ -44,7 +44,6 @@ export function Navigation(props: {
     const authorizations = useSelector((state: WorkbookState) => state.authorizationList)
     const environments = useSelector((state: WorkbookState) => state.environmentList)
     const activeRequest = useSelector((state: WorkbookState) => state.activeRequest)
-    const activeRequestGroup = useSelector((state: WorkbookState) => state.activeRequestGroup)
     const activeAuth = useSelector((state: WorkbookState) => state.activeAuthorization)
     const activeEnv = useSelector((state: WorkbookState) => state.activeEnvironment)
     const navigationMenu = useSelector((state: WorkbookState) => state.navigationMenu)
@@ -74,12 +73,6 @@ export function Navigation(props: {
             selectRequest(activeRequest.id)
         }
     }, [activeRequest])
-
-    React.useEffect(() => {
-        if (activeRequestGroup) {
-            selectRequest(activeRequestGroup.id)
-        }
-    }, [activeRequestGroup])
 
     React.useEffect(() => {
         if (activeAuth) {
@@ -141,8 +134,8 @@ export function Navigation(props: {
                             )
                             :
                             (
-
-                                <IconButton sx={{ flexGrow: 0, minHeight: '40px' }} onClick={(e) => {
+                                <IconButton sx={{ flexGrow: 0, minHeight: '40px' }} 
+                                onClick={(e) => {
                                     e.preventDefault()
                                     e.stopPropagation()
                                     props.onAdd()
@@ -165,7 +158,6 @@ export function Navigation(props: {
         let onSelect: (id: string) => void
         let onDelete: (item: NavigationListItem) => void
         let onMove: (id: string, destinationID: string | null) => void
-
         switch (props.type) {
             case 'request':
                 onSelect = handleSelectRequest
@@ -481,7 +473,7 @@ export function Navigation(props: {
     
     return (
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginTop: '24px', paddingRight: '48px' }}>
-            <Box sx={{marginLeft: '24px', marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px', backgroundColor: '#202020'}}>
+            <Box sx={{marginLeft: '24px', marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px'}}>
                 <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
                     <PostAddIcon />
                 </IconButton>

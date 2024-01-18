@@ -1,3 +1,4 @@
+import { Identifiable } from '../identifiable';
 import { Named as Named } from '../named';
 
 import {
@@ -53,7 +54,8 @@ export interface WorkbookBody {
     data?: WorkbookBodyData
 }
 
-export interface WorkbookRequest extends Named {
+export interface WorkbookRequest extends Identifiable, Named {
+    id: string
     url: string
     method?: WorkbookMethod
     timeout?: number

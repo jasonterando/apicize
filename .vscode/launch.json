@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/@apicize/rust/cli/target/debug/apicize_cli",
             "preLaunchTask": "rust: build cli",
             "args": [
-                "/home/jterando/.local/share/apicize/test1.json"
+                "/home/jterando/.local/share/apicize/test-fail.json"
             ],
             "cwd": "${workspaceFolder}/@apicize/rust/cli",
             "terminal": "integrated"
@@ -24,7 +24,7 @@
             "cargo": {
               "args": [
                 "build",
-                "--manifest-path=${workspaceFolder}/@apicize/ui/src-tauri/Cargo.toml",
+                "--manifest-path=${workspaceFolder}/@apicize/app/src-tauri/Cargo.toml",
                 "--no-default-features"
               ]
             },

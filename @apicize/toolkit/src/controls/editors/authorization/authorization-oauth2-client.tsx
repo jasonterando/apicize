@@ -1,10 +1,11 @@
-import { FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material'
+import { Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material'
 import { WorkbookState, updateAuthorization } from '../../../models/store'
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { EditableWorkbookOAuth2ClientAuthorization } from '../../../models/workbook/editable-workbook-authorization'
+import ClearIcon from '@mui/icons-material/Clear';
 
-export function AuthorizationOAuth2ClientPanel() {
+export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {}}) {
     const dispatch = useDispatch()
 
     const authorization = useSelector((state: WorkbookState) => state.activeAuthorization as EditableWorkbookOAuth2ClientAuthorization)
@@ -107,22 +108,31 @@ export function AuthorizationOAuth2ClientPanel() {
                 fullWidth
             />
         </Grid>
+        <Grid item>
+            <Button
+                color='warning'
+                variant='outlined' 
+                // startIcon={<ClearIcon />}
+                onClick={() => props.triggerClearToken()}>
+                Clear Any Cached Token
+            </Button>
+        </Grid>
         {
-        // <Grid item>
-        //     <FormControl>
-        //         <InputLabel id='auth-oauth2-creds-lbl-id'>Credential Method</InputLabel>
-        //         <Select
-        //             labelId='auth-oauth2-creds-lbl-id'
-        //             id='auth-oauth2-creds-id'
-        //             value={sendCredentialsInBody}
-        //             label='Credential Method'
-        //             onChange={e => updateSendCredentialsInBody(e.target.value)}
-        //         >
-        //             <MenuItem value='no'>Send Credentials in Auth Header</MenuItem>
-        //             <MenuItem value='yes'>Send Credentials in Body</MenuItem>
-        //         </Select>
-        //     </FormControl>
-        // </Grid>
+            // <Grid item>
+            //     <FormControl>
+            //         <InputLabel id='auth-oauth2-creds-lbl-id'>Credential Method</InputLabel>
+            //         <Select
+            //             labelId='auth-oauth2-creds-lbl-id'
+            //             id='auth-oauth2-creds-id'
+            //             value={sendCredentialsInBody}
+            //             label='Credential Method'
+            //             onChange={e => updateSendCredentialsInBody(e.target.value)}
+            //         >
+            //             <MenuItem value='no'>Send Credentials in Auth Header</MenuItem>
+            //             <MenuItem value='yes'>Send Credentials in Body</MenuItem>
+            //         </Select>
+            //     </FormControl>
+            // </Grid>
         }
     </Grid>)
 }

@@ -4,23 +4,22 @@ import {
   Method,
   NO_AUTHORIZATION,
   BodyType,
-  WorkbookExecution,
   NO_ENVIRONMENT,
   GetTitle,
   WorkbookAuthorizationType,
 } from '@apicize/common'
 import { GenerateIdentifier } from '../services/random-identifier-generator'
-import { MAX_TEXT_RENDER_LENGTH } from '../controls/viewers/text-viewer'
 import { EditableWorkbookRequest } from './workbook/editable-workbook-request'
 import { EditableWorkbookRequestGroup } from './workbook/editable-workbook-request-group'
 import { EditableWorkbookApiKeyAuthorization, EditableWorkbookAuthorization, EditableWorkbookBasicAuthorization, EditableWorkbookOAuth2ClientAuthorization } from './workbook/editable-workbook-authorization'
-import { EditableWorkbookRequestItem } from './workbook/editable-workbook-request-item'
 import { EditableWorkbookEnvironment } from './workbook/editable-workbook-environment'
 import { addRequestItem, castRequestItem, deleteRequestItem } from './workbook/helpers/editable-workbook-request-helpers'
 import { StateStorage, isGroup, moveInStorage } from './state-storage'
 import { EditableNameValuePair } from './workbook/editable-name-value-pair'
 import { ApicizeResult } from '@apicize/common/dist/models/lib/apicize-result'
 import { WorkbookBodyData } from '@apicize/common/dist/models/workbook/workbook-request'
+import { ApicizeResultsToWorkbookExecutionResult, WorkbookExecution, WorkbookExecutionResult } from './workbook/workbook-execution'
+import { EditableWorkbookRequestEntry } from './workbook/editable-workbook-request-entry'
 
 export interface NavigationListItem {
   id: string
@@ -89,10 +88,10 @@ interface ApicizeWorkbookState {
   longTextInResponse: boolean
 
   // Entire list of entities being managed
-  requests: StateStorage<EditableWorkbookRequestItem>
+  requests: StateStorage<EditableWorkbookRequestEntry>
   authorizations: StateStorage<EditableWorkbookAuthorization>
   environments: StateStorage<EditableWorkbookEnvironment>
-
+  
   executions: { [requestID: string]: WorkbookExecution }
 
   // Lists to display for navigation
@@ -112,6 +111,7 @@ interface ApicizeWorkbookState {
   // Active authorization/environment ID to use for running test
   selectedAuthorization: EditableWorkbookAuthorization
   selectedEnvironment: EditableWorkbookEnvironment
+  selectedExecutionResult: WorkbookExecutionResult | undefined
 }
 
 // Tally the number of running tests
@@ -153,16 +153,17 @@ const updateEnvrionmentNavList = (state: ApicizeWorkbookState) => {
 // Update active state properties
 const updateActive = (
   state: ApicizeWorkbookState,
-  request: EditableWorkbookRequest | undefined,
-  group: EditableWorkbookRequestGroup | undefined,
+  request: EditableWorkbookRequestEntry | undefined,
   authorization: EditableWorkbookAuthorization | undefined,
   environment: EditableWorkbookEnvironment | undefined) => {
-  state.activeRequest = request
-  state.activeRequestGroup = group
+  const group = request ? isGroup(request.id, state.requests) : undefined
+  state.activeRequest = group ? undefined : request as EditableWorkbookRequest
+  state.activeRequestGroup = group ? request as EditableWorkbookRequestGroup : undefined
   state.activeAuthorization = authorization
   state.activeEnvironment = environment
   state.activeExecution = request ? state.executions[request.id] : undefined
-  state.longTextInResponse = (state.activeExecution?.result?.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH
+  state.selectedExecutionResult = state.activeExecution?.results?.length && state.activeExecution?.results?.length > 0
+    ? state.activeExecution?.results[0] : undefined
 }
 
 export const defaultWorkbookState: ApicizeWorkbookState = {
@@ -180,6 +181,7 @@ export const defaultWorkbookState: ApicizeWorkbookState = {
   activeRequest: undefined,
   activeRequestGroup: undefined,
   activeExecution: undefined,
+  selectedExecutionResult: undefined,
   activeAuthorization: undefined,
   activeEnvironment: undefined,
   selectedAuthorization: noAuthorization,
@@ -194,9 +196,11 @@ const apicizeSlice = createSlice({
     initializeWorkbook: (state, action: PayloadAction<{
       fullName: string,
       displayName: string,
-      requests: StateStorage<EditableWorkbookRequestItem>,
+      requests: StateStorage<EditableWorkbookRequestEntry>,
       authorizations: StateStorage<EditableWorkbookAuthorization>,
-      environments: StateStorage<EditableWorkbookEnvironment>
+      environments: StateStorage<EditableWorkbookEnvironment>,
+      selectedAuthorization: EditableWorkbookAuthorization | undefined,
+      selectedEnvironment: EditableWorkbookEnvironment | undefined,
     }>) => {
       state.workbookFullName = action.payload.fullName
       state.workbookDisplayName = action.payload.displayName
@@ -211,20 +215,17 @@ const apicizeSlice = createSlice({
       updateEnvrionmentNavList(state)
 
       // Set active element to first request/group
-      let activeRequest: EditableWorkbookRequest | undefined
-      let activeRequestGroup: EditableWorkbookRequestGroup | undefined
+      let activeRequest: EditableWorkbookRequestEntry | undefined
       if (state.requests.topLevelIDs.length > 0) {
-        const [request, group] = castRequestItem(state.requests.entities[state.requests.topLevelIDs[0]])
-        activeRequest = request
-        activeRequestGroup = group
+        activeRequest = state.requests.entities[state.requests.topLevelIDs[0]]
       }
-      updateActive(state, activeRequest, activeRequestGroup, undefined, undefined)
+      updateActive(state, activeRequest, undefined, undefined)
 
       // default first auth/env for execution
-      state.selectedAuthorization = state.authorizations.topLevelIDs.length > 0
-        ? state.authorizations.entities[state.authorizations.topLevelIDs[0]] : noAuthorization
-      state.selectedEnvironment = state.environments.topLevelIDs.length > 0
-        ? state.environments.entities[state.environments.topLevelIDs[0]] : noEnvironment
+      state.selectedAuthorization = action.payload.selectedAuthorization
+        ? action.payload.selectedAuthorization : noAuthorization
+      state.selectedEnvironment = action.payload.selectedEnvironment
+        ? action.payload.selectedEnvironment : noEnvironment
     },
 
     // Called when workbook is saved
@@ -257,9 +258,9 @@ const apicizeSlice = createSlice({
       } as EditableWorkbookRequest
 
       addRequestItem(state.requests, request, false, state.activeRequest?.id)
-      updateActive(state, request, undefined, undefined, undefined)
+      updateActive(state, request, undefined, undefined)
       updateRequestNavList(state)
-      updateActive(state, request, undefined, undefined, undefined)
+      updateActive(state, request, undefined, undefined)
       state.dirty = true
     },
 
@@ -286,6 +287,7 @@ const apicizeSlice = createSlice({
         match.name = action.payload.name
       }
       if (action.payload.url !== undefined) {
+        console.log(`Updating URL to ${action.payload.url}`)
         match.url = action.payload.url
       }
       if (action.payload.method !== undefined) {
@@ -355,11 +357,10 @@ const apicizeSlice = createSlice({
       }
       match.dirty = true
       state.dirty = true
-
       if (state.activeRequest?.id === action.payload.id) {
         state.activeRequest = match
       }
-
+      console.log('[UPDATE] requests', state.requests)
       updateRequestNavList(state)
     },
 
@@ -371,7 +372,7 @@ const apicizeSlice = createSlice({
       // state.activeRequest = index === -1 ? undefined : state.requests[index]
       // } else {
       // }
-      updateActive(state, undefined, undefined, undefined, undefined)
+      updateActive(state, undefined, undefined, undefined)
       updateRequestNavList(state)
       state.dirty = true
     },
@@ -380,13 +381,12 @@ const apicizeSlice = createSlice({
       const group = {
         id: GenerateIdentifier(),
         name: '',
-        requests: []
+        children: []
       } as EditableWorkbookRequestGroup
 
       addRequestItem(state.requests, group, true, state.activeRequest?.id)
-      updateActive(state, undefined, group, undefined, undefined)
+      updateActive(state, group, undefined, undefined)
       updateRequestNavList(state)
-      updateActive(state, undefined, group, undefined, undefined)
       state.dirty = true
     },
 
@@ -414,11 +414,9 @@ const apicizeSlice = createSlice({
       state,
       action: PayloadAction<{ id: string, destinationID: string | null }>
     ) => {
-      moveInStorage<EditableWorkbookRequestItem>(action.payload.id, action.payload.destinationID, state.requests)
+      moveInStorage<EditableWorkbookRequestEntry>(action.payload.id, action.payload.destinationID, state.requests)
       updateRequestNavList(state)
-      const g = isGroup(action.payload.id, state.requests)
-      const r = state.requests.entities[action.payload.id]
-      updateActive(state, g ? undefined : r as EditableWorkbookRequest, g ? r as EditableWorkbookRequestGroup : undefined, undefined, undefined)
+      updateActive(state, state.requests.entities[action.payload.id], undefined, undefined)
     },
 
     setActiveRequest: (
@@ -427,13 +425,9 @@ const apicizeSlice = createSlice({
     ) => {
       if (action.payload.id) {
         const item = state.requests.entities[action.payload.id]
-        if (isGroup(action.payload.id, state.requests)) {
-          updateActive(state, undefined, item as EditableWorkbookRequestGroup, undefined, undefined)
-        } else {
-          updateActive(state, item as EditableWorkbookRequest, undefined, undefined, undefined)
-        }
+        updateActive(state, item, undefined, undefined)
       } else {
-        updateActive(state, undefined, undefined, undefined, undefined)
+        updateActive(state, undefined, undefined, undefined)
       }
     },
 
@@ -470,7 +464,7 @@ const apicizeSlice = createSlice({
         state.authorizations.topLevelIDs.push(auth.id)
       }
       updateAuthorizationNavList(state)
-      updateActive(state, undefined, undefined, auth, undefined)
+      updateActive(state, undefined, auth, undefined)
       state.dirty = true
     },
 
@@ -587,7 +581,7 @@ const apicizeSlice = createSlice({
     ) => {
       moveInStorage<EditableWorkbookAuthorization>(action.payload.id, action.payload.destinationID, state.authorizations)
       updateAuthorizationNavList(state)
-      updateActive(state, undefined, undefined, state.authorizations.entities[action.payload.id], undefined)
+      updateActive(state, undefined, state.authorizations.entities[action.payload.id], undefined)
     },
 
     setActiveAuthorization: (
@@ -597,11 +591,11 @@ const apicizeSlice = createSlice({
       if (action.payload.id) {
         const match = state.authorizations.entities[action.payload.id]
         if (match) {
-          updateActive(state, undefined, undefined, match, undefined)
+          updateActive(state, undefined, match, undefined)
           return
         }
       }
-      updateActive(state, undefined, undefined, undefined, undefined)
+      updateActive(state, undefined, undefined, undefined)
     },
 
     setSelectedAuthorization: (
@@ -637,7 +631,7 @@ const apicizeSlice = createSlice({
       }
       state.environments.entities[env.id] = env
       updateEnvrionmentNavList(state)
-      updateActive(state, undefined, undefined, undefined, env)
+      updateActive(state, undefined, undefined, env)
       state.dirty = true
     },
 
@@ -672,7 +666,7 @@ const apicizeSlice = createSlice({
       action: PayloadAction<{
         id: string,
         name?: string,
-        variables?: NameValuePair[]
+        variables?: EditableNameValuePair[]
       }>
     ) => {
       const match = state.environments.entities[action.payload.id]
@@ -705,11 +699,11 @@ const apicizeSlice = createSlice({
       if (action.payload.id) {
         const match = state.environments.entities[action.payload.id]
         if (match) {
-          updateActive(state, undefined, undefined, undefined, match)
+          updateActive(state, undefined, undefined, match)
           return
         }
       }
-      updateActive(state, undefined, undefined, undefined, undefined)
+      updateActive(state, undefined, undefined, undefined)
     },
 
     moveEnvironment: (
@@ -718,7 +712,7 @@ const apicizeSlice = createSlice({
     ) => {
       moveInStorage<EditableWorkbookEnvironment>(action.payload.id, action.payload.destinationID, state.environments)
       updateEnvrionmentNavList(state)
-      updateActive(state, undefined, undefined, undefined, state.environments.entities[action.payload.id])
+      updateActive(state, undefined, undefined, state.environments.entities[action.payload.id])
     },
 
     setSelectedEnvironment: (
@@ -743,7 +737,7 @@ const apicizeSlice = createSlice({
         const match = state.executions[action.payload.id]
         if (match) {
           match.running = action.payload.onOff
-          match.result = undefined
+          match.results = undefined
         } else {
           state.executions[action.payload.id] = {
             requestID: action.payload.id,
@@ -751,9 +745,9 @@ const apicizeSlice = createSlice({
           }
         }
       }
-      updateActive(state, state.activeRequest, undefined, undefined, undefined)
+      updateActive(state, match, undefined, undefined)
       if (state.activeExecution?.requestID === action.payload.id) {
-        if (!action.payload.onOff) state.activeExecution.result = undefined
+        if (!action.payload.onOff) state.activeExecution.results = undefined
         state.activeExecution.running = action.payload.onOff
       }
       updateRunningCount(state)
@@ -761,24 +755,37 @@ const apicizeSlice = createSlice({
 
     setRequestResults: (
       state,
-      action: PayloadAction<{ [id: string]: ApicizeResult } | undefined>
+      action: PayloadAction<{ id: string, results: ApicizeResult[] } | undefined>
     ) => {
       if (action.payload) {
-        for (const [id, result] of Object.entries(action.payload)) {
-          const match = state.executions[id]
-          if (match) {
-            match.running = false
-            match.result = result
-          }
-          if (state.activeExecution && state.activeExecution.requestID === id) {
-            state.activeExecution.result = result
-            state.activeExecution.running = false
-          }
+        // Stop the executions
+        const match = state.executions[action.payload.id]
+        const workbookResults = ApicizeResultsToWorkbookExecutionResult(action.payload.results, state.requests.entities)
+        if (match) {
+          match.running = false
+          match.results = workbookResults
+        }
+        if (state.activeExecution && state.activeExecution.requestID === action.payload.id) {
+          state.activeExecution.running = false
+          state.activeExecution.results = workbookResults
+        }
+        if (workbookResults.length > 0) {
+          state.selectedExecutionResult = workbookResults[0]
         }
       }
       updateRunningCount(state)
     },
 
+    setSelectedExecutionResult: (
+      state,
+      action: PayloadAction<string>
+    ) => {
+      const match = state.activeExecution?.results?.find(r => r.key === action.payload)
+      if (match) {
+        state.selectedExecutionResult = match
+      }
+    },
+  
     setNavigationMenu: (
       state,
       action: PayloadAction<NavigationMenu | undefined>
@@ -813,6 +820,7 @@ export const {
   setSelectedEnvironment,
   setRequestRunning,
   setRequestResults,
+  setSelectedExecutionResult,
   setNavigationMenu
 } = apicizeSlice.actions
 

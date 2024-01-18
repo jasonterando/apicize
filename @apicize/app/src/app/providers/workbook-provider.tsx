@@ -1,20 +1,43 @@
 "use client"
 
 import { ReactNode, createContext, useContext, useEffect, useRef } from "react"
-import { ToastContext, ToastStore, initializeWorkbook, ToastSeverity, WorkbookSerializer, WorkbookState, saveWorkbook, workbookStore, setRequestRunning, setRequestResults } from "@apicize/toolkit"
+import { ToastContext, ToastStore, initializeWorkbook, ToastSeverity, WorkbookState, saveWorkbook, workbookStore, setRequestRunning, setRequestResults, workbookToStateStorage, stateStorageToWorkbook, stateStorageToRequestEntry } from "@apicize/toolkit"
 import { useDispatch, useSelector } from 'react-redux'
 import { useConfirmation } from "@apicize/toolkit/dist/services/confirmation-service"
-import { Settings, StoredWorkbook, ApicizeRequest, ApicizeResponse, ApicizeTestResult, NO_AUTHORIZATION } from "@apicize/common"
+import { Settings, StoredWorkbook, ApicizeRequest, ApicizeResponse, ApicizeTestResult, NO_AUTHORIZATION, WorkbookRequest, WorkbookRequestGroup } from "@apicize/common"
 import { register } from "@tauri-apps/api/globalShortcut"
 import { emit, listen } from "@tauri-apps/api/event"
 import { writeTextFile } from "@tauri-apps/api/fs"
 import { ApicizeResult, ApicizeResults } from "@apicize/common/dist/models/lib/apicize-result"
 import { noAuthorization, noEnvironment } from "@apicize/toolkit/dist/models/store"
+import { EditableWorkbookRequestEntry } from "@apicize/toolkit/dist/models/workbook/editable-workbook-request-entry"
 
 export interface WorkbookServiceStore { }
 export const WorkbookContext = createContext<WorkbookServiceStore>({})
 
 // export type TriggerEvent = (name: string, data?: any) => void
+
+export const registerKeyboardShortcuts = () => {
+    register('CommandOrControl+N', async (e) => {
+        emit('new')
+    })
+
+    register('CommandOrControl+O', async (e) => {
+        emit('open')
+    })
+
+    register('CommandOrControl+S', async (e) => {
+        emit('save')
+    })
+
+    register('CommandOrControl+Shift+S', async (e) => {
+        emit('saveAs')
+    })
+
+    register('CommandOrControl+R', async (e) => {
+        emit('run')
+    })
+}
 
 export const WorkbookProvider = (props: {
     children?: ReactNode
@@ -30,6 +53,8 @@ export const WorkbookProvider = (props: {
     const workbookDisplayName = useSelector((state: WorkbookState) => state.workbookDisplayName)
     
     const activeRequest = useSelector((state: WorkbookState) => state.activeRequest)
+    const activeRequestGroup = useSelector((state: WorkbookState) => state.activeRequestGroup)
+    const activeAuthorization = useSelector((state: WorkbookState) => state.activeAuthorization)
     const selectedAuthorization = useSelector((state: WorkbookState) => state.selectedAuthorization)
     const selectedEnvironment = useSelector((state: WorkbookState) => state.selectedEnvironment)
 
@@ -69,31 +94,13 @@ export const WorkbookProvider = (props: {
             })()
         }
 
-        register('CommandOrControl+N', async (e) => {
-            emit('new')
-        })
-
-        register('CommandOrControl+O', async (e) => {
-            emit('open')
-        })
-
-        register('CommandOrControl+S', async (e) => {
-            emit('save')
-        })
-
-        register('CommandOrControl+Shift+S', async (e) => {
-            emit('saveAs')
-        })
-
-        register('CommandOrControl+R', async (e) => {
-            emit('run')
-        })
-
         const unlistenNew = listen('new', async () => { await doNewWorkbook() })
         const unlistenOpen = listen('open', async () => { await doOpenWorkbook() })
         const unlistenSave = listen('save', async () => { await doWorkbookSave() })
         const unlistenSaveAs = listen('saveAs', async () => { await doSaveWorkbookAs() })
         const unlistenRun = listen('run', async () => { await doRunRequest() })
+        const unlistenCancel = listen('cancel', async () => { await doCancelRequest() })
+        const unlistenClearToken = listen('clearToken', async () => { await doClearToken() })
 
         return () => {
             unlistenNew.then(f => f())
@@ -101,6 +108,8 @@ export const WorkbookProvider = (props: {
             unlistenSave.then(f => f())
             unlistenSaveAs.then(f => f())
             unlistenRun.then(f => f())
+            unlistenCancel.then(f => f())
+            unlistenClearToken.then(f => f())
         }
 
     })
@@ -143,7 +152,9 @@ export const WorkbookProvider = (props: {
             fullName: '',
             requests: { entities: {}, topLevelIDs: [] },
             authorizations: { entities: {}, topLevelIDs: [] },
-            environments: { entities: {}, topLevelIDs: [] }
+            environments: { entities: {}, topLevelIDs: [] },
+            selectedAuthorization: undefined,
+            selectedEnvironment: undefined,
         }))
 
         toast.open('Created New Workbook', ToastSeverity.Success)
@@ -187,13 +198,15 @@ export const WorkbookProvider = (props: {
         const api = await getTauriApi()
         try {
             const data: StoredWorkbook = await api.invoke('open_workbook', { path: fileName })
-            const results = WorkbookSerializer.convertToStateStorage(data)
+            const results = workbookToStateStorage(data)
             dispatch(initializeWorkbook({
                 displayName: await path.basename(fileName),
                 fullName: fileName,
                 requests: results.requests,
                 authorizations: results.authorizations,
-                environments: results.environments
+                environments: results.environments,
+                selectedAuthorization: results.selectedAuthorization,
+                selectedEnvironment: results.selectedEnvironment
             }))
 
             updateSettings({ lastWorkbookFileName: fileName })
@@ -212,10 +225,12 @@ export const WorkbookProvider = (props: {
             const path = await getTauriPath()
 
             const state = workbookStore.getState()
-            const workbook = WorkbookSerializer.convertFromStateStorage(
+            const workbook = stateStorageToWorkbook(
                 state.requests,
                 state.authorizations,
-                state.environments
+                state.environments,
+                state.selectedAuthorization,
+                state.selectedEnvironment,
             )
 
             await api.invoke('save_workbook', { workbook, path: workbookFullName })
@@ -253,10 +268,12 @@ export const WorkbookProvider = (props: {
 
             // Not sure how "kosher" calling getState is here, but it seems to work...
             const state = workbookStore.getState()
-            const workbook = WorkbookSerializer.convertFromStateStorage(
+            const workbook = stateStorageToWorkbook(
                 state.requests,
                 state.authorizations,
-                state.environments
+                state.environments,
+                state.selectedAuthorization,
+                state.selectedEnvironment,
             )
 
             await api.invoke('save_workbook', { workbook, path: fileName })
@@ -272,40 +289,66 @@ export const WorkbookProvider = (props: {
     }
 
     const doRunRequest = async () => {
-        if (! activeRequest) return
-        const id = activeRequest.id
+        let entry: EditableWorkbookRequestEntry
+        if (activeRequest) {
+            entry = activeRequest
+        } else if (activeRequestGroup) {
+            entry = activeRequestGroup
+        } else {
+            return
+        }
+        let id = entry.id
+        // toast.open(`Executing id ${entry.name}`, ToastSeverity.Info)
+
+        const state = workbookStore.getState()
+        const request = stateStorageToRequestEntry(entry.id, state.requests)
+
         try {
             const api = await getTauriApi()
             dispatch(setRequestRunning({
                 id,
                 onOff: true
             }))
-
-            let results = await api.invoke<ApicizeResults>
+            let results = await api.invoke<ApicizeResult[]>
                 ('run_request', { 
-                    request: activeRequest,
+                    request,
                     authorization: selectedAuthorization == noAuthorization ? undefined : selectedAuthorization,
                     environment: selectedEnvironment == noEnvironment ? undefined : selectedEnvironment })
             
-            let result = results[id]
-            if (! result) {
-                throw new Error('Result not returned')
-            }
-
-            if (! result.success) {
-                throw new Error(result.errorMessage)
-            }
-            // console.log('Run results', results)
-            dispatch(setRequestResults(results))
+            dispatch(setRequestResults({id, results}))
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
             dispatch(setRequestRunning({
                 id,
                 onOff: false
             }))
-
         }
+    }
 
+    const doCancelRequest = async () => {
+        if (! activeRequest) return
+        const id = activeRequest.id
+        try {
+            const api = await getTauriApi()
+            await api.invoke('cancel_request', {
+                request: activeRequest
+            })
+        } catch (e) {
+            toast.open(`${e}`, ToastSeverity.Error)
+        }
+    }
+
+    const doClearToken = async () => {
+        if(! activeAuthorization) return
+        try {
+            const api = await getTauriApi()
+            await api.invoke('clear_cached_authorization', {
+                authorization: activeAuthorization
+            })
+            toast.open('Tokens cleared', ToastSeverity.Success)
+        } catch (e) {
+            toast.open(`${e}`, ToastSeverity.Error)
+        }
     }
 
     const loadSettings = async () => {

@@ -17,16 +17,15 @@ import { ResultInfoViewer } from "./result/result-info-viewer";
 import { ResponseHeadersViewer } from "./result/response-headers-viewer";
 import { ResultRequestViwer } from "./result/result-request-viewer";
 import { RequestRunProgress } from "./result/requuest-run-progress";
-
-
+import { EditableWorkbookRequest } from "../../../models/workbook/editable-workbook-request";
 
 export function ResultsViewer(props: {
     sx: SxProps<Theme>,
-    className?: string
+    className?: string,
+    cancelRequest: (request: EditableWorkbookRequest) => void
 }) {
     const execution = useSelector((state: WorkbookState) => state.activeExecution)
-    const result = useSelector((state: WorkbookState) => state.activeExecution?.result)
-    const longTextInResponse = useSelector((state: WorkbookState) => state.longTextInResponse)
+    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
     const runningRequestCount = useSelector((state: WorkbookState) => state.runningCount)
     const [inProgress, setInProgress] = React.useState(false)
     const [panel, setPanel] = React.useState<string>('Info')
@@ -45,8 +44,6 @@ export function ResultsViewer(props: {
     const handlePanelChanged = (event: React.SyntheticEvent, newValue: string) => {
         if (newValue) setPanel(newValue)
     }
-    const RequestLongTextWarning = () => longTextInResponse ? <Box className='text-warning'>Text Has Been Truncated</Box> : null
-
     let header: string
 
     const success = result?.tests?.reduce((r, t) => t.success && r, true) ?? true
@@ -83,16 +80,14 @@ export function ResultsViewer(props: {
                 value={panel}
                 aria-label="text alignment">
                 <ToggleButton value="Info" title="Show Result Info" aria-label='show info' disabled={inProgress}><ScienceIcon /></ToggleButton>
-                <ToggleButton value="Headers" title="Show Response Headers" aria-label='show headers' disabled={inProgress || !execution?.result?.response}><ViewListOutlinedIcon /></ToggleButton>
-                <ToggleButton value="Text" title="Show Response Body as Text" aria-label='show body text' disabled={inProgress || !execution?.result?.response}><ArticleOutlinedIcon /></ToggleButton>
-                <ToggleButton value="Preview" title="Show Body as Preview" aria-label='show body preview' disabled={longTextInResponse || inProgress || !execution?.result?.response}><PreviewIcon /></ToggleButton>
-                <ToggleButton value="Request" title="Show Request" aria-label='show request' disabled={inProgress || !execution?.result?.response}><SendIcon /></ToggleButton>
+                <ToggleButton value="Headers" title="Show Response Headers" aria-label='show headers' disabled={inProgress || !result?.response}><ViewListOutlinedIcon /></ToggleButton>
+                <ToggleButton value="Text" title="Show Response Body as Text" aria-label='show body text' disabled={inProgress || !result?.response}><ArticleOutlinedIcon /></ToggleButton>
+                <ToggleButton value="Preview" title="Show Body as Preview" aria-label='show body preview' disabled={result?.longTextInResponse || inProgress || !result?.response}><PreviewIcon /></ToggleButton>
+                <ToggleButton value="Request" title="Show Request" aria-label='show request' disabled={inProgress || !result?.response}><SendIcon /></ToggleButton>
             </ToggleButtonGroup>
-            <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                <Typography variant='h1' sx={{ marginTop: 0 }}>{header}</Typography>
-                { panel == 'Text' ? <RequestLongTextWarning /> : null }
+            <Box sx={{ overflow: 'auto', flexGrow: 1 }}>
                 {
-                    inProgress ? <RequestRunProgress /> :
+                    inProgress ? <RequestRunProgress cancelRequest={props.cancelRequest} /> :
                         execution === undefined ? <Box /> :
                             panel === 'Info' ? <ResultInfoViewer />
                                 : panel === 'Headers' ? <ResponseHeadersViewer />

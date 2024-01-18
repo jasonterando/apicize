@@ -4,6 +4,9 @@ import { ApicizeTestResult } from "./apicize-test-result";
 
 
 export interface ApicizeResult {
+    requestId: string;
+    attempt: number;
+    totalAttempts: number;
     request?: ApicizeRequest
     response?: ApicizeResponse
     tests?: ApicizeTestResult[]

@@ -1,7 +1,9 @@
 import { WorkbookEnvironment } from "@apicize/common"
 import { Editable } from "../editable"
+import { EditableNameValuePair } from "./editable-name-value-pair"
 
 export interface EditableWorkbookEnvironment extends Editable, WorkbookEnvironment {
+    variables?: EditableNameValuePair[] 
 }
 
 /**

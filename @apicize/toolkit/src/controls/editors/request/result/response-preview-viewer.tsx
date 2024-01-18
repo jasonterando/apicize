@@ -1,12 +1,14 @@
 import { useSelector } from "react-redux"
-import { KNOWN_IMAGE_EXTENSIONS, ImageViewer } from "../../../viewers/image-viewer";
+import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from "../../../viewers/image-viewer";
 import { TextViewer } from "../../../viewers/text-viewer";
 import { WorkbookState } from "../../../../models/store";
+import { Typography } from "@mui/material";
+import { Box } from "@mui/system";
 
 export function ResultResponsePreview() {
-    const result = useSelector((state: WorkbookState) => state.activeExecution?.result)
-    if (! result) return null
-    
+    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
+    if (!result) return null
+
     let extension = ''
     for (const [name, value] of Object.entries(result.response?.headers ?? {})) {
         if (name.toLowerCase() === 'content-type') {
@@ -17,8 +19,14 @@ export function ResultResponsePreview() {
             }
         }
     }
-    console.log('Response data', result.response?.body?.data)
-    return  (result.response?.body?.data && KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1) 
-        ? <ImageViewer base64ToRender={result.response?.body?.data} extensionToRender={extension} />
-        : <TextViewer text={result.response?.body?.text} extension={extension} />
+    return (
+        <Box>
+            <Typography variant='h1'>Response Body (Preview)</Typography>
+            {
+            result.response?.body?.data && KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1
+                ? (<ImageViewer base64ToRender={result.response?.body?.data} extensionToRender={extension} />)
+                : (<TextViewer text={result.response?.body?.text} extension={extension} />)
+            }
+        </Box>
+    )
 }

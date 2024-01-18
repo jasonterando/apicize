@@ -59,6 +59,7 @@ dependencies = [
  "serde_with",
  "thiserror",
  "tokio",
+ "tokio-util",
  "uuid",
  "v8",
 ]

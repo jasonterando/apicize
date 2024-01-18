@@ -11,7 +11,7 @@ import { AuthorizationOAuth2ClientPanel } from './authorization/authorization-oa
 import { AuthorizationApiKeyPanel } from './authorization/authorization-api-key';
 import { WorkbookAuthorizationType } from '@apicize/common';
 
-export function AuthorizationEditor() {
+export function AuthorizationEditor(props={triggerClearToken: () => {}}) {
     const authorization = useSelector((state: WorkbookState) => state.activeAuthorization)
     const dispatch = useDispatch()
 
@@ -77,7 +77,7 @@ export function AuthorizationEditor() {
                 </Grid>
             </Box>
             {authorization.type === WorkbookAuthorizationType.Basic ? <AuthorizationBasicPanel /> :
-                authorization.type === WorkbookAuthorizationType.OAuth2Client ? <AuthorizationOAuth2ClientPanel /> :
+                authorization.type === WorkbookAuthorizationType.OAuth2Client ? <AuthorizationOAuth2ClientPanel triggerClearToken={props.triggerClearToken} /> :
                     authorization.type === WorkbookAuthorizationType.ApiKey ? <AuthorizationApiKeyPanel /> :
                         null
             }

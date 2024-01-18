@@ -1,12 +1,12 @@
 import { EditableWorkbookAuthorization } from "./workbook/editable-workbook-authorization";
 import { EditableWorkbookEnvironment } from "./workbook/editable-workbook-environment";
-import { EditableWorkbookRequestItem } from "./workbook/editable-workbook-request-item";
 import { StateStorage } from "./state-storage";
+import { EditableWorkbookRequestEntry } from "./workbook/editable-workbook-request-entry";
 
 export interface OpenedWorkbook {
     displayName: string,
     fullName: string,
-    requests: StateStorage<EditableWorkbookRequestItem>,
+    requests: StateStorage<EditableWorkbookRequestEntry>,
     authorizations: StateStorage<EditableWorkbookAuthorization>,
     environments: StateStorage<EditableWorkbookEnvironment>
 }

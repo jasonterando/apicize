@@ -13,6 +13,10 @@ use tokio::sync::Mutex;
 
 use crate::ExecutionError;
 
+lazy_static! {
+    static ref OAUTH2_TOKEN_CACHE: Mutex<HashMap<String, (Instant, String)>> = Mutex::new(HashMap::new());
+}
+
 /// Retrieve OAuth2 credentials from token URL, returning a result of either tuple of
 /// expiration of seconds after the Unic epoch (if none = 0) and bearer token, or an error
 async fn fetch_oauth2_credentials(
@@ -52,23 +56,19 @@ async fn fetch_oauth2_credentials(
 
 }
 
-/// Return cached oauth2 credentials, or retrieve them from cache
+/// Return cached oauth2 token, with indicator of whether value was cached
 pub async fn oauth2_client_credentials(
-    name: String,
+    id: String,
     token_url: String,
     client_id: String,
     client_secret: String,
-    scope: Option<String>) -> Result<String, ExecutionError> {
+    scope: Option<String>) -> Result<(String, bool), ExecutionError> {
     
-    lazy_static! {
-        static ref OAUTH2_CLIENT_TOKENS: Mutex<HashMap<String, (Instant, String)>> = Mutex::new(HashMap::new());
-    }
-
-    let mut tokens = OAUTH2_CLIENT_TOKENS.lock().await;
-    let valid_token = match tokens.get(&name) {
+    let mut tokens = OAUTH2_TOKEN_CACHE.lock().await;
+    let valid_token = match tokens.get(&id) {
         Some(existing) => {
             if existing.0.gt(& Instant::now()) {
-                Some(existing.1.clone())
+                Some((existing.1.clone(), true))
             } else {
                 None
             }
@@ -80,8 +80,25 @@ pub async fn oauth2_client_credentials(
         Some(token) => Ok(token),
         None => {
             let retrieved = fetch_oauth2_credentials(token_url, client_id, client_secret, scope).await?;
-            tokens.insert(name, retrieved.clone());
-            Ok(retrieved.1)
+            tokens.insert(id, retrieved.clone());
+            Ok((retrieved.1, false))
         }
+    }
+}
+
+/// Clear all cached OAuth2 tokens
+pub async fn clear_all_oauth2_tokens() {
+    let mut tokens = OAUTH2_TOKEN_CACHE.lock().await;
+    tokens.clear();
+}
+
+/// Clear specified cached OAuth2 credentials, returning true if value was cached
+pub async fn clear_oauth2_token(
+    id: String
+) -> bool {
+    let mut tokens = OAUTH2_TOKEN_CACHE.lock().await;
+    match tokens.remove(&id) {
+        Some(_) => true,
+        None => false
     }
 }
