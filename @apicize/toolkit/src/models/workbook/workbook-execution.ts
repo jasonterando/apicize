@@ -4,25 +4,33 @@ import { MAX_TEXT_RENDER_LENGTH } from "../../controls/viewers/text-viewer";
 
 export interface WorkbookExecutionResult extends ApicizeResult {
      key: string;
-     name: string;
      longTextInResponse: boolean;
 }
+
+interface IndexedText {
+     index: number
+     text: string
+}
+
 
 export interface WorkbookExecution {
      requestID: string
      running: boolean
-     results?: WorkbookExecutionResult[]
+     runIndex?: number
+     resultIndex?: number
+     runList?: IndexedText[]
+     resultLists?: IndexedText[][]
+     results?: WorkbookExecutionResult[][]
 }
 
-export function ApicizeResultsToWorkbookExecutionResult(results: ApicizeResult[], requests: {[id: string]: EditableWorkbookRequestEntry}) {
-     return results.map(result => {
-          const entry = requests[result.requestId]?.name ?? '(Unnamed)'
-          const name = result.totalAttempts > 1 ? `${entry} ${result.attempt + 1} of ${result.totalAttempts}` : entry
-          return {
-               ...result,
-               key: `${result.requestId}-${result.attempt}-${result.totalAttempts}}`,
-               name,
-               longTextInResponse: (result.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH
-          } as WorkbookExecutionResult
-     });
+export function ApicizeRunResultsToWorkbookExecutionResults(runs: ApicizeResult[][], requests: { [id: string]: EditableWorkbookRequestEntry }) {
+     return runs.map(results =>
+          results.map(result => {
+               return {
+                    ...result,
+                    key: `${result.requestId}-${result.run}-${result.totalRuns}}`,
+                    longTextInResponse: (result.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH
+               } as WorkbookExecutionResult
+          })
+     )
 }

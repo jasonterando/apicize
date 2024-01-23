@@ -1,17 +1,15 @@
-import { TextField, Box, Grid, Select, MenuItem, FormControl, InputLabel, Typography, Stack } from '@mui/material'
+import { TextField, Box, Grid, Select, MenuItem, FormControl, InputLabel, Typography, Stack, Container } from '@mui/material'
 import LockIcon from '@mui/icons-material/Lock';
 import { useSelector } from "react-redux";
 import { useEffect, useState } from 'react'
 import { WorkbookState, updateAuthorization } from '../../models/store'
 import { useDispatch } from 'react-redux'
-
-import '../styles.css'
 import { AuthorizationBasicPanel } from './authorization/authorization-basic';
 import { AuthorizationOAuth2ClientPanel } from './authorization/authorization-oauth2-client';
 import { AuthorizationApiKeyPanel } from './authorization/authorization-api-key';
 import { WorkbookAuthorizationType } from '@apicize/common';
 
-export function AuthorizationEditor(props={triggerClearToken: () => {}}) {
+export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
     const authorization = useSelector((state: WorkbookState) => state.activeAuthorization)
     const dispatch = useDispatch()
 
@@ -28,7 +26,6 @@ export function AuthorizationEditor(props={triggerClearToken: () => {}}) {
     }
 
     const updateName = (name: string | undefined) => {
-        setName(name)
         dispatch(updateAuthorization({
             id: authorization.id,
             name
@@ -36,16 +33,16 @@ export function AuthorizationEditor(props={triggerClearToken: () => {}}) {
     }
 
     const updateType = (type: string) => {
-        setType(type)
         dispatch(updateAuthorization({
             id: authorization.id,
             type
         }))
     }
+
     return (
-        <Stack direction={'column'} className='section no-button-column' sx={{ flexGrow: 1 }}>
-            <Typography variant='h1'><LockIcon /> {name?.length ?? 0 > 0 ? name : '(Unnamed)'}</Typography>
-            <Box className='section'>
+        <Container sx={{ marginLeft: 0 }}>
+            <Stack direction={'column'} sx={{ flexGrow: 1 }}>
+                <Typography variant='h1'><LockIcon /> {name?.length ?? 0 > 0 ? name : '(Unnamed)'}</Typography>
                 <Grid container direction={'column'} spacing={3} maxWidth={1000}>
                     <Grid item>
                         <TextField
@@ -74,13 +71,15 @@ export function AuthorizationEditor(props={triggerClearToken: () => {}}) {
                             </Select>
                         </FormControl>
                     </Grid>
+                    <Grid item>
+                        {authorization.type === WorkbookAuthorizationType.Basic ? <AuthorizationBasicPanel /> :
+                            authorization.type === WorkbookAuthorizationType.OAuth2Client ? <AuthorizationOAuth2ClientPanel triggerClearToken={props.triggerClearToken} /> :
+                                authorization.type === WorkbookAuthorizationType.ApiKey ? <AuthorizationApiKeyPanel /> :
+                                    null
+                        }
+                    </Grid>
                 </Grid>
-            </Box>
-            {authorization.type === WorkbookAuthorizationType.Basic ? <AuthorizationBasicPanel /> :
-                authorization.type === WorkbookAuthorizationType.OAuth2Client ? <AuthorizationOAuth2ClientPanel triggerClearToken={props.triggerClearToken} /> :
-                    authorization.type === WorkbookAuthorizationType.ApiKey ? <AuthorizationApiKeyPanel /> :
-                        null
-            }
-        </Stack>
+            </Stack>
+        </Container>
     )
 }

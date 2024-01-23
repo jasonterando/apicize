@@ -2,7 +2,7 @@ use apicize_lib;
 use apicize_lib::cleanup_v8;
 use apicize_lib::models::Workbook;
 use apicize_lib::models::WorkbookAuthorization;
-use apicize_lib::models::WorkbookEnvironment;
+use apicize_lib::models::WorkbookScenario;
 use apicize_lib::FileSystem;
 use apicize_lib::Runnable;
 use std::env;
@@ -35,9 +35,9 @@ async fn main() {
         None => None,
     };
 
-    let env: Option<WorkbookEnvironment> = match workbook.environments {
-        Some(ref envs) => match envs.first() {
-            Some(env) => Some(env.clone()),
+    let scene: Option<WorkbookScenario> = match workbook.scenarios {
+        Some(ref scenes) => match scenes.first() {
+            Some(scene) => Some(scene.clone()),
             None => None,
         },
         None => None,
@@ -49,37 +49,46 @@ async fn main() {
 
     while let Some(r) = iter.next() {
         println!("Request: {}", r);
-        let run_response = r.clone().run(auth.clone(), env.clone(), None).await;
+        let run_response = r.clone().run(auth.clone(), scene.clone(), None).await;
         match run_response {
-            Ok(results) => {
-                results.iter().for_each(|result| {
-                    if result.success {
-                        match &result.tests {
-                            Some(tests) => {
-                                // let r = response.as_ref().unwrap();
-                                // println!("{}", serde_json::to_string(r).unwrap());
-                                tests.iter().for_each(|tr| {
-                                    if tr.success {
-                                        println!(" - {} [PASS]", tr.test_name.join(" "));
-                                        pass_count += 1;
-                                    } else {
-                                        println!(
-                                            " - {} [FAIL] {}",
-                                            tr.test_name.join(", "),
-                                            tr.error.as_ref().unwrap_or(&String::from("Unknown Error"))
-                                        );
-                                        fail_count += 1;
-                                    }
-                                })
-                            }
-                            None => {}
-                        }
-                    } else {
-                        println!(" - [ERROR] {}", match &result.error_message {
-                            Some(msg) => msg.clone(),
-                            None => String::from("Unexpected Error")
-                        });
+            Ok(runs) => {
+                let mut run_number = 0;
+                let total_runs = runs.len();
+                runs.iter().for_each(|run| {
+                    if total_runs > 1 {
+                        run_number = run_number + 1;
+                        println!("Run {} of {}", run_number, total_runs);
                     }
+
+                    run.iter().for_each(|result| {
+                        if result.success {
+                            match &result.tests {
+                                Some(tests) => {
+                                    // let r = response.as_ref().unwrap();
+                                    // println!("{}", serde_json::to_string(r).unwrap());
+                                    tests.iter().for_each(|tr| {
+                                        if tr.success {
+                                            println!(" - {} [PASS]", tr.test_name.join(" "));
+                                            pass_count += 1;
+                                        } else {
+                                            println!(
+                                                " - {} [FAIL] {}",
+                                                tr.test_name.join(", "),
+                                                tr.error.as_ref().unwrap_or(&String::from("Unknown Error"))
+                                            );
+                                            fail_count += 1;
+                                        }
+                                    })
+                                }
+                                None => {}
+                            }
+                        } else {
+                            println!(" - [ERROR] {}", match &result.error_message {
+                                Some(msg) => msg.clone(),
+                                None => String::from("Unexpected Error")
+                            });
+                        }
+                    })
                 });        
             }
             Err(err) => {

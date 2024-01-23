@@ -1,22 +1,43 @@
 import { StateStorage } from "../../state-storage";
 import { EditableWorkbookRequest } from "../editable-workbook-request";
+import { EditableWorkbookRequestEntry } from "../editable-workbook-request-entry";
 import { EditableWorkbookRequestGroup } from "../editable-workbook-request-group";
-
-export type EditableWorkbookRequestItem = EditableWorkbookRequest | EditableWorkbookRequestGroup
 
 /**
  * Detects the type of item (request or group)
- * @param item 
+ * @param entry 
  * @returns typed tuple of cast item
  */
-export function castRequestItem(item: EditableWorkbookRequest | EditableWorkbookRequestGroup):
+export function xxxcastRequestEntry(entry: EditableWorkbookRequestEntry):
     [request: EditableWorkbookRequest | undefined, group: EditableWorkbookRequestGroup | undefined] {
-    const cast = item as EditableWorkbookRequest
+    const cast = entry as EditableWorkbookRequest
     if (cast.url) {
         return [cast, undefined]
     } else {
-        return [undefined, item as EditableWorkbookRequestGroup]
+        return [undefined, entry as EditableWorkbookRequestGroup]
     }
+}
+
+/**
+ * If entry is determined to be a request, by presence of a url property, return the cast request
+ * @param entry 
+ * @returns EditableWorkbookRequest if a request, otherwise undefined
+ */
+export function castEntryAsRequest(entry: EditableWorkbookRequestEntry | undefined): EditableWorkbookRequest | undefined {
+    if (! entry) return undefined
+    const cast = entry as EditableWorkbookRequest
+    return cast.url === undefined ? undefined : cast
+}
+
+/**
+ * If entry is determined to be a group, by absence of a url property, return the cast request
+ * @param entry 
+ * @returns EditableWorkbookRequestGroup if a group, otherwise undefined
+ */
+export function castEntryAsGroup(entry: EditableWorkbookRequestEntry | undefined): EditableWorkbookRequestGroup | undefined {
+    if (! entry) return undefined
+    const cast = entry as EditableWorkbookRequest
+    return cast.url ? undefined : entry as EditableWorkbookRequestGroup
 }
 
 /**
@@ -24,67 +45,55 @@ export function castRequestItem(item: EditableWorkbookRequest | EditableWorkbook
  * the item will be inserted before that item.  If atID matches a group, the item
  * will be appended to the end of that group.  Otherwise, the item will be append
  * to the end of the main list
- * @param item 
- * @param beforeID
+ * @param entry 
+ * @param targetId
  * @returns 
  */
-export function addRequestItem(requests: StateStorage<EditableWorkbookRequestItem>,
-    item: EditableWorkbookRequestItem, asGroup: boolean, beforeID?: string) {
+export function addRequestEntryToStore(requests: StateStorage<EditableWorkbookRequestEntry>,
+    entry: EditableWorkbookRequestEntry, asGroup: boolean, targetId?: string) {
 
     // Add the new item to the entity list
-    requests.entities[item.id] = item
+    requests.entities[entry.id] = entry
 
-    let append = true
-    if (beforeID !== undefined) {
-        // Check to see if we want to insert in a group
+    if (asGroup) {
+        if (! requests.childIDs) requests.childIDs = {}
+        requests.childIDs[entry.id] = []
+    }
+
+    if (targetId) {
+        // If the entry is a request and target is a group, then insert at top of group
+        if (requests.childIDs && requests.childIDs[targetId]) {
+            requests.childIDs[targetId].splice(0, 0, entry.id)
+            return
+        }
+
+        // If the target ID is within a group, insert new entry before it
         if (requests.childIDs) {
-            for (const parentID of Object.keys(requests.childIDs)) {
-                const childList = requests.childIDs[parentID]
-                if (beforeID === parentID) {
-                    childList.push(item.id)
-                    append = false
-                    break
-                } else {
-                    const idx = childList.indexOf(beforeID)
-                    if (idx !== -1) {
-                        childList.splice(idx, 0, item.id)
-                        append = false
-                        break
-                    }
+            for (const [parentID, childIDs] of Object.entries(requests.childIDs)) {
+                const idx = childIDs.indexOf(targetId)
+                if (idx !== -1) {
+                    childIDs.splice(idx, 0, entry.id)
+                    return
                 }
             }
         }
 
-        // Check to see if existing ID is at top level
-        if (!append) {
-            const idx = requests.topLevelIDs.indexOf(beforeID)
-            if (idx !== -1) {
-                requests.topLevelIDs.splice(idx, 0, item.id)
-                append = false
-            }
+        // If the target ID is in the top level list, insert before it
+        const idx = requests.topLevelIDs.indexOf(targetId)
+        if (idx !== -1) {
+            requests.topLevelIDs.splice(idx, 0, entry.id)
+            return
         }
     }
 
-    if (append) {
-        requests.topLevelIDs.push(item.id)
-    }
-
-    if (asGroup) {
-        if (!requests.childIDs) {
-            requests.childIDs = {}
-            requests.childIDs[item.id] = []
-        } else {
-            if (!requests.childIDs[item.id]) {
-                requests.childIDs[item.id] = []
-            }
-        }
-    }
+    // If no valid target ID, insert at top of topLevel list
+    requests.topLevelIDs.splice(0, 0, entry.id)
 }
 
 /**
  * Delete the specified item from the store
  */
-export function deleteRequestItem(requests: StateStorage<EditableWorkbookRequestItem>, id: string) {
+export function deleteRequestEntryFromStore(requests: StateStorage<EditableWorkbookRequestEntry>, id: string) {
     delete requests.entities[id]
 
     // Check to see if existing ID is at top level index

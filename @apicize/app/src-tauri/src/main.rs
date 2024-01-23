@@ -3,13 +3,12 @@
 #[macro_use]
 extern crate lazy_static;
 
-
 use std::collections::HashMap;
 use tokio_util::sync::CancellationToken;
 
 use apicize_lib::{
     models::{
-        Workbook, WorkbookAuthorization, WorkbookEnvironment, WorkbookRequestEntry, ApicizeResult, 
+        ApicizeResultRuns, Workbook, WorkbookAuthorization, WorkbookRequestEntry, WorkbookScenario 
     },
     FileSystem, Runnable, oauth2::{clear_oauth2_token, clear_all_oauth2_tokens},
 };
@@ -17,9 +16,10 @@ use tauri::async_runtime::Mutex;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard::init())
         .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request, cancel_request, clear_cached_authorization])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .expect("error running Apicize");
 }
 
 #[tauri::command]
@@ -45,13 +45,12 @@ lazy_static! {
     static ref CANCELLATION_TOKENS: Mutex<HashMap<String, CancellationToken>> = Mutex::new(HashMap::new());
 }
 
-
 #[tauri::command]
 async fn run_request(
     request: WorkbookRequestEntry,
     authorization: Option<WorkbookAuthorization>,
-    environment: Option<WorkbookEnvironment>,
-) -> Result<Vec<ApicizeResult>, String> {
+    scenario: Option<WorkbookScenario>,
+) -> Result<ApicizeResultRuns, String> {
     let cancellation = CancellationToken::new();
     let id = match &request {
         WorkbookRequestEntry::Info(info) => info.id.clone(),
@@ -61,7 +60,7 @@ async fn run_request(
         let mut tokens = CANCELLATION_TOKENS.lock().await;
         tokens.insert(id.clone(), cancellation.clone());
     }
-    let result = match request.run(authorization, environment, Some(cancellation)).await {
+    let result = match request.run(authorization, scenario, Some(cancellation)).await {
         Ok(response) => Ok(response),
         Err(err) => Err(format!("{}", err))
     };

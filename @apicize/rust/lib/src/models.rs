@@ -6,7 +6,8 @@ use oauth2::basic::BasicErrorResponseType;
 use oauth2::{RequestTokenError, StandardErrorResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_with::base64::Base64;
+use serde_with::base64::{Base64, Standard};
+use serde_with::formats::Unpadded;
 use serde_with::serde_as;
 use tokio::task::JoinError;
 use std::collections::HashMap;
@@ -119,7 +120,7 @@ pub enum WorkbookRequestBody {
     /// Binary body data serialized as Base64
     Base64 {
         /// Base-64 encoded binary data
-        #[serde_as(as = "Base64")]
+        #[serde_as(as = "Base64<Standard, Unpadded>")]
         data: Vec<u8>,
     }
 }
@@ -181,6 +182,12 @@ impl Display for WorkbookRequest {
     }
 }
 
+/// Generate the value 1 for default, since serde doesn't suport literal defaults
+fn one() -> u32 {
+    1
+}
+
+
 /// A group of Apicize Requests
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct WorkbookRequestGroup {
@@ -191,6 +198,9 @@ pub struct WorkbookRequestGroup {
     pub name: String,
     /// List of Apicize Requests in group
     pub children: Box<Vec<WorkbookRequestEntry>>,
+    #[serde(default = "one")]
+    /// Number of runs for the group to execute
+    pub runs: u32,
 }
 
 impl Display for WorkbookRequestGroup {
@@ -274,8 +284,8 @@ pub enum WorkbookAuthorization {
 /// A set of variables that can be injected into templated values
 /// when submitting an Apicize Request
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct WorkbookEnvironment {
-    /// Uniquely identifies environment
+pub struct WorkbookScenario {
+    /// Uniquely identifies scenario
     #[serde(default = "generate_uuid")]
     id: String,
     /// Name of variable to substitute (avoid using curly braces)
@@ -295,12 +305,12 @@ pub struct WorkbookSettings {
     /// Optionally set to default authorization
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_authorization_id: Option<String>,
-    /// Optionally set to default environment
+    /// Optionally set to default scenario
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_environment_id: Option<String>,
+    pub selected_scenario_id: Option<String>,
 }
 
-/// Persisted Apcizize requests, authorization and environment definitions
+/// Persisted Apcizize requests, authorization and scenario definitions
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Workbook {
     /// Version of workbook format (should not be changed manually)
@@ -310,9 +320,9 @@ pub struct Workbook {
     /// List of authorizations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorizations: Option<Vec<WorkbookAuthorization>>,
-    /// List of environments
+    /// List of scenarios
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub environments: Option<Vec<WorkbookEnvironment>>,
+    pub scenarios: Option<Vec<WorkbookScenario>>,
     /// Miscelaneous Workbook settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settings: Option<WorkbookSettings>,
@@ -324,7 +334,7 @@ pub struct Workbook {
 #[serde(rename_all = "camelCase")]
 pub struct ApicizeBody {
     /// Body as data (UTF-8 bytes)
-    #[serde_as(as = "Option<Base64>")]
+    #[serde_as(as = "Option<Base64<Standard, Unpadded>>")]
     pub data: Option<Vec<u8>>,
     /// Reprsents body as text
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -386,10 +396,10 @@ pub struct ApicizeTestResult {
 pub struct ApicizeResult {
     /// Request ID
     pub request_id: String,
-    /// Attempt number (zero indexed)
-    pub attempt: u32,
-    /// Total number of attempts
-    pub total_attempts: u32,
+    /// Attempt run number (zero indexed)
+    pub run: u32,
+    /// Total number of run attempts
+    pub total_runs: u32,
     /// Request sent as HTTP call
     pub request: Option<ApicizeRequest>,
     /// Response received from HTTP call
@@ -407,13 +417,16 @@ pub struct ApicizeResult {
     pub error_message: Option<String>,
 }
 
+/// List of Apicize Result runs
+pub type ApicizeResultRuns = Vec<Vec<ApicizeResult>>;
+
 #[cfg(test)]
 mod model_tests {
     use serde_json::{json, Value};
 
     use super::{
         WorkbookRequestMethod, WorkbookNameValuePair, WorkbookRequestBody, WorkbookRequestGroup, WorkbookRequest, Workbook,
-        WorkbookAuthorization, WorkbookEnvironment, WorkbookRequestEntry,
+        WorkbookAuthorization, WorkbookScenario, WorkbookRequestEntry,
     };
 
     fn default_request() -> Vec<WorkbookRequestEntry> {
@@ -433,6 +446,7 @@ mod model_tests {
                     body: None,
                     test: None,
                 })])),
+                runs: 1
             }),
             WorkbookRequestEntry::Info(WorkbookRequest {
                 id: String::from("YYY"),
@@ -492,7 +506,7 @@ mod model_tests {
                 test: None,
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -532,7 +546,7 @@ mod model_tests {
                 test: None,
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -576,7 +590,7 @@ mod model_tests {
                         test: None,
                     })]),
                     authorizations: None,
-                    environments: None,
+                    scenarios: None,
                     settings: None,
                 };
                 assert_eq!(expected, w);
@@ -621,7 +635,7 @@ mod model_tests {
                 test: None,
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -668,7 +682,7 @@ mod model_tests {
                 test: None,
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -713,7 +727,7 @@ mod model_tests {
                 test: None,
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -761,7 +775,7 @@ mod model_tests {
                 test: None,
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -806,7 +820,7 @@ mod model_tests {
                 test: None,
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -851,7 +865,7 @@ mod model_tests {
                 test: None,
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -891,7 +905,7 @@ mod model_tests {
                 test: Some(String::from("foo()")),
             })]),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -906,7 +920,7 @@ mod model_tests {
     }
 
     #[test]
-    fn test_env_no_auths_or_envs() -> Result<(), serde_json::Error> {
+    fn test_no_auths_or_scenarios() -> Result<(), serde_json::Error> {
         let data = json!({
             "version": 0.1,
             "requests": default_request_json()
@@ -915,7 +929,7 @@ mod model_tests {
             version: 0.1,
             requests: self::default_request(),
             authorizations: None,
-            environments: None,
+            scenarios: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -946,7 +960,7 @@ mod model_tests {
         let expected = Workbook {
             version: 0.1,
             requests: self::default_request(),
-            environments: None,
+            scenarios: None,
             authorizations: Some(vec![WorkbookAuthorization::Basic {
                 id: String::from("100"),
                 name: String::from("test-basic"),
@@ -984,7 +998,7 @@ mod model_tests {
         let expected = Workbook {
             version: 0.1,
             requests: self::default_request(),
-            environments: None,
+            scenarios: None,
             authorizations: Some(vec![WorkbookAuthorization::OAuth2Client {
                 id: String::from("100"),
                 name: String::from("test-oauth2-client"),
@@ -1027,7 +1041,7 @@ mod model_tests {
         let expected = Workbook {
             version: 0.1,
             requests: self::default_request(),
-            environments: None,
+            scenarios: None,
             authorizations: Some(vec![WorkbookAuthorization::OAuth2Client {
                 id: String::from("100"),
                 access_token_url: String::from("https://foo"),
@@ -1067,7 +1081,7 @@ mod model_tests {
         let expected = Workbook {
             version: 0.1,
             requests: self::default_request(),
-            environments: None,
+            scenarios: None,
             authorizations: Some(vec![WorkbookAuthorization::ApiKey {
                 id: String::from("100"),
                 name: String::from("test-api-key"),
@@ -1088,11 +1102,11 @@ mod model_tests {
     }
 
     #[test]
-    fn test_env_deserialize() -> Result<(), serde_json::Error> {
+    fn test_deserialize() -> Result<(), serde_json::Error> {
         let data = json!({
             "version": 0.1,
             "requests": default_request_json(),
-            "environments": [
+            "scenarios": [
                 {
                     "name": "foo",
                     "variables": {
@@ -1106,7 +1120,7 @@ mod model_tests {
             version: 0.1,
             requests: self::default_request(),
             authorizations: None,
-            environments: Some(vec![WorkbookEnvironment {
+            scenarios: Some(vec![WorkbookScenario {
                 id: String::from("100"),
                 name: String::from("foo"),
                 variables: Some(vec![

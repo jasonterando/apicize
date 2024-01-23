@@ -1,4 +1,3 @@
-import '../styles.css'
 import * as React from 'react'
 import { useSelector } from "react-redux";
 import { ToggleButtonGroup, ToggleButton, Typography, Box, Stack, Grid, TextField, SxProps } from '@mui/material'
@@ -14,17 +13,18 @@ import { RequestQueryStringEditor } from './request/request-query-string-editor'
 import { RequestBodyEditor } from './request/request-body-editor'
 import { RequestTestEditor } from './request/request-test-editor'
 import { RequestTestContext } from './request/request-test-context'
-import { ResultsViewer } from './request/results-viewer'
+import { ResultsViewer } from '../viewers/results-viewer'
 import { WorkbookState } from '../../models/store'
 import { RequestGroupEditor } from '../..';
-import { relative } from 'path';
+import { castEntryAsRequest } from '../../models/workbook/helpers/editable-workbook-request-helpers';
 
 export function RequestEditor(props: {
     triggerRun: () => {},
-    triggerCancel: () => {}
+    triggerCancel: () => {},
+    triggerCopyTextToClipboard: (text?: string) => void
+    triggerCopyImageToClipboard: (base64?: string) => void
 }) {
-    const request = useSelector((state: WorkbookState) => state.activeRequest)
-    const group = useSelector((state: WorkbookState) => state.activeRequestGroup)
+    const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
 
     const [panel, setPanel] = React.useState<string>('Parameters')
 
@@ -36,24 +36,25 @@ export function RequestEditor(props: {
         if (panel === null) {
             setPanel('Parameters')
         }
-    }, [request])
+    }, [requestEntry])
 
-    if (!(request || group)) {
+    if (!requestEntry) {
         return null
     }
 
     return (
-        <Stack direction='column' sx={{flex: 1}}>
+        <Stack direction='column' sx={{ flex: 1 }}>
             {
-                request
+                castEntryAsRequest(requestEntry)
                     ? (
-                        <Box className='section' sx={{display: "flex", bottom: 0}}>
+                        <Box sx={{ display: "flex", bottom: 0 }}>
                             <ToggleButtonGroup
                                 className='button-column'
                                 orientation='vertical'
                                 exclusive
                                 onChange={handlePanelChanged}
                                 value={panel}
+                                sx={{ marginRight: '24px' }}
                                 aria-label="text alignment">
                                 <ToggleButton value="Parameters" title="Show Request Parameters" aria-label='show parameters'><DisplaySettingsIcon /></ToggleButton>
                                 <ToggleButton value="Query String" title="Show Request Query String" aria-label='show query string'><ViewListIcon /></ToggleButton>
@@ -62,7 +63,7 @@ export function RequestEditor(props: {
                                 <ToggleButton value="Test" title="Show Request Test" aria-label='show test'><ScienceIcon /></ToggleButton>
                             </ToggleButtonGroup>
                             <Box className='panels' sx={{ flexGrow: 1 }}>
-                                <Typography variant='h1'><SendIcon /> {request.name?.length ?? 0 > 0 ? request.name : '(Unnamed)'} - {panel}</Typography>
+                                <Typography variant='h1'><SendIcon /> {requestEntry.name?.length ?? 0 > 0 ? requestEntry.name : '(Unnamed)'} - {panel}</Typography>
                                 {panel === 'Parameters' ? <RequestParametersEditor />
                                     : panel === 'Headers' ? <RequestHeadersEditor />
                                         : panel === 'Query String' ? <RequestQueryStringEditor />
@@ -73,20 +74,24 @@ export function RequestEditor(props: {
                         </Box>
                     )
                     : (
-                        <RequestGroupEditor sx={{display: "flex", bottom: 0}}/>
+                        <RequestGroupEditor sx={{ display: "flex", bottom: 0 }} />
                     )
             }
-            <RequestTestContext sx={{flexGrow: 0}} triggerRun={props.triggerRun} />
-            <ResultsViewer className='section' sx={{ 
-                display: 'flex',
-                flexDirection: 'row',
-                boxSizing: 'border-box',
-                position: 'relative',
-                height: 'calc(100vh - 400px)',
-                flexGrow: 0,
-                flexShrink: 0,
-                bottom: 0
-                }} cancelRequest={props.triggerCancel} />
+            <RequestTestContext sx={{ flexGrow: 0, marginTop: '48px', marginBottom: '48px' }} triggerRun={props.triggerRun} />
+            <ResultsViewer
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    boxSizing: 'border-box',
+                    position: 'relative',
+                    height: 'calc(100vh - 400px)',
+                    flexGrow: 0,
+                    flexShrink: 0,
+                    bottom: 0,
+                }}
+                triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
+                triggerCopyImageToClipboard={props.triggerCopyImageToClipboard}
+                cancelRequest={props.triggerCancel} />
         </Stack>
     )
 }

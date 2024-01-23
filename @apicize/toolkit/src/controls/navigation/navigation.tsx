@@ -8,27 +8,36 @@ import SendIcon from '@mui/icons-material/Send'
 import LockIcon from '@mui/icons-material/Lock'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import LanguageIcon from '@mui/icons-material/Language'
 import { TreeView } from '@mui/x-tree-view/TreeView'
 import { TreeItem } from '@mui/x-tree-view/TreeItem'
-import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack } from '@mui/material'
+import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, alpha } from '@mui/material'
 import {
     NavigationListItem,
-    WorkbookState, addNewAuthorization, addNewEnvironment, addNewRequest, addNewRequestGroup, deleteAuthorization, deleteEnvironment, deleteRequest,
+    WorkbookState, addNewAuthorization, addNewRequest, addNewRequestGroup, deleteAuthorization, deleteRequestEntry,
+    addNewScenario, duplicateScenario, deleteScenario,
     moveAuthorization,
-    moveEnvironment,
+    moveScenario,
     moveRequest,
-    setActiveAuthorization, setActiveEnvironment, setActiveRequest, setNavigationMenu
+    setActiveAuthorization, setActiveScenario, setActiveRequestEntry, duplicateAuthorization, duplicateRequestEntry
 } from '../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
 import AddIcon from '@mui/icons-material/Add'
-import React, { ReactNode, SyntheticEvent } from 'react'
+import React, { ReactNode, SyntheticEvent, useContext, useState } from 'react'
 import { useConfirmation } from '../../services/confirmation-service'
 import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensors, useSensor, PointerSensor } from '@dnd-kit/core'
 import './navigation.css'
 import { GetTitle } from '@apicize/common';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
+import { ToastContext, ToastStore } from '../../services/toast-service';
+
+interface MenuPosition {
+    id: string
+    mouseX: number
+    mouseY: number
+}
 
 export function Navigation(props: {
     triggerNew: () => void,
@@ -39,16 +48,21 @@ export function Navigation(props: {
 
     const dispatch = useDispatch()
     const confirm = useConfirmation()
+    const toast = useContext<ToastStore>(ToastContext)
 
     const requests = useSelector((state: WorkbookState) => state.requestList)
     const authorizations = useSelector((state: WorkbookState) => state.authorizationList)
-    const environments = useSelector((state: WorkbookState) => state.environmentList)
-    const activeRequest = useSelector((state: WorkbookState) => state.activeRequest)
+    const scenarios = useSelector((state: WorkbookState) => state.scenarioList)
+    const activeRequestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
     const activeAuth = useSelector((state: WorkbookState) => state.activeAuthorization)
-    const activeEnv = useSelector((state: WorkbookState) => state.activeEnvironment)
-    const navigationMenu = useSelector((state: WorkbookState) => state.navigationMenu)
+    const activeScenario = useSelector((state: WorkbookState) => state.activeScenario)
     const workbookFullName = useSelector((state: WorkbookState) => state.workbookFullName)
     const [selected, setSelected] = React.useState<string>('')
+
+    const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>(undefined)
+    const [reqMenu, setReqMenu] = useState<MenuPosition | undefined>(undefined)
+    const [authMenu, setAuthMenu] = useState<MenuPosition | undefined>(undefined)
+    const [scenarioMenu, setScenarioMenu] = useState<MenuPosition | undefined>(undefined)
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -69,10 +83,10 @@ export function Navigation(props: {
     }
 
     React.useEffect(() => {
-        if (activeRequest) {
-            selectRequest(activeRequest.id)
+        if (activeRequestEntry) {
+            selectRequest(activeRequestEntry.id)
         }
-    }, [activeRequest])
+    }, [activeRequestEntry])
 
     React.useEffect(() => {
         if (activeAuth) {
@@ -81,10 +95,10 @@ export function Navigation(props: {
     }, [activeAuth])
 
     React.useEffect(() => {
-        if (activeEnv) {
-            selectEnvironment(activeEnv?.id)
+        if (activeScenario) {
+            selectScenario(activeScenario?.id)
         }
-    }, [activeEnv])
+    }, [activeScenario])
 
 
     function NavTreeSection(props: {
@@ -114,12 +128,16 @@ export function Navigation(props: {
                     justifyContent='space-between'
                     alignItems='center'
                     ref={setDropRef}
-                    sx={{ backgroundColor: isOver ? 'green' : 'default' }}
-                    >
+                    onClick={(e) => {
+                        // Prevent label from expanding/collapsing
+                        handleSelectHeader(e)
+                    }}
+                    sx={{ backgroundColor: isOver ? alpha('#0F0', 0.20) : 'default' }}
+                >
                     {
                         props.type === 'request' ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
                             props.type === 'auth' ? (<LockIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
-                                props.type === 'env' ? (<LanguageIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                                props.type === 'scenario' ? (<LanguageIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
                                     (<></>)
                     }
                     <Box className='nav-node-text' sx={{ flexGrow: 1 }}>
@@ -128,18 +146,18 @@ export function Navigation(props: {
                     {
                         props.type === 'request' ?
                             (
-                                <IconButton sx={{ flexGrow: 0, minHeight: '40px' }} onClick={(e) => handleShowNavigationMenu(e, 'menu-auth')}>
+                                <IconButton sx={{ flexGrow: 0, minHeight: '40px' }} onClick={(e) => handleShowRequestsMenu(e, 'menu-auth')}>
                                     <MoreVertIcon />
                                 </IconButton>
                             )
                             :
                             (
-                                <IconButton sx={{ flexGrow: 0, minHeight: '40px' }} 
-                                onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    props.onAdd()
-                                }}>
+                                <IconButton sx={{ flexGrow: 0, minHeight: '40px' }}
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        props.onAdd()
+                                    }}>
                                     <AddIcon />
                                 </IconButton>
                             )
@@ -153,36 +171,20 @@ export function Navigation(props: {
 
     function NavTreeItem(props: {
         type: string,
-        item: NavigationListItem
+        item: NavigationListItem,
+        onSelect?: (id: string) => void,
+        onMenu?: (event: React.MouseEvent, id: string) => void,
+        onMove?: (id: string, destinationID: string | null) => void
     }) {
-        let onSelect: (id: string) => void
-        let onDelete: (item: NavigationListItem) => void
-        let onMove: (id: string, destinationID: string | null) => void
-        switch (props.type) {
-            case 'request':
-                onSelect = handleSelectRequest
-                onDelete = handleDeleteRequest
-                onMove = handleMoveRequest
-                break;
-            case 'auth':
-                onSelect = handleSelectAuth
-                onDelete = handleDeleteAuth
-                onMove = handleMoveAuth
-                break;
-            case 'env':
-                onSelect = handleSelectEnv
-                onDelete = handleDeleteEnv
-                onMove = handleMoveEnv
-                break;
-            default:
-                throw new Error('Invalid nav type')
-        }
-
         const { attributes, listeners, setNodeRef: setDragRef, transform } = useDraggable({
             id: props.item.id,
             data: {
                 type: props.type,
-                move: (destinationID: string) => onMove(props.item.id, destinationID)
+                move: (destinationID: string) => {
+                    if (props.onMove) {
+                        props.onMove(props.item.id, destinationID)
+                    }
+                }
             } as DraggableData
         })
 
@@ -203,26 +205,31 @@ export function Navigation(props: {
             (
                 <TreeItem
                     nodeId={props.item.id}
-                    key={`hdr-${props.type}`}
-                    ref={useCombinedRefs(setDragRef, setDropRef)}
+                    key={props.item.id}
                     id={props.item.id}
+                    ref={useCombinedRefs(setDragRef, setDropRef)}
                     style={dragStyle}
                     {...listeners}
                     {...attributes}
                     onClick={(e) => {
+                        // Prevent label from expanding/collapsing
                         e.preventDefault()
                         e.stopPropagation()
-                        onSelect(props.item.id)
+                        if (props.onSelect) props.onSelect(props.item.id)
                     }}
                     onFocusCapture={e => e.stopPropagation()}
-                    sx={{ backgroundColor: isOver ? 'green' : 'default' }}
+                    sx={{ backgroundColor: isOver ? alpha('#0F0', 0.20) : 'default' }}
                     label={(
                         <Box
-                            // ref={ref}
                             component='span'
                             display='flex'
                             justifyContent='space-between'
                             alignItems='center'
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                if (props.onSelect) props.onSelect(props.item.id)
+                            }}
                         >
                             <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
                             <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetTitle(props.item)} (Group)</Box>
@@ -233,15 +240,22 @@ export function Navigation(props: {
                                 onClick={(e) => {
                                     e.preventDefault()
                                     e.stopPropagation()
-                                    onDelete(props.item)
+                                    if (props.onMenu) props.onMenu(e, props.item.id)
                                 }}
                             >
-                                <DeleteIcon />
+                                <MoreVertIcon />
                             </IconButton>
                         </Box>
                     )}>
                     {props.item.children.map(c => (
-                        <NavTreeItem type={props.type} item={c} key={`nav-${c.id}`} />
+                        <NavTreeItem 
+                            type={props.type}
+                            item={c} 
+                            key={`nav-${c.id}`}
+                            onSelect={props.onSelect}
+                            onMenu={props.onMenu}
+                            onMove={props.onMove}
+                        />
                     ))}
                 </TreeItem>
             )
@@ -257,7 +271,7 @@ export function Navigation(props: {
                 onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    onSelect(props.item.id)
+                    if (props.onSelect) props.onSelect(props.item.id)
                 }}
                 onFocusCapture={e => e.stopPropagation()}
                 sx={{ backgroundColor: isOver ? 'green' : 'default' }}
@@ -282,40 +296,99 @@ export function Navigation(props: {
                             onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                onDelete(props.item)
+                                if (props.onMenu) props.onMenu(e, props.item.id)
                             }}
                         >
-                            <DeleteIcon />
+                            <MoreVertIcon />
                         </IconButton>
                     </Box>
                 )} />)
     }
 
-    const handleShowNavigationMenu = (event: React.MouseEvent, id: string) => {
+    const clearAllSelections = () => {
+        dispatch(setActiveRequestEntry({ id: undefined }))
+        dispatch(setActiveAuthorization({ id: undefined }))
+        dispatch(setActiveScenario({ id: undefined }))
+        setSelected('')
+    }
+
+
+    const closeRequestsMenu = () => {
+        setRequestsMenu(undefined)
+    }
+
+    const closeRequestMenu = () => {
+        setReqMenu(undefined)
+    }
+
+    const closeAuthMenu = () => {
+        setAuthMenu(undefined)
+    }
+
+    const closeScenarioMenu = () => {
+        setScenarioMenu(undefined)
+    }
+
+    const handleShowRequestsMenu = (event: React.MouseEvent, id: string) => {
         event.preventDefault()
         event.stopPropagation()
-        dispatch(setNavigationMenu(
+        setRequestsMenu(
             {
                 id,
                 mouseX: event.clientX - 1,
                 mouseY: event.clientY - 6,
             }
-        ))
+        )
     }
 
-    const clearNavigationMenu = () => {
-        dispatch(setNavigationMenu(undefined))
+    const handleShowRequestMenu = (event: React.MouseEvent, id: string) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setReqMenu(
+            {
+                id,
+                mouseX: event.clientX - 1,
+                mouseY: event.clientY - 6,
+            }
+        )
     }
 
-    const clearAllSelections = () => {
-        dispatch(setActiveRequest({ id: undefined }))
-        dispatch(setActiveAuthorization({ id: undefined }))
-        dispatch(setActiveEnvironment({ id: undefined }))
-        setSelected('')
+    const handleShowAuthMenu = (event: React.MouseEvent, id: string) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setAuthMenu(
+            {
+                id,
+                mouseX: event.clientX - 1,
+                mouseY: event.clientY - 6,
+            }
+        )
+    }
+
+    const handleShowScenarioMenu = (event: React.MouseEvent, id: string) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setScenarioMenu(
+            {
+                id,
+                mouseX: event.clientX - 1,
+                mouseY: event.clientY - 6,
+            }
+        )
+    }
+
+    const handleSelectHeader = (e: SyntheticEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        clearAllSelections()
+        closeRequestsMenu()
+        closeRequestMenu()
+        closeAuthMenu()
+        closeScenarioMenu()
     }
 
     const selectRequest = (id: string) => {
-        dispatch(setActiveRequest({ id }))
+        dispatch(setActiveRequestEntry({ id }))
         setSelected(id)
     }
 
@@ -324,133 +397,138 @@ export function Navigation(props: {
         setSelected(id)
     }
 
-    const selectEnvironment = (id: string) => {
-        dispatch(setActiveEnvironment({ id }))
+    const selectScenario = (id: string) => {
+        dispatch(setActiveScenario({ id }))
         setSelected(id)
     }
 
-    const handleCloseRequestMenu = () => {
-        clearNavigationMenu()
+    const handleAddRequest = (targetRequestId?: string) => {
+        closeRequestsMenu()
+        closeRequestMenu()
+        dispatch(addNewRequest({targetRequestId}))
     }
 
-    const handleSelectHeader = (e: SyntheticEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        clearAllSelections()
-        clearNavigationMenu()
+    const handleAddRequestGroup = (targetRequestId?: string) => {
+        closeRequestsMenu()
+        closeRequestMenu()
+        dispatch(addNewRequestGroup({targetRequestId}))
     }
 
-    const handleAddRequest = (e: SyntheticEvent) => {
-        e.stopPropagation()
-        clearNavigationMenu()
-        dispatch(addNewRequest())
+    const handleAddAuth = (targetAuthId?: string) => {
+        closeAuthMenu()
+        dispatch(addNewAuthorization(
+            {targetAuthId}
+        ))
     }
 
-    const handleAddRequestGroup = (e: SyntheticEvent) => {
-        e.stopPropagation()
-        clearNavigationMenu()
-        dispatch(addNewRequestGroup())
+    const handleAddScenario = (targetScenarioId?: string) => {
+        closeScenarioMenu()
+        dispatch(addNewScenario({targetScenarioId}))
     }
 
-    const handleDeleteRequest = (item: NavigationListItem) => {
+    const handleDeleteRequest = () => {
+        if (! activeRequestEntry) return
+        closeRequestMenu()
+        closeRequestsMenu()
         confirm({
             title: 'Delete Request',
-            message: `Are you are you sure you want to delete ${GetTitle(item)}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(activeRequestEntry)}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                dispatch(deleteRequest(item.id))
+                dispatch(deleteRequestEntry(activeRequestEntry.id))
             }
         })
     }
 
-    const handleSelectRequest = (id: string) => {
-        dispatch(setActiveRequest({ id }))
-        selectRequest(id)
+    const handleDeleteAuth = () => {
+        closeAuthMenu()
+        if (!activeAuth) return
+        confirm({
+            title: 'Delete Authorization',
+            message: `Are you are you sure you want to delete ${GetTitle(activeAuth)}?`,
+            okButton: 'Yes',
+            cancelButton: 'No',
+            defaultToCancel: true
+        }).then((result) => {
+            if (result) {
+                clearAllSelections()
+                dispatch(deleteAuthorization(activeAuth.id))
+            }
+        })
+    }
+
+    const handleDeleteScenario = () => {
+        closeScenarioMenu()
+        if (!activeScenario) return
+
+        confirm({
+            title: 'Delete Scenario',
+            message: `Are you are you sure you want to delete ${GetTitle(activeScenario)}?`,
+            okButton: 'Yes',
+            cancelButton: 'No',
+            defaultToCancel: true
+        }).then((result) => {
+            if (result) {
+                clearAllSelections()
+                dispatch(deleteScenario(activeScenario.id))
+            }
+        })
+    }
+
+    const handleDupeRequest = () => {
+        closeRequestMenu()
+        closeRequestsMenu()
+        if (activeRequestEntry) dispatch(duplicateRequestEntry(activeRequestEntry))
+    }
+
+    const handleDupeAuth = () => {
+        closeAuthMenu()
+        if (activeAuth) dispatch(duplicateAuthorization(activeAuth))
+    }
+
+    const handleDupeScenario = () => {
+        closeScenarioMenu()
+        if (activeScenario) dispatch(duplicateScenario(activeScenario))
     }
 
     const handleMoveRequest = (id: string, destinationID: string | null) => {
+        selectRequest(id)
         dispatch(moveRequest({ id, destinationID }))
     }
 
-    const handleAddAuth = () => {
-        dispatch(addNewAuthorization())
-    }
-
-    const handleDeleteAuth = (item: NavigationListItem) => {
-        confirm({
-            title: 'Delete Authorization',
-            message: `Are you are you sure you want to delete ${GetTitle(item)}?`,
-            okButton: 'Yes',
-            cancelButton: 'No',
-            defaultToCancel: true
-        }).then((result) => {
-            if (result) {
-                clearAllSelections()
-                dispatch(deleteAuthorization(item.id))
-            }
-        })
-    }
-
-    const handleSelectAuth = (id: string) => {
-        dispatch(setActiveAuthorization({ id }))
-        selectAuthorization(id)
-    }
-
     const handleMoveAuth = (id: string, destinationID: string | null) => {
+        selectAuthorization(id)
         dispatch(moveAuthorization({ id, destinationID }))
     }
 
-    const handleAddEnv = () => {
-        dispatch(addNewEnvironment())
-    }
-
-    const handleDeleteEnv = (env: NavigationListItem) => {
-        confirm({
-            title: 'Delete Environment',
-            message: `Are you are you sure you want to delete ${(env.name?.length ?? 0) > 0 ? env.name : '(Unnamed)'}?`,
-            okButton: 'Yes',
-            cancelButton: 'No',
-            defaultToCancel: true
-        }).then((result) => {
-            if (result) {
-                clearAllSelections()
-                dispatch(deleteEnvironment(env.id))
-            }
-        })
-    }
-
-    const handleSelectEnv = (id: string) => {
-        dispatch(setActiveEnvironment({ id }))
-        selectEnvironment(id)
-    }
-
-    const handleMoveEnv = (id: string, destinationID: string | null) => {
-        dispatch(moveEnvironment({ id, destinationID }))
+    const handleMoveScenario = (id: string, destinationID: string | null) => {
+        selectScenario(id)
+        dispatch(moveScenario({ id, destinationID }))
     }
 
     function RequestsMenu() {
         return (
             <Menu
                 id='requests-menu'
-                open={navigationMenu !== undefined}
-                onClose={handleCloseRequestMenu}
+                open={requestsMenu !== undefined}
+                onClose={closeRequestsMenu}
                 anchorReference='anchorPosition'
                 anchorPosition={{
-                    top: navigationMenu?.mouseY ?? 0,
-                    left: navigationMenu?.mouseX ?? 0
+                    top: requestsMenu?.mouseY ?? 0,
+                    left: requestsMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(e) => handleAddRequest(e)}>
+                <MenuItem onClick={(_) => handleAddRequest()}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(e) => handleAddRequestGroup(e)}>
+                <MenuItem onClick={(_) => handleAddRequestGroup()}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
@@ -459,6 +537,115 @@ export function Navigation(props: {
             </Menu>
         )
     }
+
+    function RequestMenu() {
+        return (
+            <Menu
+                id='req-menu'
+                open={reqMenu !== undefined}
+                onClose={closeRequestMenu}
+                anchorReference='anchorPosition'
+                anchorPosition={{
+                    top: reqMenu?.mouseY ?? 0,
+                    left: reqMenu?.mouseX ?? 0
+                }}
+            >
+                <MenuItem onClick={(e) => handleAddRequest(activeRequestEntry?.id)}>
+                    <ListItemIcon>
+                        <SendIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Add Request</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleAddRequestGroup(activeRequestEntry?.id)}>
+                    <ListItemIcon>
+                        <FolderIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Add Request Group</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDupeRequest()}>
+                    <ListItemIcon>
+                        <ContentCopyOutlinedIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Duplicate</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDeleteRequest()}>
+                    <ListItemIcon>
+                        <DeleteIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Delete</ListItemText>
+                </MenuItem>
+            </Menu>
+        )
+    }
+
+    function AuthMenu() {
+        return (
+            <Menu
+                id='auth-menu'
+                open={authMenu !== undefined}
+                onClose={closeAuthMenu}
+                anchorReference='anchorPosition'
+                anchorPosition={{
+                    top: authMenu?.mouseY ?? 0,
+                    left: authMenu?.mouseX ?? 0
+                }}
+            >
+                <MenuItem onClick={(_) => handleAddAuth(activeAuth?.id)}>
+                    <ListItemIcon>
+                        <LockIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Add Authorization</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDupeAuth()}>
+                    <ListItemIcon>
+                        <ContentCopyOutlinedIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Duplicate Authorization</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDeleteAuth()}>
+                    <ListItemIcon>
+                        <DeleteIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Delete Authorization</ListItemText>
+                </MenuItem>
+            </Menu>
+        )
+    }
+
+    function ScenarioMenu() {
+        return (
+            <Menu
+                id='scenario-menu'
+                open={scenarioMenu !== undefined}
+                onClose={closeScenarioMenu}
+                anchorReference='anchorPosition'
+                anchorPosition={{
+                    top: scenarioMenu?.mouseY ?? 0,
+                    left: scenarioMenu?.mouseX ?? 0
+                }}
+            >
+                <MenuItem onClick={(_) => handleAddScenario(activeScenario?.id)}>
+                    <ListItemIcon>
+                        <LanguageIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Add Scenario</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDupeScenario()}>
+                    <ListItemIcon>
+                        <ContentCopyOutlinedIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Duplicate Scenario</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDeleteScenario()}>
+                    <ListItemIcon>
+                        <DeleteIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Delete Scenario</ListItemText>
+                </MenuItem>
+            </Menu>
+        )
+    }
+
     const onDragEnd = (e: DragEndEvent) => {
         const { active, over } = e
         if (!over) return
@@ -470,20 +657,29 @@ export function Navigation(props: {
         }
     }
 
-    
+    const defaultExpanded = ['hdr-request', 'hdr-auth', 'hdr-scenario']
+    const expandRequestsWithChildren = (item: NavigationListItem) => {
+        if (item.children && (item.children?.length ?? 0) > 0) {
+            defaultExpanded.push(item.id)
+            item.children.forEach(expandRequestsWithChildren)
+        }
+    }
+    requests.forEach(expandRequestsWithChildren)
+    // console.log('Default expanded: ' + defaultExpanded.join(', '))
+
     return (
-        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginTop: '24px', paddingRight: '48px' }}>
-            <Box sx={{marginLeft: '24px', marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px'}}>
+        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', paddingRight: '48px' }}>
+            <Box sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px' }}>
                 <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
                     <PostAddIcon />
                 </IconButton>
-                <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => props.triggerOpen()} sx={{marginLeft: '4px'}}>
+                <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => props.triggerOpen()} sx={{ marginLeft: '4px' }}>
                     <FileOpenIcon />
                 </IconButton>
-                <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={(workbookFullName?.length ?? 0) == 0} onClick={() => props.triggerSave()} sx={{marginLeft: '4px'}}>
+                <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={(workbookFullName?.length ?? 0) == 0} onClick={() => props.triggerSave()} sx={{ marginLeft: '4px' }}>
                     <SaveIcon />
                 </IconButton>
-                <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => props.triggerSaveAs()} sx={{marginLeft: '4px'}}>
+                <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => props.triggerSaveAs()} sx={{ marginLeft: '4px' }}>
                     <SaveAsIcon />
                 </IconButton>
             </Box>
@@ -495,30 +691,53 @@ export function Navigation(props: {
                     aria-label='request navigator'
                     defaultCollapseIcon={<ExpandMoreIcon />}
                     defaultExpandIcon={<ChevronRightIcon />}
-                    defaultExpanded={['hdr-request', 'hdr-auth', 'hdr-env']}
-                    onNodeSelect={(e: React.SyntheticEvent) => e.stopPropagation()}
+                    defaultExpanded={defaultExpanded}
                     selected={selected}
-                    // onNodeFocus={(e: React.SyntheticEvent, id: string) => handleNodeFocus(id)}
+                    multiSelect={false}
                     sx={{ height: '100vh', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
                 >
                     <NavTreeSection key='nav-section-request' type='request' title='Requests' onAdd={() => { }}>
                         {
-                            requests.map(t => <NavTreeItem item={t} type='request' key={`nav-section-${t.id}`} />)
+                            requests.map(t => <NavTreeItem
+                                item={t}
+                                type='request'
+                                key={`nav-section-${t.id}`}
+                                onSelect={selectRequest}
+                                onMenu={handleShowRequestMenu}
+                                onMove={handleMoveRequest}
+                            />)
                         }
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' onAdd={handleAddAuth}>
                         {
-                            authorizations.map(t => <NavTreeItem item={t} type='auth' key={`nav-section-${t.id}`} />)
+                            authorizations.map(t => <NavTreeItem
+                                item={t}
+                                type='auth'
+                                key={`nav-section-${t.id}`}
+                                onSelect={selectAuthorization}
+                                onMenu={handleShowAuthMenu}
+                                onMove={handleMoveAuth}
+                            />)
                         }
                     </NavTreeSection>
-                    <NavTreeSection key='nav-section-env' type='env' title='Environments' onAdd={handleAddEnv}>
+                    <NavTreeSection key='nav-section-scenario' type='scenario' title='Scenarios' onAdd={handleAddScenario}>
                         {
-                            environments.map(t => <NavTreeItem item={t} type='env' key={`nav-section-${t.id}`} />)
+                            scenarios.map(t => <NavTreeItem
+                                item={t}
+                                type='scenario'
+                                key={`nav-section-${t.id}`}
+                                onSelect={selectScenario}
+                                onMenu={handleShowScenarioMenu}
+                                onMove={handleMoveScenario}
+                            />)
                         }
                     </NavTreeSection>
                 </TreeView>
             </DndContext>
             <RequestsMenu />
+            <RequestMenu />
+            <AuthMenu />
+            <ScenarioMenu />
         </Stack>
     )
 }

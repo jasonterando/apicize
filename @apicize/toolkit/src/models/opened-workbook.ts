@@ -1,5 +1,5 @@
 import { EditableWorkbookAuthorization } from "./workbook/editable-workbook-authorization";
-import { EditableWorkbookEnvironment } from "./workbook/editable-workbook-environment";
+import { EditableWorkbookScenario } from "./workbook/editable-workbook-scenario";
 import { StateStorage } from "./state-storage";
 import { EditableWorkbookRequestEntry } from "./workbook/editable-workbook-request-entry";
 
@@ -8,5 +8,5 @@ export interface OpenedWorkbook {
     fullName: string,
     requests: StateStorage<EditableWorkbookRequestEntry>,
     authorizations: StateStorage<EditableWorkbookAuthorization>,
-    environments: StateStorage<EditableWorkbookEnvironment>
+    scenarios: StateStorage<EditableWorkbookScenario>
 }

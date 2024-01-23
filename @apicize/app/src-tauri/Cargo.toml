@@ -21,6 +21,7 @@ apicize_lib = { version = "0.1.0", path = "../../rust/lib" }
 tauri = { version = "1.5.3", features = [ "window-set-title", "fs-read-dir", "notification-all", "fs-write-file", "global-shortcut-all", "fs-exists", "dialog-all", "fs-read-file", "path-all"] }
 lazy_static = "1.4.0"
 tokio-util = "0.7.10"
+tauri-plugin-clipboard = "0.5.5"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

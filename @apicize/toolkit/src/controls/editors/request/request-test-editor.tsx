@@ -6,25 +6,30 @@ import { highlight, languages } from 'prismjs'
 import 'prismjs/components/prism-javascript'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
+import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
 
 export function RequestTestEditor() {
   const dispatch = useDispatch()
 
-  const request = useSelector((state: WorkbookState) => state.activeRequest)
-  const [test, setTest] = React.useState<string | undefined>(request?.test)
+  const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
+  const [test, setTest] = React.useState<string | undefined>(castEntryAsRequest(requestEntry)?.test)
 
   React.useEffect(() => {
-    setTest(request?.test)
-  }, [request])
+    let test: string | undefined = undefined
+    if (requestEntry) {
+      test = castEntryAsRequest(requestEntry)?.test
+    }
+    setTest(test)
+  }, [requestEntry])
 
-  if(! request) {
+  if(! requestEntry) {
     return null
   }
 
   const updateTest = React.useCallback((val: string | undefined) => {
     setTest(val)
     dispatch(updateRequest({
-      id: request.id,
+      id: requestEntry.id,
       test: val
     }))
   }, [])
@@ -33,7 +38,20 @@ export function RequestTestEditor() {
       <Editor
         autoFocus
         padding={10}
-        className='code-editor'
+        style={{
+          fontFamily: 'monospace', 
+          minHeight: '200px',
+          outline: 'none',
+          border: '1px !important',
+          borderColor: '#444',
+          borderWidth: '1px',
+          borderRadius: '4px',
+          borderStyle: 'solid'
+          // borderTopStyle: 'solid !important',
+          // borderBottomStyle: 'solid !important',
+          // borderLeftStyle: 'solid !important',
+          // borderRightStyle: 'solid !important'
+        }}
         value={test?.toString() ?? ""}
         highlight={code => highlight(code, languages.javascript, 'javascript')}
         onValueChange={updateTest}

@@ -55,16 +55,17 @@ export function moveInStorage<T>(id: string, destinationID: string | null, stora
     let destList: string[]
 
     if (destinationID === null) {
-        // If there is no destination ID, then we are moving to the bottom of the main index list
-        destIndex = -1
+        // If there is no destination ID, then we are moving to the top of the main index list
+        destIndex = 0
         destList = storage.topLevelIDs
     } else {
         [destIndex, destList] = findInStorage<T>(destinationID, storage)
         const children = storage.childIDs ? storage.childIDs[destinationID] : undefined
+        console.log('Dropped on children', children)
 
-        // If destination is a group, then append to that group
+        // If destination is a group, then prepend to that group
         if (children) {
-            destIndex = -1
+            destIndex = 0
             destList = children
         }
     }

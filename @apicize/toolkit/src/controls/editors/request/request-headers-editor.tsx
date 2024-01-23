@@ -4,24 +4,25 @@ import { WorkbookState, updateRequest } from '../../../models/store'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
+import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
 
 export function RequestHeadersEditor() {
   const dispatch = useDispatch()
-  const request = useSelector((state: WorkbookState) => state.activeRequest)
-  const [requestHeaders, setRequestHeaders] = React.useState((request as EditableWorkbookRequest)?.headers)
+  const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
+  const [requestHeaders, setRequestHeaders] = React.useState(castEntryAsRequest(requestEntry)?.headers)
 
   React.useEffect(() => {
-    setRequestHeaders((request as EditableWorkbookRequest)?.headers)
-  }, [request])
+    setRequestHeaders(castEntryAsRequest(requestEntry)?.headers)
+  }, [requestEntry])
 
-  if (!request) {
+  if (!requestEntry) {
     return null
   }
 
   const onUpdate = (data: EditableNameValuePair[]) => {
     setRequestHeaders(data)
     dispatch(updateRequest({
-      id: request.id,
+      id: requestEntry.id,
       headers: data
     }))
   }

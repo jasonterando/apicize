@@ -1,18 +1,26 @@
-  'use client'
+'use client'
 
 import {
   ConfirmationServiceProvider, Navigation, workbookStore,
-  AuthorizationEditor, EnvironmentEditor, RequestEditor,
+  AuthorizationEditor, ScenarioEditor, RequestEditor,
 } from '@apicize/toolkit'
-import { Stack, Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material'
+import type { } from '@mui/x-tree-view/themeAugmentation';
+import { Stack, Box, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui/material'
 import { ToastProvider } from '@apicize/toolkit'
 import { WorkbookProvider, registerKeyboardShortcuts } from './providers/workbook-provider';
 import { Provider } from 'react-redux';
 import React, { useEffect } from 'react'
 import { emit } from '@tauri-apps/api/event'
+import "typeface-open-sans";
 
 export default function Home() {
   const darkTheme = createTheme({
+    typography: {
+      fontFamily: [
+        'open-sans',
+        'sans',
+      ].join(','),
+    },
     components: {
       // MuiOutlinedInput: {
       //   styleOverrides: {
@@ -28,6 +36,19 @@ export default function Home() {
       //     },
       //   }
       // },
+      MuiTreeItem: {
+        styleOverrides: {
+          root: {
+            // There is no way to explicitly set focus in MUI TreeView, so don't use it
+            "& > .MuiTreeItem-content.Mui-focused": {
+              backgroundColor: alpha("#000", 0)
+            },
+            "& > .MuiTreeItem-content.Mui-selected": {
+              backgroundColor: alpha("#FFF", 0.2)
+            }
+          }
+        }
+      },
 
       MuiIconButton: {
         defaultProps: {
@@ -80,22 +101,25 @@ export default function Home() {
       //     sx: {marginLeft: '14px'}
       //   }
       // },
+
       MuiTypography: {
         styleOverrides: {
           h1: {
-            fontSize: '24px',
+            fontSize: '26px',
             marginTop: '8px',
-            marginBottom: '24px'
+            marginBottom: '26px'
           },
           h2: {
             fontSize: '22px',
             marginTop: '8px',
-            marginBottom: '22px'
+            marginBottom: '22px',
+            paddingTop: '4px',
           },
           h3: {
-            fontSize: '20px',
+            fontSize: '18px',
             marginTop: '8px',
-            marginBottom: '20px'
+            marginBottom: '18px',
+            paddingTop: '4px',
           }
         }
       }
@@ -103,16 +127,12 @@ export default function Home() {
     palette: {
       mode: 'dark',
     },
-    // typography: {
-    //   fontSize: 14
-    // },
-    // spacing: 1
   })
 
   useEffect(() => {
     registerKeyboardShortcuts()
   })
-  
+
   return (
     <Provider store={workbookStore}>
       {/* <main className={styles.main}> */}
@@ -122,7 +142,7 @@ export default function Home() {
           <ToastProvider>
             <ConfirmationServiceProvider>
               <WorkbookProvider>
-                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', bottom: 0 }}>
+                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '12px' }}>
                   <Navigation
                     triggerNew={() => emit('new')}
                     triggerOpen={() => emit('open')}
@@ -134,11 +154,19 @@ export default function Home() {
                     display: 'flex',
                     flexDirection: 'row',
                     flexGrow: 1,
-                    bottom: 0
                   }}>
-                    <RequestEditor triggerRun={() => emit("run")} triggerCancel={() => emit("cancel")} />
+                    <RequestEditor
+                      triggerRun={() => emit("run")}
+                      triggerCancel={() => emit("cancel")}
+                      triggerCopyTextToClipboard={(text?: string) => {
+                        emit("copyText", text)
+                      }}
+                      triggerCopyImageToClipboard={(base64?: string) => {
+                        emit("copyImage", base64)
+                      }}
+                    />
                     <AuthorizationEditor triggerClearToken={() => emit("clearToken")} />
-                    <EnvironmentEditor />
+                    <ScenarioEditor />
                   </Box>
                 </Stack>
               </WorkbookProvider>

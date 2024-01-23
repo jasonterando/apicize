@@ -2,8 +2,8 @@ import { Identifiable } from "../identifiable";
 import { Named } from "../named";
 import { WorkbookNameValuePair } from "./workbook-request";
 
-export const NO_ENVIRONMENT = '\0'
+export const NO_SCENARIO = '\0'
 
-export interface WorkbookEnvironment extends Identifiable, Named {
+export interface WorkbookScenario extends Identifiable, Named {
     variables?: WorkbookNameValuePair[] 
 }

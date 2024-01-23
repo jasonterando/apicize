@@ -1,9 +1,8 @@
 import { useSelector } from "react-redux"
-import { WorkbookState } from "../../../../models/store"
+import { WorkbookState } from "../../../models/store"
 import { DataGrid } from "@mui/x-data-grid"
-import { GenerateIdentifier } from "../../../../services/random-identifier-generator"
+import { GenerateIdentifier } from "../../../services/random-identifier-generator"
 import { Stack, Typography } from "@mui/material"
-import { Box } from "@mui/system"
 
 export function ResponseHeadersViewer() {
     const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
@@ -23,10 +22,10 @@ export function ResponseHeadersViewer() {
 
     return (
         <Stack direction="column" sx={{ flexGrow: 1 }}>
-            <Typography variant='h1'>Response Headers</Typography>
+            <Typography variant='h2' sx={{marginTop: 0}}>Response Headers</Typography>
             <DataGrid
                 rows={headers}
-                rowHeight={52}
+                rowHeight={32}
                 sx={{
                     width: '100%',
                     // flexGrow: 1,

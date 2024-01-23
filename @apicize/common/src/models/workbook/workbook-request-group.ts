@@ -5,4 +5,5 @@ import { WorkbookRequest } from "./workbook-request";
 export interface WorkbookRequestGroup extends Identifiable, Named {
     id: string
     children: (WorkbookRequest | WorkbookRequestGroup)[]
+    runs: number
 }

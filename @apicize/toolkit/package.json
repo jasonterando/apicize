@@ -8,9 +8,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "jest",
-    "assets": "node ./.bin/copy-assets.js",
-    "build": "npm run assets && tsc",
-    "watch": "npm run assets && tsc --watch",
+    "build": "tsc",
+    "watch": "tsc --watch",
     "rebuild": "rm -rf dist && rm ./tsconfig.tsbuildinfo && tsc"
   },
   "devDependencies": {

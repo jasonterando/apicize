@@ -1,0 +1,83 @@
+import { useSelector } from "react-redux"
+import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from "../../viewers/image-viewer";
+import { TextViewer } from "../../viewers/text-viewer";
+import { WorkbookState } from "../../../models/store";
+import { IconButton, Typography } from "@mui/material";
+import { Box } from "@mui/system";
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import beautify from "js-beautify";
+
+export function ResultResponsePreview(props: {
+    triggerCopyTextToClipboard: (text?: string) => void,
+    triggerCopyImageToClipboard: (base64?: string) => void,
+}) {
+    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
+    if (!result) return null
+
+    let extension = ''
+    for (const [name, value] of Object.entries(result.response?.headers ?? {})) {
+        if (name.toLowerCase() === 'content-type') {
+            let i = value.indexOf('/')
+            if (i !== -1) {
+                let j = value.indexOf(';')
+                extension = value.substring(i + 1, j == -1 ? undefined : j)
+            }
+        }
+    }
+
+    const isImage = KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1
+    let text = result.response?.body?.text ?? ''
+    if ((!isImage) && text.length > 0) {
+        switch (extension) {
+            case 'html':
+                text = beautify.html_beautify(text, {})
+                break
+            case 'css':
+                text = beautify.css_beautify(text, {})
+                break
+            case 'js':
+                text = beautify.js_beautify(text, {})
+                break
+            case 'json':
+                text = beautify.js_beautify(text, {})
+                break
+            default:
+                break
+        }
+    }
+
+    const showImageCopy = isImage && ((result.response?.body?.data?.length ?? 0) > 0)
+    const showTextCopy = (!isImage) && ((text.length ?? 0) > 0)
+
+    return (
+        <Box>
+            <Typography variant='h2' sx={{ marginTop: 0 }}>
+                Response Body (Preview)
+                {showImageCopy
+                    ? (<IconButton
+                        aria-label="Copy Image to Clipboard"
+                        title="Copy Image to Clipboard"
+                        sx={{ marginLeft: '16px' }}
+                        onClick={_ => props.triggerCopyImageToClipboard(result.response?.body?.data)}>
+                        <ContentCopyIcon />
+                    </IconButton>)
+                    : showTextCopy
+                        ? (<IconButton
+                            aria-label="Copy Text to Clipboard"
+                            title="Copy Text to Clipboard"
+                            sx={{ marginLeft: '16px' }}
+                            onClick={_ => props.triggerCopyTextToClipboard(text)}>
+                            <ContentCopyIcon />
+                        </IconButton>)
+                        : (<></>)
+                }
+
+            </Typography>
+            {
+                isImage && showImageCopy
+                    ? (<ImageViewer base64ToRender={result.response?.body?.data} extensionToRender={extension} />)
+                    : (<TextViewer text={text} extension={extension} />)
+            }
+        </Box>
+    )
+}

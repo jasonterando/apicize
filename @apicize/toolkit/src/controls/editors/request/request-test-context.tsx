@@ -1,31 +1,35 @@
-import { ButtonGroup, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, ToggleButton } from '@mui/material';
+import { ButtonGroup, FormControl, Grid, InputLabel, MenuItem, Select, ToggleButton } from '@mui/material';
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
 import { useDispatch, useSelector } from 'react-redux';
-import { NO_AUTHORIZATION, NO_ENVIRONMENT } from '@apicize/common';
-import { WorkbookState, setSelectedAuthorization, setRequestRunning, setRequestResults, setSelectedEnvironment, setSelectedExecutionResult } from '../../../models/store';
-import '../../styles.css'
+import { GetTitle, NO_AUTHORIZATION, NO_SCENARIO } from '@apicize/common';
+import { WorkbookState, setSelectedAuthorization, setSelectedExecutionResult, setSelectedScenario } from '../../../models/store';
 import { Stack, SxProps } from '@mui/system';
 import { useEffect, useState } from 'react';
-import { isGroup } from '../../../models/state-storage';
+import { castEntryAsGroup } from '../../../models/workbook/helpers/editable-workbook-request-helpers';
 
 export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void }) {
     const dispatch = useDispatch()
 
-    const request = useSelector((state: WorkbookState) => state.activeRequest)
-    const group = useSelector((state: WorkbookState) => state.activeRequestGroup)
+    const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
     const execution = useSelector((state: WorkbookState) => state.activeExecution)
-    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
     const selectedAuthorization = useSelector((state: WorkbookState) => state.selectedAuthorization)
-    const selectedEnvironment = useSelector((state: WorkbookState) => state.selectedEnvironment)
+    const selectedScenario = useSelector((state: WorkbookState) => state.selectedScenario)
     const authorizations = useSelector((state: WorkbookState) => state.authorizationList)
-    const environments = useSelector((state: WorkbookState) => state.environmentList)
+    const scenarios = useSelector((state: WorkbookState) => state.scenarioList)
     const [disableRun, setDisableRun] = useState(false)
+    const [runList, setRunList] = useState(execution?.runList)
+    const [resultsLists, setResultsLists] = useState(execution?.resultLists)
 
     useEffect(() => {
-        setDisableRun((execution?.requestID === request?.id && execution?.running) ?? false)
-    }, [request, execution])
+        setDisableRun((execution?.requestID === requestEntry?.id && execution?.running) ?? false)
+    }, [requestEntry])
 
-    if (!(request || group)) {
+    useEffect(() => {
+        setRunList(execution?.runList)
+        setResultsLists(execution?.resultLists)
+    }, [execution])
+
+    if (! requestEntry) {
         return null
     }
 
@@ -33,12 +37,22 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
         dispatch(setSelectedAuthorization(id))
     }
 
-    const updateEnvironment = (id: string) => {
-        dispatch(setSelectedEnvironment(id))
+    const updateScenario = (id: string) => {
+        dispatch(setSelectedScenario(id))
     }
 
-    const updateSelectedResult = (key: string) => {
-        dispatch(setSelectedExecutionResult(key))
+    const updateSelectedRun = (index: number) => {
+        dispatch(setSelectedExecutionResult({
+            runIndex: index,
+            resultIndex: execution?.resultIndex
+        }))
+    }
+
+    const updateSelectedResult = (index: number) => {
+        dispatch(setSelectedExecutionResult({
+            runIndex: execution?.runIndex,
+            resultIndex: index
+        }))
     }
 
     const handleRunClick = () => async () => {
@@ -46,9 +60,9 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
     }
 
     return (
-        <Stack direction={'row'} className='section' sx={props.sx}>
+        <Stack direction={'row'} sx={props.sx}>
             <ButtonGroup
-                className='button-column'
+                sx={{marginRight: '24px'}}
                 orientation='vertical'
                 aria-label="request run context">
                 <ToggleButton value='Run' title='Run selected request' disabled={disableRun} onClick={handleRunClick()}>
@@ -81,18 +95,18 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
 
                 <Grid item>
                     <FormControl>
-                        <InputLabel id='env-label-id'>Environment</InputLabel>
+                        <InputLabel id='scenario-label-id'>Scenario</InputLabel>
                         <Select
-                            labelId='env-label-id'
-                            id='environment'
-                            value={selectedEnvironment.id}
-                            label='Environment'
+                            labelId='scenario-label-id'
+                            id='scenario'
+                            value={selectedScenario.id}
+                            label='Scenario'
                             sx={{ minWidth: '10em' }}
-                            onChange={e => updateEnvironment(e.target.value)}
+                            onChange={e => updateScenario(e.target.value)}
                         >
-                            <MenuItem key='no-env' value={NO_ENVIRONMENT}>(No Environment)</MenuItem>
+                            <MenuItem key='no-scenario' value={NO_SCENARIO}>(No Scenario)</MenuItem>
                             {
-                                environments.map(a => {
+                                scenarios.map(a => {
                                     return (
                                         <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)
                                 })
@@ -101,23 +115,24 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                     </FormControl>
                 </Grid>
                 {
-                    ((execution?.results?.length ?? 0) > (group ? 0 : 1))
+                    runList
+                    && runList.length > 1
                         ?
                         <Grid item>
                             <FormControl>
-                                <InputLabel id='env-result-id'>Results</InputLabel>
+                                <InputLabel id='run-id'>Runs</InputLabel>
                                 <Select
-                                    labelId='env-result-id'
-                                    id='result'
-                                    value={result?.key ?? ''}
-                                    label='Result'
+                                    labelId='run-id'
+                                    id='run'
+                                    value={execution?.runIndex?.toString() ?? ''}
+                                    label='Run'
                                     sx={{ minWidth: '10em' }}
-                                    onChange={e => updateSelectedResult(e.target.value)}
+                                    onChange={e => updateSelectedRun(parseInt(e.target.value))}
                                 >
                                     {
-                                        (execution?.results ?? []).map(a => {
+                                        runList.map(r => {
                                             return (
-                                                <MenuItem key={a.key} value={a.key}>{a.name}</MenuItem>)
+                                                <MenuItem key={`run-${r.index}`} value={r.index}>{r.text}</MenuItem>)
                                         })
                                     }
                                 </Select>
@@ -125,8 +140,35 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                         </Grid>
                         : <></>
                 }
-
-
+                {
+                    execution 
+                    && execution.runIndex !== undefined 
+                    && resultsLists
+                    && resultsLists[execution.runIndex]
+                    && resultsLists[execution.runIndex].length > 1
+                    ?
+                        <Grid item>
+                            <FormControl>
+                                <InputLabel id='result-id'>Results</InputLabel>
+                                <Select
+                                    labelId='results-id'
+                                    id='result'
+                                    value={execution.resultIndex?.toString() ?? ''}
+                                    label='Run'
+                                    sx={{ minWidth: '10em' }}
+                                    onChange={e => updateSelectedResult(parseInt(e.target.value))}
+                                >
+                                    {
+                                        resultsLists[execution.runIndex].map(r => {
+                                            return (
+                                                <MenuItem key={`result-${r.index}`} value={r.index}>{r.text}</MenuItem>)
+                                        })
+                                    }
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        : <></>
+                }
             </Grid>
         </Stack>
     )

@@ -12,10 +12,11 @@ pub mod oauth2;
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
-use futures::future;
+use futures::future::{self};
 use mime::Mime;
 use reqwest;
 use tokio::select;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use std::fs;
 use std::sync::Once;
@@ -23,9 +24,7 @@ use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, vec};
 
 use models::{
-    ApicizeRequest, ApicizeResponse, WorkbookRequestMethod, WorkbookRequestBody, WorkbookRequest, ApicizeTestResult, Workbook,
-    WorkbookAuthorization, WorkbookEnvironment, WorkbookRequestEntry, ApicizeResult, ApicizeBody, 
-    SerializationError, ExecutionError, RunError,
+    ApicizeBody, ApicizeRequest, ApicizeResponse, ApicizeResult, ApicizeResultRuns, ApicizeTestResult, ExecutionError, RunError, SerializationError, Workbook, WorkbookAuthorization, WorkbookRequest, WorkbookRequestBody, WorkbookRequestEntry, WorkbookRequestMethod, WorkbookScenario
 };
 
 use oauth2::oauth2_client_credentials;
@@ -63,9 +62,9 @@ pub trait Runnable {
     async fn run(
         self,
         authorization: Option<WorkbookAuthorization>,
-        environment: Option<WorkbookEnvironment>,
+        scenario: Option<WorkbookScenario>,
         cancellation: Option<CancellationToken>,
-    ) -> Result<Vec<ApicizeResult>, RunError>;
+    ) -> Result<ApicizeResultRuns, RunError>;
 }
 
 /// Trait for dispatching Apicize Requests
@@ -75,14 +74,14 @@ pub trait Dispatchable<T> {
     async fn dispatch(
         &self,
         authorization: Option<WorkbookAuthorization>,
-        environment: Option<WorkbookEnvironment>,
+        scenario: Option<WorkbookScenario>,
     ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError>;
 
     /// Dispatch HTTP requests defined in multiple Apicize Requests and collect responses
     async fn dispatch_multi(
         requests: &Vec<T>,
         authorization: Option<WorkbookAuthorization>,
-        environment: Option<WorkbookEnvironment>,
+        scenario: Option<WorkbookScenario>,
     ) -> HashMap<String, Result<(ApicizeRequest, ApicizeResponse), ExecutionError>>;
 }
 
@@ -137,10 +136,13 @@ fn clone_and_sub(text: &str, subs: &Vec<(String, String)>) -> String {
 
 #[async_recursion]
 async fn run_int<'a>(
+    tests_started: SystemTime,
     parent_request_name: Vec<String>,
     request: WorkbookRequestEntry,
     authorization: Option<WorkbookAuthorization>,
-    environment: Option<WorkbookEnvironment>,
+    scenario: Option<WorkbookScenario>,
+    run: u32,
+    total_runs: u32,
 ) -> Vec<ApicizeResult> {
     let mut results: Vec<ApicizeResult> = Vec::new();
     match request {
@@ -148,7 +150,7 @@ async fn run_int<'a>(
             let now = SystemTime::now();
             let mut request_name = parent_request_name.clone();
             request_name.push(info.name.clone());
-            let dispatch_response = info.dispatch(authorization, environment).await;
+            let dispatch_response = info.dispatch(authorization, scenario).await;
 
             match dispatch_response {
                 Ok((request, response)) => {
@@ -157,12 +159,12 @@ async fn run_int<'a>(
                         Ok(test_results) => {
                             results.push(ApicizeResult {
                                 request_id: info.id,
-                                attempt: 0,
-                                total_attempts: 1,
+                                run,
+                                total_runs,
                                 request: Some(request),
                                 response: Some(response),
                                 tests: Some(test_results),
-                                executed_at: now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis(),
+                                executed_at: now.duration_since(tests_started).unwrap().as_millis(),
                                 milliseconds: now.elapsed().unwrap().as_millis(),
                                 success: true,
                                 error_message: None,
@@ -171,8 +173,8 @@ async fn run_int<'a>(
                         Err(err) => {
                             results.push(ApicizeResult {
                                 request_id: info.id,
-                                attempt: 0,
-                                total_attempts: 1,
+                                run: 0,
+                                total_runs: 1,
                                 request: Some(request),
                                 response: Some(response),
                                 tests: None,
@@ -187,8 +189,8 @@ async fn run_int<'a>(
                 Err(err) => {
                     results.push(ApicizeResult {
                         request_id: info.id,
-                        attempt: 0,
-                        total_attempts: 1,
+                        run: 0,
+                        total_runs: 1,
                         request: None,
                         response: None,
                         tests: None,
@@ -205,16 +207,17 @@ async fn run_int<'a>(
             let mut request_name = parent_request_name.clone();
             request_name.push(group.name.clone());
 
-            // TODO... Capture groups in this while loop and wait for their futures to resolve together, 
-            // since we should be able to run groups concurrently.
             let mut items = group.children.iter();
             while let Some(item) = items.next() {
                 results.append(
                     &mut run_int(
+                        tests_started,
                         request_name.clone(),
                         item.clone(),
                         authorization.clone(),
-                        environment.clone(),
+                        scenario.clone(),
+                        run,
+                        total_runs
                     )
                     .await
                 );
@@ -230,39 +233,83 @@ impl Runnable for WorkbookRequestEntry {
     async fn run(
         self: WorkbookRequestEntry,
         authorization: Option<WorkbookAuthorization>,
-        environment: Option<WorkbookEnvironment>,
+        scenario: Option<WorkbookScenario>,
         cancellation: Option<CancellationToken>,
-    ) -> Result<Vec<ApicizeResult>, RunError> {
-        let entry = self.clone();
-        match cancellation {
-            Some(token) => {
-                let cloned_token = token.clone();
-                let spawn = tokio::spawn(async move {
-                    select! {
-                        _ = cloned_token.cancelled() => None,
-                        // _ = tokio::time::sleep(std::time::Duration::from_secs(9999)) => {
-                        //     None
-                        // }
-                        result = run_int(vec![], entry, authorization, environment) => Some(result),
-                    }
-                });
-                match spawn.await {
-                    Ok(result_or_cancel) => {
-                        match result_or_cancel {
-                            Some(result) => Ok(result),
-                            None => Err(RunError::Cancelled)
+    ) -> Result<ApicizeResultRuns, RunError> {
+        
+        let mut runs: JoinSet<Option<Vec<ApicizeResult>>> = JoinSet::new();
+        let mut results: Vec<ApicizeResult> = Vec::new();
+
+        let token = match cancellation {
+            Some(cancellation_token) => cancellation_token,
+            None => CancellationToken::new()
+        };
+       
+        let total_runs = match &self {
+            WorkbookRequestEntry::Info(_) => 1,
+            WorkbookRequestEntry::Group(group) => group.runs
+        };
+        for run in 0..total_runs {
+            let entry = self.clone();
+            let cloned_token = token.clone();
+            let cloned_auth = authorization.clone();
+            let cloned_scenario = scenario.clone();
+            runs.spawn(async move {
+                select! {
+                    _ = cloned_token.cancelled() => None,
+                   result = run_int(
+                        SystemTime::now(),
+                        vec![], 
+                        entry, 
+                        cloned_auth,
+                        cloned_scenario,
+                        run,
+                        total_runs
+                    ) => Some(result),
+                }
+            });
+            
+        }
+
+        let mut caught: Option<RunError> = None;
+
+        while let Some(result) = runs.join_next().await {
+            match result {
+                Ok(result_or_cancel) => {
+                    match result_or_cancel {
+                        Some(mut result) => {
+                            results.append(&mut result);
+                        },
+                        None => {
+                            caught = Some(RunError::Cancelled);
                         }
-                    },
-                    Err(err) => Err(RunError::Other(err)),
+                    }
+                },
+                Err(err) => {
+                    Some(RunError::Other(err));
                 }
-            },
+            }
+        }
+
+        match caught {
+            Some(caught_error) => Err(caught_error),
             None => {
-                match tokio::spawn(async {
-                    run_int(vec![], entry, authorization, environment).await
-                }).await {
-                    Ok(r) => Ok(r),
-                    Err(err) => Err(RunError::Other(err))
-                }
+                let mut results_by_run: ApicizeResultRuns =
+                    vec![vec![]; usize::try_from(total_runs).unwrap()];
+
+                results.sort_by(|a, b| {
+                    let mut ord = a.run.cmp(&b.run);
+                    if ord.is_eq() {
+                        ord =  a.executed_at.cmp(&b.executed_at);
+                    }
+                    ord
+                });
+
+                 results.drain(..).for_each(|r| {
+                    results_by_run[usize::try_from(r.run).unwrap()].push(r);
+                 });
+
+                Ok(results_by_run)
             }
         }
     }
@@ -274,7 +321,7 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
     async fn dispatch(
         self: &WorkbookRequest,
         authorization: Option<WorkbookAuthorization>,
-        environment: Option<WorkbookEnvironment>,
+        scenario: Option<WorkbookScenario>,
     ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError> {
 
         let method: reqwest::Method;
@@ -305,9 +352,9 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
 
         let subs: Vec<(String, String)>;
 
-        match environment {
-            Some(env) => {
-                match env.variables {
+        match scenario {
+            Some(active_scenario) => {
+                match active_scenario.variables {
                     Some(pairs) => {
                         subs = pairs
                             .iter()
@@ -558,12 +605,12 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
     async fn dispatch_multi(
         requests: &Vec<WorkbookRequest>,
         authorization: Option<WorkbookAuthorization>,
-        environment: Option<WorkbookEnvironment>,
+        scenario: Option<WorkbookScenario>,
     ) -> HashMap<String, Result<(ApicizeRequest, ApicizeResponse), ExecutionError>> {
         let responses = future::join_all(requests.iter().map(|r| async {
             (
                 r.id.clone(),
-                r.dispatch(authorization.clone(), environment.clone()).await,
+                r.dispatch(authorization.clone(), scenario.clone()).await,
             )
         }))
         .await;

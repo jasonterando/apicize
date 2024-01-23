@@ -1,7 +1,7 @@
-import { BodyType, Identifiable, NO_AUTHORIZATION, NO_ENVIRONMENT, StoredWorkbook, WorkbookAuthorization, WorkbookEnvironment, WorkbookRequest, WorkbookRequestGroup } from "@apicize/common";
+import { BodyType, Identifiable, NO_AUTHORIZATION, NO_SCENARIO, StoredWorkbook, WorkbookAuthorization, WorkbookScenario, WorkbookRequest, WorkbookRequestGroup } from "@apicize/common";
 import { GenerateIdentifier } from "./random-identifier-generator";
 import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization";
-import { EditableWorkbookEnvironment } from "../models/workbook/editable-workbook-environment";
+import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario";
 import { StateStorage, isGroup } from '../models/state-storage'
 import { Editable } from "../models/editable";
 import { Hierarchical } from "../models/hierarchical";
@@ -76,9 +76,9 @@ export function base64Decode(base64: string): ArrayBuffer {
 export function workbookToStateStorage(data: StoredWorkbook): {
     requests: StateStorage<EditableWorkbookRequestEntry>,
     authorizations: StateStorage<EditableWorkbookAuthorization>,
-    environments: StateStorage<EditableWorkbookEnvironment>,
+    scenarios: StateStorage<EditableWorkbookScenario>,
     selectedAuthorization: EditableWorkbookAuthorization | undefined,
-    selectedEnvironment: EditableWorkbookEnvironment | undefined,
+    selectedScenario: EditableWorkbookScenario | undefined,
 } {
     if (data.version !== 1) {
         throw new Error(`Invalid stored workbook version: ${data.version}`)
@@ -118,7 +118,7 @@ export function workbookToStateStorage(data: StoredWorkbook): {
     }
 
     const stateAuthorizations = toStateStorage<WorkbookAuthorization, EditableWorkbookAuthorization>(data.authorizations)
-    const stateEnvironments = toStateStorage<WorkbookEnvironment, EditableWorkbookEnvironment>(data.environments, (e) => {
+    const stateScenarios = toStateStorage<WorkbookScenario, EditableWorkbookScenario>(data.scenarios, (e) => {
         e.variables?.forEach(v => {
             if (! v.id) v.id = GenerateIdentifier()
         })
@@ -135,11 +135,11 @@ export function workbookToStateStorage(data: StoredWorkbook): {
             }
         }),
         authorizations: stateAuthorizations,
-        environments: stateEnvironments,
+        scenarios: stateScenarios,
         selectedAuthorization: data.settings?.selectedAuthorizationId
             ? stateAuthorizations?.entities[data.settings?.selectedAuthorizationId] : undefined,
-        selectedEnvironment: data.settings?.selectedEnvironmentId
-            ? stateEnvironments?.entities[data.settings?.selectedEnvironmentId] : undefined,
+        selectedScenario: data.settings?.selectedScenarioId
+            ? stateScenarios?.entities[data.settings?.selectedScenarioId] : undefined,
     }
 }
 
@@ -224,9 +224,9 @@ export function stateStorageToRequestEntry(id: string, storage: StateStorage<Edi
 export function stateStorageToWorkbook(
     requests: StateStorage<EditableWorkbookRequestEntry>,
     authorizations: StateStorage<EditableWorkbookAuthorization>,
-    environments: StateStorage<EditableWorkbookEnvironment>,
+    scenarios: StateStorage<EditableWorkbookScenario>,
     selectedAuthorization: EditableWorkbookAuthorization | undefined,
-    selectedEnvironment: EditableWorkbookEnvironment | undefined,
+    selectedScenario: EditableWorkbookScenario | undefined,
 ): StoredWorkbook {
 
     return {
@@ -234,19 +234,18 @@ export function stateStorageToWorkbook(
         requests: requests.topLevelIDs.map(id => stateStorageToRequestEntry(id, requests)),
         authorizations: authorizations.topLevelIDs.map(id => {
             const result = structuredClone(authorizations.entities[id])
-            delete (result as unknown as any).id
             return result as WorkbookAuthorization
         }),
-        environments: environments.topLevelIDs.map(id => {
-            const result = structuredClone(environments.entities[id])
-            delete (result as unknown as any).id
+        scenarios: scenarios.topLevelIDs.map(id => {
+            const result = structuredClone(scenarios.entities[id])
+            result.variables?.forEach(v => delete (v as unknown as any).id)
             return result
     }),
         settings: {
             selectedAuthorizationId: (selectedAuthorization && selectedAuthorization.id !== NO_AUTHORIZATION)
                 ? selectedAuthorization.id : undefined,
-            selectedEnvironmentId: (selectedEnvironment && selectedEnvironment.id !== NO_ENVIRONMENT)
-                ? selectedEnvironment.id : undefined,
+            selectedScenarioId: (selectedScenario && selectedScenario.id !== NO_SCENARIO)
+                ? selectedScenario.id : undefined,
         }
     }
 }

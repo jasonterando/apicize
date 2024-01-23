@@ -1,11 +1,9 @@
 let logs = []
 appendLog = (type, message, ...optionalParams) => {
-    logs.push(`${(new Date()).toTimeString()} [${type}]  ${util.format(message, ...optionalParams)}`)
+    logs.push(`${(new Date()).toTimeString().replace(' ()', '')} [${type}] ${format(message, ...optionalParams)}`)
 }
 clearLog = () => logs = [];
 
-/*
-console.log
 console = {
     log: (msg, ...args) => appendLog('log', msg, ...args),
     info: (msg, ...args) => appendLog('info', msg, ...args),
@@ -14,7 +12,6 @@ console = {
     trace: (msg, ...args) => appendLog('trace', msg, ...args),
     debug: (msg, ...args) => appendLog('debug', msg, ...args),
 };
-*/
 
 var request = {};
 var response = {};

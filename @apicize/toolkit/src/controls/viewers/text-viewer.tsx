@@ -1,7 +1,25 @@
-import beautify from "js-beautify";
-import { highlight, languages } from 'prismjs'
+import { Typography } from "@mui/material";
+import { Grammar, highlight, languages } from 'prismjs'
 
 export const MAX_TEXT_RENDER_LENGTH = 2 * 1024 * 1024
+
+const FlexCodeViewer = (props: { text: string, grammar?: Grammar, language?: string }) => (
+    <pre style={{
+        overflow: 'auto',
+        maxWidth: '100%',
+        maxHeight: '100%',
+        paddingRight: '12px',
+        marginTop: 0,
+        fontSize: '10pt',
+        whiteSpace: 'pre-wrap',
+        lineBreak: 'anywhere'
+    }}>
+        {(props.grammar && props.language)
+            ? (<code dangerouslySetInnerHTML={{
+                __html: highlight(props.text, props.grammar, props.language)
+            }} />)
+            : (<code>{props.text}</code>)}
+    </pre>)
 
 export function TextViewer(props: { text?: string, extension?: string }) {
     const length = props.text?.length ?? 0
@@ -12,38 +30,22 @@ export function TextViewer(props: { text?: string, extension?: string }) {
     let render = props.text
     if (length > MAX_TEXT_RENDER_LENGTH) {
         if (props.extension === 'txt') {
-            render = render.substring(0, MAX_TEXT_RENDER_LENGTH)
+            render = render.substring(0, MAX_TEXT_RENDER_LENGTH) + '[...]'
         } else {
-            return (<h3 style={{ marginTop: 0 }}>Sorry, the text length exceeds that which can be rendered</h3>)
+            return (<Typography variant='h3' style={{ marginTop: 0 }}>Sorry, the text length exceeds that which can be rendered</Typography>)
         }
     }
 
     switch (props.extension) {
         case 'html':
-            const html = beautify.html_beautify(render, {})
-            return (<pre className='flex-code-viewer'><code dangerouslySetInnerHTML={{
-                __html: highlight(html, languages.html, 'html')
-            }} /></pre>)
-
+            return (<FlexCodeViewer text={render} grammar={languages.html} language='html' />)
         case 'css':
-            const css = beautify.css_beautify(render, {})
-            return (<pre className='flex-code-viewer'><code dangerouslySetInnerHTML={{
-                __html: highlight(css, languages.css, 'css')
-            }} /></pre>)
-
+            return (<FlexCodeViewer text={render} grammar={languages.css} language='css' />)
         case 'js':
-            const javascript = beautify.js_beautify(render, {})
-            return (<pre className='flex-code-viewer'><code dangerouslySetInnerHTML={{
-                __html: highlight(javascript, languages.javascript, 'javascript')
-            }} /></pre>)
-            
+            return (<FlexCodeViewer text={render}  grammar={languages.javascript} language='javascript' />)
         case 'json':
-            const json = beautify.js_beautify(render)
-            return (<pre className='flex-code-viewer'><code dangerouslySetInnerHTML={{
-                __html: highlight(json, languages.json, 'json')
-            }} /></pre>)
-
+            return (<FlexCodeViewer text={render}  grammar={languages.json} language='json' />)
         default:
-            return (<pre className='flex-code-viewer'>{render}</pre>)
+            return (<FlexCodeViewer text={render} />)
     }
 }

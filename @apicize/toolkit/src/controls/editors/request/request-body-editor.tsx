@@ -12,31 +12,32 @@ import { BodyType, BodyTypes } from '@apicize/common'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
+import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
 
 export function RequestBodyEditor() {
   const dispatch = useDispatch()
 
-  const request = useSelector((state: WorkbookState) => state.activeRequest)
-  const [bodyType, setBodyType] = React.useState(request?.body?.type ?? BodyType.Text)
-  const [bodyData, setBodyData] = React.useState(request?.body?.data ?? '')
+  const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
+  const [bodyType, setBodyType] = React.useState(castEntryAsRequest(requestEntry)?.body?.type ?? BodyType.Text)
+  const [bodyData, setBodyData] = React.useState(castEntryAsRequest(requestEntry)?.body?.data ?? '')
   const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(false)
 
   React.useEffect(() => {
-    const useBodyType = request?.body?.type ?? BodyType.Text
+    const useBodyType = castEntryAsRequest(requestEntry)?.body?.type ?? BodyType.Text
     setBodyType(useBodyType)
-    setBodyData(request?.body?.data ?? '')
+    setBodyData(castEntryAsRequest(requestEntry)?.body?.data ?? '')
     checkTypeHeader(useBodyType)
     // console.log(`Body type: ${useBodyType}`)
-  }, [request])
+  }, [requestEntry])
 
-  if (!request) {
+  if (!requestEntry) {
     return null
   }
 
   const updateBodyAsText = React.useCallback((val: string | undefined) => {
     // setBodyData(val ?? '')
     dispatch(updateRequest({
-      id: request.id,
+      id: requestEntry.id,
       bodyData: val
     }))
   }, [])
@@ -44,7 +45,7 @@ export function RequestBodyEditor() {
   const updateBodyType = React.useCallback((val: BodyType | string) => {
     const newBodyType = (val == "" ? undefined : val as unknown as BodyType) ?? BodyType.Text
     dispatch(updateRequest({
-      id: request.id,
+      id: requestEntry.id,
       bodyType: newBodyType
     }))
     checkTypeHeader(newBodyType)
@@ -53,7 +54,7 @@ export function RequestBodyEditor() {
   const checkTypeHeader = (val: BodyType | undefined | null) => {
     let needsContextHeaderUpdate = true
     if (val) {
-      const contentTypeHeader = request.headers?.find(h => h.name === 'Content-Type')
+      const contentTypeHeader = castEntryAsRequest(requestEntry)?.headers?.find(h => h.name === 'Content-Type')
       if (contentTypeHeader) {
         needsContextHeaderUpdate = contentTypeHeader.value.indexOf(val.toLowerCase()) === -1
       }
@@ -80,7 +81,7 @@ export function RequestBodyEditor() {
         return
     }
 
-    const headers = request.headers ?? []
+    const headers = castEntryAsRequest(requestEntry)?.headers ?? []
     const contentTypeHeader = headers.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
       contentTypeHeader.value = mimeType
@@ -93,7 +94,7 @@ export function RequestBodyEditor() {
     }
     setAllowUpdateHeader(false)
     dispatch(updateRequest({
-      id: request.id,
+      id: requestEntry.id,
       headers
     }))
   }
@@ -117,7 +118,7 @@ export function RequestBodyEditor() {
 
   const onUpdateFormData = (data: EditableNameValuePair[]) => {
     dispatch(updateRequest({
-      id: request.id,
+      id: requestEntry.id,
       bodyData: data
     }))
   }
@@ -153,7 +154,7 @@ export function RequestBodyEditor() {
           <Editor
             autoFocus
             padding={10}
-            className='code-editor'
+            style={{fontFamily: 'monospace', minHeight: '200px' }}
             value={bodyData as string}
             highlight={code => processHighlight(code)}
             onValueChange={updateBodyAsText}

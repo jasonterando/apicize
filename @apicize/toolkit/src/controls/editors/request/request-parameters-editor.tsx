@@ -3,33 +3,34 @@ import { useEffect, useState } from 'react'
 import { WorkbookState, updateRequest } from '../../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
 import { Method, Methods } from '@apicize/common'
+import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
 
 // import './request-editor.css'
 
 export function RequestParametersEditor() {
     const dispatch = useDispatch()
 
-    const request = useSelector((state: WorkbookState) => state.activeRequest)
-    const [name, setName] = useState<string | undefined>(request?.name)
-    const [url, setURL] = useState<string | undefined>(request?.url)
-    const [method, setMethod] = useState<string | undefined>(request?.method ?? Method.Get)
-    const [timeout, setTimeout] = useState(request?.timeout ?? 60000)
+    const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
+    const [name, setName] = useState<string | undefined>(requestEntry?.name)
+    const [url, setURL] = useState<string | undefined>(castEntryAsRequest(requestEntry)?.url)
+    const [method, setMethod] = useState<string | undefined>(castEntryAsRequest(requestEntry)?.method ?? Method.Get)
+    const [timeout, setTimeout] = useState(castEntryAsRequest(requestEntry)?.timeout ?? 60000)
 
     useEffect(() => {
-        setName(request?.name ?? '')
-        setURL(request?.url ?? '')
-        setMethod(request?.method ?? '')
-        setTimeout(request?.timeout ?? 60000)
-    }, [request])
+        setName(requestEntry?.name ?? '')
+        setURL(castEntryAsRequest(requestEntry)?.url ?? '')
+        setMethod(castEntryAsRequest(requestEntry)?.method ?? '')
+        setTimeout(castEntryAsRequest(requestEntry)?.timeout ?? 60000)
+    }, [requestEntry])
 
-    if (! request) {
+    if (! requestEntry) {
         return null
     }
 
     const updateName = (name: string | undefined) => {
         setName(name)
         dispatch(updateRequest({
-            id: request.id,
+            id: requestEntry.id,
             name
         }))
     }
@@ -37,7 +38,7 @@ export function RequestParametersEditor() {
     const updateURL = (url: string | undefined) => {
         setURL(url)
         dispatch(updateRequest({
-            id: request.id,
+            id: requestEntry.id,
             url
         }))
     }
@@ -45,7 +46,7 @@ export function RequestParametersEditor() {
     const updateMethod = (method: string | undefined) => {
         setMethod(method)
         dispatch(updateRequest({
-            id: request.id,
+            id: requestEntry.id,
             method
         }))
     }
@@ -53,7 +54,7 @@ export function RequestParametersEditor() {
     const updateTimeout = (timeout: number | undefined) => {
         setTimeout(timeout ?? 0)
         dispatch(updateRequest({
-            id: request.id,
+            id: requestEntry.id,
             timeout
         }))
     }
@@ -65,7 +66,7 @@ export function RequestParametersEditor() {
     }
 
     return (
-        <Grid container direction={'column'} spacing={3} maxWidth={1000}>
+        <Grid container direction='column' spacing={3} maxWidth={1000}>
             <Grid item>
                 <TextField
                     id='request-name'

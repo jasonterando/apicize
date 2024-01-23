@@ -1,10 +1,9 @@
-import { createSlice, PayloadAction, configureStore, createAsyncThunk } from '@reduxjs/toolkit'
+import { createSlice, PayloadAction, configureStore } from '@reduxjs/toolkit'
 import {
-  NameValuePair,
   Method,
   NO_AUTHORIZATION,
   BodyType,
-  NO_ENVIRONMENT,
+  NO_SCENARIO,
   GetTitle,
   WorkbookAuthorizationType,
 } from '@apicize/common'
@@ -12,13 +11,13 @@ import { GenerateIdentifier } from '../services/random-identifier-generator'
 import { EditableWorkbookRequest } from './workbook/editable-workbook-request'
 import { EditableWorkbookRequestGroup } from './workbook/editable-workbook-request-group'
 import { EditableWorkbookApiKeyAuthorization, EditableWorkbookAuthorization, EditableWorkbookBasicAuthorization, EditableWorkbookOAuth2ClientAuthorization } from './workbook/editable-workbook-authorization'
-import { EditableWorkbookEnvironment } from './workbook/editable-workbook-environment'
-import { addRequestItem, castRequestItem, deleteRequestItem } from './workbook/helpers/editable-workbook-request-helpers'
-import { StateStorage, isGroup, moveInStorage } from './state-storage'
+import { EditableWorkbookScenario } from './workbook/editable-workbook-scenario'
+import { addRequestEntryToStore, castEntryAsGroup, castEntryAsRequest, deleteRequestEntryFromStore } from './workbook/helpers/editable-workbook-request-helpers'
+import { StateStorage, moveInStorage } from './state-storage'
 import { EditableNameValuePair } from './workbook/editable-name-value-pair'
 import { ApicizeResult } from '@apicize/common/dist/models/lib/apicize-result'
 import { WorkbookBodyData } from '@apicize/common/dist/models/workbook/workbook-request'
-import { ApicizeResultsToWorkbookExecutionResult, WorkbookExecution, WorkbookExecutionResult } from './workbook/workbook-execution'
+import { ApicizeRunResultsToWorkbookExecutionResults, WorkbookExecution, WorkbookExecutionResult } from './workbook/workbook-execution'
 import { EditableWorkbookRequestEntry } from './workbook/editable-workbook-request-entry'
 
 export interface NavigationListItem {
@@ -28,20 +27,14 @@ export interface NavigationListItem {
   children?: NavigationListItem[]
 }
 
-interface NavigationMenu {
-  id: string
-  mouseX: number
-  mouseY: number
-}
-
 export const noAuthorization = {
   id: NO_AUTHORIZATION,
   name: 'Anonymous (None)',
   type: WorkbookAuthorizationType.None
 }
 
-export const noEnvironment = {
-  id: NO_ENVIRONMENT,
+export const noScenario = {
+  id: NO_SCENARIO,
   name: '(None)'
 }
 
@@ -51,7 +44,6 @@ const encodeFormData = (data: EditableNameValuePair[]) => {
   const result = data.map(nv =>
     `${encodeURIComponent(nv.name)}=${encodeURIComponent(nv.value)}`
   ).join('&')
-  // console.log(`Encoding ${JSON.stringify(data)} to ${result}`)
   return result
 }
 
@@ -78,7 +70,6 @@ const decodeFormData = (bodyData: string | ArrayBuffer | undefined) => {
   }
 }
 
-
 interface ApicizeWorkbookState {
   workbookFullName?: string
   workbookDisplayName?: string
@@ -90,27 +81,24 @@ interface ApicizeWorkbookState {
   // Entire list of entities being managed
   requests: StateStorage<EditableWorkbookRequestEntry>
   authorizations: StateStorage<EditableWorkbookAuthorization>
-  environments: StateStorage<EditableWorkbookEnvironment>
-  
+  scenarios: StateStorage<EditableWorkbookScenario>
+
   executions: { [requestID: string]: WorkbookExecution }
 
   // Lists to display for navigation
   requestList: NavigationListItem[]
   authorizationList: NavigationListItem[]
-  environmentList: NavigationListItem[]
-
-  navigationMenu?: NavigationMenu
+  scenarioList: NavigationListItem[]
 
   // Active entity being edited
-  activeRequest: EditableWorkbookRequest | undefined
-  activeRequestGroup: EditableWorkbookRequestGroup | undefined
+  activeRequestEntry: EditableWorkbookRequestEntry | undefined
   activeExecution: WorkbookExecution | undefined
   activeAuthorization: EditableWorkbookAuthorization | undefined
-  activeEnvironment: EditableWorkbookEnvironment | undefined
+  activeScenario: EditableWorkbookScenario | undefined
 
-  // Active authorization/environment ID to use for running test
+  // Active authorization/scenario ID to use for running tests
   selectedAuthorization: EditableWorkbookAuthorization
-  selectedEnvironment: EditableWorkbookEnvironment
+  selectedScenario: EditableWorkbookScenario
   selectedExecutionResult: WorkbookExecutionResult | undefined
 }
 
@@ -143,10 +131,10 @@ const updateAuthorizationNavList = (state: ApicizeWorkbookState) => {
   ))
 }
 
-// Generate environment navigation list
-const updateEnvrionmentNavList = (state: ApicizeWorkbookState) => {
-  state.environmentList = state.environments.topLevelIDs.map(id => (
-    { id, name: GetTitle(state.environments.entities[id]), type: 'env' }
+// Generate scenario navigation list
+const updateScenarioNavList = (state: ApicizeWorkbookState) => {
+  state.scenarioList = state.scenarios.topLevelIDs.map(id => (
+    { id, name: GetTitle(state.scenarios.entities[id]), type: 'scenario' }
   ))
 }
 
@@ -155,37 +143,37 @@ const updateActive = (
   state: ApicizeWorkbookState,
   request: EditableWorkbookRequestEntry | undefined,
   authorization: EditableWorkbookAuthorization | undefined,
-  environment: EditableWorkbookEnvironment | undefined) => {
-  const group = request ? isGroup(request.id, state.requests) : undefined
-  state.activeRequest = group ? undefined : request as EditableWorkbookRequest
-  state.activeRequestGroup = group ? request as EditableWorkbookRequestGroup : undefined
+  scenario: EditableWorkbookScenario | undefined) => {
+  state.activeRequestEntry = request
   state.activeAuthorization = authorization
-  state.activeEnvironment = environment
+  state.activeScenario = scenario
   state.activeExecution = request ? state.executions[request.id] : undefined
-  state.selectedExecutionResult = state.activeExecution?.results?.length && state.activeExecution?.results?.length > 0
-    ? state.activeExecution?.results[0] : undefined
+  state.selectedExecutionResult = (state.activeExecution !== undefined 
+      && state.activeExecution.results !== undefined
+      && state.activeExecution.runIndex !== undefined
+      && state.activeExecution.resultIndex !== undefined)
+    ? state.activeExecution.results[state.activeExecution.runIndex][state.activeExecution.resultIndex]
+    : undefined
 }
 
 export const defaultWorkbookState: ApicizeWorkbookState = {
   dirty: false,
   runningCount: 0,
   longTextInResponse: false,
-  navigationMenu: undefined,
   requests: { entities: {}, topLevelIDs: [] },
   authorizations: { entities: {}, topLevelIDs: [] },
-  environments: { entities: {}, topLevelIDs: [] },
+  scenarios: { entities: {}, topLevelIDs: [] },
   executions: {},
   requestList: [],
   authorizationList: [],
-  environmentList: [],
-  activeRequest: undefined,
-  activeRequestGroup: undefined,
+  scenarioList: [],
+  activeRequestEntry: undefined,
   activeExecution: undefined,
   selectedExecutionResult: undefined,
   activeAuthorization: undefined,
-  activeEnvironment: undefined,
+  activeScenario: undefined,
   selectedAuthorization: noAuthorization,
-  selectedEnvironment: noEnvironment,
+  selectedScenario: noScenario,
 }
 
 const apicizeSlice = createSlice({
@@ -198,9 +186,9 @@ const apicizeSlice = createSlice({
       displayName: string,
       requests: StateStorage<EditableWorkbookRequestEntry>,
       authorizations: StateStorage<EditableWorkbookAuthorization>,
-      environments: StateStorage<EditableWorkbookEnvironment>,
+      scenarios: StateStorage<EditableWorkbookScenario>,
       selectedAuthorization: EditableWorkbookAuthorization | undefined,
-      selectedEnvironment: EditableWorkbookEnvironment | undefined,
+      selectedScenario: EditableWorkbookScenario | undefined,
     }>) => {
       state.workbookFullName = action.payload.fullName
       state.workbookDisplayName = action.payload.displayName
@@ -208,11 +196,11 @@ const apicizeSlice = createSlice({
 
       state.requests = action.payload.requests
       state.authorizations = action.payload.authorizations
-      state.environments = action.payload.environments
+      state.scenarios = action.payload.scenarios
 
       updateRequestNavList(state)
       updateAuthorizationNavList(state)
-      updateEnvrionmentNavList(state)
+      updateScenarioNavList(state)
 
       // Set active element to first request/group
       let activeRequest: EditableWorkbookRequestEntry | undefined
@@ -221,11 +209,11 @@ const apicizeSlice = createSlice({
       }
       updateActive(state, activeRequest, undefined, undefined)
 
-      // default first auth/env for execution
+      // default first auth/sencario for execution
       state.selectedAuthorization = action.payload.selectedAuthorization
         ? action.payload.selectedAuthorization : noAuthorization
-      state.selectedEnvironment = action.payload.selectedEnvironment
-        ? action.payload.selectedEnvironment : noEnvironment
+      state.selectedScenario = action.payload.selectedScenario
+        ? action.payload.selectedScenario : noScenario
     },
 
     // Called when workbook is saved
@@ -243,7 +231,10 @@ const apicizeSlice = createSlice({
       state.dirty = action.payload
     },
 
-    addNewRequest: (state) => {
+    addNewRequest: (
+      state,
+      action: PayloadAction<{ targetRequestId: string | undefined }>
+    ) => {
       const request = {
         id: GenerateIdentifier(),
         name: '',
@@ -257,10 +248,9 @@ const apicizeSlice = createSlice({
 })`
       } as EditableWorkbookRequest
 
-      addRequestItem(state.requests, request, false, state.activeRequest?.id)
+      addRequestEntryToStore(state.requests, request, false, action.payload.targetRequestId)
       updateActive(state, request, undefined, undefined)
       updateRequestNavList(state)
-      updateActive(state, request, undefined, undefined)
       state.dirty = true
     },
 
@@ -287,7 +277,6 @@ const apicizeSlice = createSlice({
         match.name = action.payload.name
       }
       if (action.payload.url !== undefined) {
-        console.log(`Updating URL to ${action.payload.url}`)
         match.url = action.payload.url
       }
       if (action.payload.method !== undefined) {
@@ -357,16 +346,75 @@ const apicizeSlice = createSlice({
       }
       match.dirty = true
       state.dirty = true
-      if (state.activeRequest?.id === action.payload.id) {
-        state.activeRequest = match
+      if (state.activeRequestEntry?.id === action.payload.id) {
+        state.activeRequestEntry = match
       }
-      console.log('[UPDATE] requests', state.requests)
       updateRequestNavList(state)
     },
 
-    deleteRequest: (state, action: PayloadAction<string>) => {
-      const isActive = action.payload === state.activeRequest?.id
-      deleteRequestItem(state.requests, action.payload)
+    duplicateRequestEntry: (
+      state,
+      action: PayloadAction<EditableWorkbookRequestEntry>) => {
+      const source = action.payload
+
+      // Return the ID of the duplicated entry
+      const copyEntry = (entry: EditableWorkbookRequestEntry) => {
+        // For some reason, structuredClone doesn't work with requests reliably
+        // const dupe = structuredClone(entry)
+        const dupe = JSON.parse(JSON.stringify(entry))
+        dupe.id = GenerateIdentifier()
+        dupe.name = `${GetTitle(dupe)} - copy`
+        dupe.dirty = true
+
+        const request = castEntryAsRequest(dupe)
+        if (request) {
+          request?.headers?.forEach(h => h.id = GenerateIdentifier())
+          request?.queryStringParams?.forEach(p => p.id = GenerateIdentifier())
+          state.requests.entities[request.id] = request
+          return request.id
+        }
+
+        const group = castEntryAsGroup(dupe)
+        if (group) {
+          if (state.requests.childIDs && state.requests.childIDs) {
+            const sourceChildIDs = state.requests.childIDs[source.id]
+            if (sourceChildIDs.length > 0) {
+              const dupedChildIDs: string[] = []
+              state.requests.childIDs[group.id] = dupedChildIDs
+
+              sourceChildIDs.forEach(childID => {
+                const childEntry = state.requests.entities[childID]
+                const dupedChildID = copyEntry(childEntry)
+                dupedChildIDs.push(dupedChildID)
+              })
+            }
+          }
+          state.requests.entities[group.id] = group
+          return group.id
+        }
+
+        throw new Error('Invalid entry')
+      }
+
+      const dupedEntryID = copyEntry(action.payload)
+
+      let append = true
+      const idx = state.requests.topLevelIDs.findIndex(id => id === source.id)
+      if (idx !== -1) {
+        state.requests.topLevelIDs.splice(idx + 1, 0, dupedEntryID)
+        append = false
+      }
+      if (append) {
+        state.requests.topLevelIDs.push(dupedEntryID)
+      }
+      updateRequestNavList(state)
+      updateActive(state, state.requests.entities[dupedEntryID], undefined, undefined)
+      state.dirty = true
+    },
+
+    deleteRequestEntry: (state, action: PayloadAction<string>) => {
+      const isActive = action.payload === state.activeRequestEntry?.id
+      deleteRequestEntryFromStore(state.requests, action.payload)
       // if (isActive) {
       // todo - come up with a way to figure out what to highlight after delete
       // state.activeRequest = index === -1 ? undefined : state.requests[index]
@@ -377,14 +425,18 @@ const apicizeSlice = createSlice({
       state.dirty = true
     },
 
-    addNewRequestGroup: (state) => {
+    addNewRequestGroup: (
+      state,
+      action: PayloadAction<{ targetRequestId: string | undefined }>
+    ) => {
       const group = {
         id: GenerateIdentifier(),
         name: '',
-        children: []
+        children: [],
+        runs: 1
       } as EditableWorkbookRequestGroup
 
-      addRequestItem(state.requests, group, true, state.activeRequest?.id)
+      addRequestEntryToStore(state.requests, group, true, action.payload.targetRequestId)
       updateActive(state, group, undefined, undefined)
       updateRequestNavList(state)
       state.dirty = true
@@ -394,7 +446,8 @@ const apicizeSlice = createSlice({
       state,
       action: PayloadAction<{
         id: string,
-        name?: string
+        name?: string,
+        runs?: number
       }>
     ) => {
       const group = state.requests.entities[action.payload.id] as EditableWorkbookRequestGroup
@@ -403,7 +456,9 @@ const apicizeSlice = createSlice({
       }
       if (action.payload.name !== undefined) {
         group.name = action.payload.name
-
+      }
+      if (action.payload.runs !== undefined) {
+        group.runs = action.payload.runs
       }
       updateRequestNavList(state)
       group.dirty = true
@@ -419,7 +474,7 @@ const apicizeSlice = createSlice({
       updateActive(state, state.requests.entities[action.payload.id], undefined, undefined)
     },
 
-    setActiveRequest: (
+    setActiveRequestEntry: (
       state,
       action: PayloadAction<{ id: string | undefined }>
     ) => {
@@ -431,7 +486,10 @@ const apicizeSlice = createSlice({
       }
     },
 
-    addNewAuthorization: (state) => {
+    addNewAuthorization: (
+      state,
+      action: PayloadAction<{ targetAuthId: string | undefined }>
+    ) => {
       const auth = {
         id: GenerateIdentifier(),
         name: '',
@@ -450,19 +508,33 @@ const apicizeSlice = createSlice({
       }
 
       state.authorizations.entities[auth.id] = auth
+      const idx = action.payload.targetAuthId
+        ? state.authorizations.topLevelIDs.indexOf(action.payload.targetAuthId)
+        : -1
+      state.authorizations.topLevelIDs.splice(idx === -1 ? 0 : idx, 0, auth.id)
+      updateAuthorizationNavList(state)
+      updateActive(state, undefined, auth, undefined)
+      state.dirty = true
+    },
 
+    duplicateAuthorization: (
+      state,
+      action: PayloadAction<EditableWorkbookAuthorization>) => {
+      const source = action.payload
+      const auth = structuredClone(source)
+      auth.id = GenerateIdentifier()
+      auth.name = `${GetTitle(source)} - Copy`
+      auth.dirty = true
       let append = true
-      const existingID = state.activeAuthorization?.id
-      if (existingID) {
-        const idx = state.authorizations.topLevelIDs.findIndex(id => id === existingID)
-        if (idx !== -1) {
-          state.authorizations.topLevelIDs.splice(idx, 0, auth.id)
-          append = false
-        }
+      const idx = state.authorizations.topLevelIDs.findIndex(id => id === source.id)
+      if (idx !== -1) {
+        state.authorizations.topLevelIDs.splice(idx + 1, 0, auth.id)
+        append = false
       }
       if (append) {
         state.authorizations.topLevelIDs.push(auth.id)
       }
+      state.authorizations.entities[auth.id] = auth
       updateAuthorizationNavList(state)
       updateActive(state, undefined, auth, undefined)
       state.dirty = true
@@ -611,57 +683,76 @@ const apicizeSlice = createSlice({
       }
     },
 
-    addNewEnvironment: (state) => {
-      const env = {
+    addNewScenario: (
+      state,
+      action: PayloadAction<{ targetScenarioId: string | undefined }>
+    ) => {
+      const scenario = {
         id: GenerateIdentifier(),
         name: '',
         variables: []
       }
-      let append = true
-      const existingID = state.activeEnvironment?.id
-      if (existingID) {
-        const idx = state.environments.topLevelIDs.findIndex(id => id === existingID)
-        if (idx !== -1) {
-          state.environments.topLevelIDs.splice(idx, 0, env.id)
-          append = false
-        }
-      }
-      if (append) {
-        state.environments.topLevelIDs.push(env.id)
-      }
-      state.environments.entities[env.id] = env
-      updateEnvrionmentNavList(state)
-      updateActive(state, undefined, undefined, env)
+      state.scenarios.entities[scenario.id] = scenario
+      const idx = action.payload.targetScenarioId
+        ? state.scenarios.topLevelIDs.indexOf(action.payload.targetScenarioId)
+        : -1
+      state.scenarios.topLevelIDs.splice(idx === -1 ? 0 : idx, 0, scenario.id)
+      updateScenarioNavList(state)
+      updateActive(state, undefined, undefined, scenario)
       state.dirty = true
     },
 
-    deleteEnvironment: (state, action: PayloadAction<string>) => {
-      const isActive = action.payload === state.activeEnvironment?.id
-      if (state.selectedEnvironment.id === action.payload) {
-        state.selectedEnvironment = noEnvironment
+    duplicateScenario: (
+      state,
+      action: PayloadAction<EditableWorkbookScenario>) => {
+      const source = action.payload
+      const scenario = structuredClone(source)
+      scenario.id = GenerateIdentifier()
+      scenario.name = `${GetTitle(source)} - Copy`
+      scenario.variables?.forEach(v => v.id = GenerateIdentifier())
+      scenario.dirty = true
+      let append = true
+      const idx = state.scenarios.topLevelIDs.findIndex(id => id === source.id)
+      if (idx !== -1) {
+        state.scenarios.topLevelIDs.splice(idx + 1, 0, scenario.id)
+        append = false
       }
-      let index = state.environments.topLevelIDs.indexOf(action.payload)
+      if (append) {
+        state.scenarios.topLevelIDs.push(scenario.id)
+      }
+      state.scenarios.entities[scenario.id] = scenario
+      updateScenarioNavList(state)
+      updateActive(state, undefined, undefined, scenario)
+      state.dirty = true
+    },
+
+    deleteScenario: (state, action: PayloadAction<string>) => {
+      const isActive = action.payload === state.activeScenario?.id
+      if (state.selectedScenario.id === action.payload) {
+        state.selectedScenario = noScenario
+      }
+      let index = state.scenarios.topLevelIDs.indexOf(action.payload)
       if (index === -1) {
-        throw new Error(`Invalid environment ID ${action.payload}`)
+        throw new Error(`Invalid scenario ID ${action.payload}`)
       }
-      state.environments.topLevelIDs.splice(index, 1)
-      delete state.environments.entities[action.payload]
+      state.scenarios.topLevelIDs.splice(index, 1)
+      delete state.scenarios.entities[action.payload]
 
       if (isActive) {
-        if (state.environments.topLevelIDs.length > 0) {
-          if (index >= state.environments.topLevelIDs.length)
-            index = state.environments.topLevelIDs.length - 1
+        if (state.scenarios.topLevelIDs.length > 0) {
+          if (index >= state.scenarios.topLevelIDs.length)
+            index = state.scenarios.topLevelIDs.length - 1
         } else {
           index = -1
         }
-        state.activeEnvironment =
-          index === -1 ? undefined : state.environments.entities[state.environments.topLevelIDs[index]]
+        state.activeScenario =
+          index === -1 ? undefined : state.scenarios.entities[state.scenarios.topLevelIDs[index]]
       }
-      updateEnvrionmentNavList(state)
+      updateScenarioNavList(state)
       state.dirty = true
     },
 
-    updateEnvironment: (
+    updateScenario: (
       state,
       action: PayloadAction<{
         id: string,
@@ -669,9 +760,9 @@ const apicizeSlice = createSlice({
         variables?: EditableNameValuePair[]
       }>
     ) => {
-      const match = state.environments.entities[action.payload.id]
+      const match = state.scenarios.entities[action.payload.id]
       if (!match)
-        throw new Error(`Invalid environment ID ${action.payload.id}`)
+        throw new Error(`Invalid scenario ID ${action.payload.id}`)
       if (action.payload.name !== undefined) {
         match.name = action.payload.name
       }
@@ -681,23 +772,23 @@ const apicizeSlice = createSlice({
       match.dirty = true
       state.dirty = true
 
-      if (state.selectedEnvironment.id === match.id) {
-        state.selectedEnvironment = match
+      if (state.selectedScenario.id === match.id) {
+        state.selectedScenario = match
       }
 
-      if (state.activeEnvironment?.id === match.id) {
-        state.activeEnvironment = match
+      if (state.activeScenario?.id === match.id) {
+        state.activeScenario = match
       }
 
-      updateEnvrionmentNavList(state)
+      updateScenarioNavList(state)
     },
 
-    setActiveEnvironment: (
+    setActiveScenario: (
       state,
       action: PayloadAction<{ id: string | undefined }>
     ) => {
       if (action.payload.id) {
-        const match = state.environments.entities[action.payload.id]
+        const match = state.scenarios.entities[action.payload.id]
         if (match) {
           updateActive(state, undefined, undefined, match)
           return
@@ -706,25 +797,25 @@ const apicizeSlice = createSlice({
       updateActive(state, undefined, undefined, undefined)
     },
 
-    moveEnvironment: (
+    moveScenario: (
       state,
       action: PayloadAction<{ id: string, destinationID: string | null }>
     ) => {
-      moveInStorage<EditableWorkbookEnvironment>(action.payload.id, action.payload.destinationID, state.environments)
-      updateEnvrionmentNavList(state)
-      updateActive(state, undefined, undefined, state.environments.entities[action.payload.id])
+      moveInStorage<EditableWorkbookScenario>(action.payload.id, action.payload.destinationID, state.scenarios)
+      updateScenarioNavList(state)
+      updateActive(state, undefined, undefined, state.scenarios.entities[action.payload.id])
     },
 
-    setSelectedEnvironment: (
+    setSelectedScenario: (
       state,
       action: PayloadAction<string | undefined>
     ) => {
-      if (action.payload && action.payload !== NO_ENVIRONMENT) {
-        const match = state.environments.entities[action.payload]
-        if (!match) throw new Error(`Invalid environment ID ${action.payload}`)
-        state.selectedEnvironment = match
+      if (action.payload && action.payload !== NO_SCENARIO) {
+        const match = state.scenarios.entities[action.payload]
+        if (!match) throw new Error(`Invalid scenario ID ${action.payload}`)
+        state.selectedScenario = match
       } else {
-        state.selectedEnvironment = noEnvironment
+        state.selectedScenario = noScenario
       }
     },
 
@@ -741,7 +832,7 @@ const apicizeSlice = createSlice({
         } else {
           state.executions[action.payload.id] = {
             requestID: action.payload.id,
-            running: action.payload.onOff
+            running: action.payload.onOff,
           }
         }
       }
@@ -755,22 +846,41 @@ const apicizeSlice = createSlice({
 
     setRequestResults: (
       state,
-      action: PayloadAction<{ id: string, results: ApicizeResult[] } | undefined>
+      action: PayloadAction<{ id: string, results: ApicizeResult[][] } | undefined>
     ) => {
       if (action.payload) {
         // Stop the executions
+        const workbookResults = ApicizeRunResultsToWorkbookExecutionResults(action.payload.results, state.requests.entities)
         const match = state.executions[action.payload.id]
-        const workbookResults = ApicizeResultsToWorkbookExecutionResult(action.payload.results, state.requests.entities)
         if (match) {
           match.running = false
+          match.runList = []
+          match.resultLists = []
+          for (let runIndex = 0; runIndex < workbookResults.length; runIndex++) {
+            match.runList.push({ index: runIndex, text: `Run ${runIndex + 1} of ${workbookResults.length}` })
+            const runResults = workbookResults[runIndex]
+            const resultList = []
+            for (let resultIndex = 0; resultIndex < runResults.length; resultIndex++) {
+              const request = state.requests.entities[runResults[resultIndex].requestId]
+              resultList.push({ index: resultIndex, text: `${request?.name ?? '(Unnamed)'}` })
+            }
+            match.resultLists.push(resultList)
+          }
           match.results = workbookResults
-        }
-        if (state.activeExecution && state.activeExecution.requestID === action.payload.id) {
-          state.activeExecution.running = false
-          state.activeExecution.results = workbookResults
-        }
-        if (workbookResults.length > 0) {
-          state.selectedExecutionResult = workbookResults[0]
+          match.runIndex = workbookResults.length > 0 ? 0 : undefined
+          match.resultIndex = workbookResults.length > 0 && workbookResults[0].length > 0 ? 0 : undefined
+
+          if (state.activeExecution && state.activeExecution.requestID === action.payload.id) {
+            state.activeExecution.running = false
+            state.activeExecution.results = workbookResults
+            state.activeExecution.runIndex = match.runIndex
+            state.activeExecution.runList = match.runList
+            state.activeExecution.resultLists = match.resultLists
+            state.activeExecution.resultIndex = match.resultIndex
+            state.selectedExecutionResult = (state.activeExecution.runIndex !== undefined && state.activeExecution.resultIndex !== undefined)
+              ? workbookResults[state.activeExecution.runIndex][state.activeExecution.resultIndex]
+              : undefined
+          }
         }
       }
       updateRunningCount(state)
@@ -778,19 +888,28 @@ const apicizeSlice = createSlice({
 
     setSelectedExecutionResult: (
       state,
-      action: PayloadAction<string>
+      action: PayloadAction<{
+        runIndex: number | undefined,
+        resultIndex: number | undefined
+      }>
     ) => {
-      const match = state.activeExecution?.results?.find(r => r.key === action.payload)
-      if (match) {
-        state.selectedExecutionResult = match
+      if (action.payload.runIndex !== undefined
+        && action.payload.resultIndex !== undefined
+        && state.activeExecution?.results
+        && action.payload.runIndex < (state.activeExecution.results?.length ?? -1)
+        && action.payload.resultIndex < (state.activeExecution.results[action.payload.runIndex]?.length ?? -1)
+      ) {
+        state.selectedExecutionResult = state.activeExecution.results[action.payload.runIndex][action.payload.resultIndex]
+        state.activeExecution.runIndex = action.payload.runIndex
+        state.activeExecution.resultIndex = action.payload.resultIndex
+        const match = state.executions[state.activeExecution.requestID]
+        if (match) {
+          match.runIndex = state.activeExecution.runIndex
+          match.resultIndex = state.activeExecution.resultIndex
+        }
+      } else {
+        state.selectedExecutionResult = undefined
       }
-    },
-  
-    setNavigationMenu: (
-      state,
-      action: PayloadAction<NavigationMenu | undefined>
-    ) => {
-      state.navigationMenu = action.payload
     },
   }
 })
@@ -800,28 +919,30 @@ export const {
   saveWorkbook,
   setWorkbookDirty,
   addNewRequest,
-  deleteRequest,
+  duplicateRequestEntry,
+  deleteRequestEntry,
   updateRequest,
   addNewRequestGroup,
   updateRequestGroup,
   moveRequest,
-  setActiveRequest,
+  setActiveRequestEntry,
   addNewAuthorization,
+  duplicateAuthorization,
   deleteAuthorization,
   updateAuthorization,
   moveAuthorization,
   setActiveAuthorization,
   setSelectedAuthorization,
-  addNewEnvironment,
-  deleteEnvironment,
-  updateEnvironment,
-  moveEnvironment,
-  setActiveEnvironment,
-  setSelectedEnvironment,
+  addNewScenario,
+  duplicateScenario,
+  deleteScenario,
+  updateScenario,
+  moveScenario,
+  setActiveScenario,
+  setSelectedScenario,
   setRequestRunning,
   setRequestResults,
   setSelectedExecutionResult,
-  setNavigationMenu
 } = apicizeSlice.actions
 
 export const workbookStore = configureStore<ApicizeWorkbookState>({

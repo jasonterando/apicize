@@ -9,8 +9,8 @@ import { register } from "@tauri-apps/api/globalShortcut"
 import { emit, listen } from "@tauri-apps/api/event"
 import { writeTextFile } from "@tauri-apps/api/fs"
 import { ApicizeResult, ApicizeResults } from "@apicize/common/dist/models/lib/apicize-result"
-import { noAuthorization, noEnvironment } from "@apicize/toolkit/dist/models/store"
-import { EditableWorkbookRequestEntry } from "@apicize/toolkit/dist/models/workbook/editable-workbook-request-entry"
+import { noAuthorization, noScenario } from "@apicize/toolkit/dist/models/store"
+import { writeImage, writeText } from "tauri-plugin-clipboard-api"
 
 export interface WorkbookServiceStore { }
 export const WorkbookContext = createContext<WorkbookServiceStore>({})
@@ -52,11 +52,10 @@ export const WorkbookProvider = (props: {
     const workbookFullName = useSelector((state: WorkbookState) => state.workbookFullName)
     const workbookDisplayName = useSelector((state: WorkbookState) => state.workbookDisplayName)
     
-    const activeRequest = useSelector((state: WorkbookState) => state.activeRequest)
-    const activeRequestGroup = useSelector((state: WorkbookState) => state.activeRequestGroup)
+    const activeRequest = useSelector((state: WorkbookState) => state.activeRequestEntry)
     const activeAuthorization = useSelector((state: WorkbookState) => state.activeAuthorization)
     const selectedAuthorization = useSelector((state: WorkbookState) => state.selectedAuthorization)
-    const selectedEnvironment = useSelector((state: WorkbookState) => state.selectedEnvironment)
+    const selectedScenario = useSelector((state: WorkbookState) => state.selectedScenario)
 
     let _settingsFileName = useRef('')
     let _settings = useRef<Settings | undefined>()
@@ -101,6 +100,12 @@ export const WorkbookProvider = (props: {
         const unlistenRun = listen('run', async () => { await doRunRequest() })
         const unlistenCancel = listen('cancel', async () => { await doCancelRequest() })
         const unlistenClearToken = listen('clearToken', async () => { await doClearToken() })
+        const unlistenCopyTextToClipboard = listen<string | undefined>('copyText', async(event) => { 
+            await doCopyTextToClipboard(event.payload) 
+        })
+        const unlistenCopyImageToClipboard = listen<string | undefined>('copyImage', async(event) => { 
+            await doCopyImageToClipboard(event.payload) 
+        })
 
         return () => {
             unlistenNew.then(f => f())
@@ -110,8 +115,9 @@ export const WorkbookProvider = (props: {
             unlistenRun.then(f => f())
             unlistenCancel.then(f => f())
             unlistenClearToken.then(f => f())
+            unlistenCopyTextToClipboard.then(f => f())
+            unlistenCopyImageToClipboard.then(f => f())
         }
-
     })
 
     // Keep track of the current window
@@ -152,9 +158,9 @@ export const WorkbookProvider = (props: {
             fullName: '',
             requests: { entities: {}, topLevelIDs: [] },
             authorizations: { entities: {}, topLevelIDs: [] },
-            environments: { entities: {}, topLevelIDs: [] },
+            scenarios: { entities: {}, topLevelIDs: [] },
             selectedAuthorization: undefined,
-            selectedEnvironment: undefined,
+            selectedScenario: undefined,
         }))
 
         toast.open('Created New Workbook', ToastSeverity.Success)
@@ -204,9 +210,9 @@ export const WorkbookProvider = (props: {
                 fullName: fileName,
                 requests: results.requests,
                 authorizations: results.authorizations,
-                environments: results.environments,
+                scenarios: results.scenarios,
                 selectedAuthorization: results.selectedAuthorization,
-                selectedEnvironment: results.selectedEnvironment
+                selectedScenario: results.selectedScenario
             }))
 
             updateSettings({ lastWorkbookFileName: fileName })
@@ -228,9 +234,9 @@ export const WorkbookProvider = (props: {
             const workbook = stateStorageToWorkbook(
                 state.requests,
                 state.authorizations,
-                state.environments,
+                state.scenarios,
                 state.selectedAuthorization,
-                state.selectedEnvironment,
+                state.selectedScenario,
             )
 
             await api.invoke('save_workbook', { workbook, path: workbookFullName })
@@ -271,9 +277,9 @@ export const WorkbookProvider = (props: {
             const workbook = stateStorageToWorkbook(
                 state.requests,
                 state.authorizations,
-                state.environments,
+                state.scenarios,
                 state.selectedAuthorization,
-                state.selectedEnvironment,
+                state.selectedScenario,
             )
 
             await api.invoke('save_workbook', { workbook, path: fileName })
@@ -289,19 +295,14 @@ export const WorkbookProvider = (props: {
     }
 
     const doRunRequest = async () => {
-        let entry: EditableWorkbookRequestEntry
-        if (activeRequest) {
-            entry = activeRequest
-        } else if (activeRequestGroup) {
-            entry = activeRequestGroup
-        } else {
+        if (! activeRequest) {
             return
         }
-        let id = entry.id
+        let id = activeRequest.id
         // toast.open(`Executing id ${entry.name}`, ToastSeverity.Info)
 
         const state = workbookStore.getState()
-        const request = stateStorageToRequestEntry(entry.id, state.requests)
+        const request = stateStorageToRequestEntry(activeRequest.id, state.requests)
 
         try {
             const api = await getTauriApi()
@@ -309,11 +310,11 @@ export const WorkbookProvider = (props: {
                 id,
                 onOff: true
             }))
-            let results = await api.invoke<ApicizeResult[]>
+            let results = await api.invoke<ApicizeResult[][]>
                 ('run_request', { 
                     request,
                     authorization: selectedAuthorization == noAuthorization ? undefined : selectedAuthorization,
-                    environment: selectedEnvironment == noEnvironment ? undefined : selectedEnvironment })
+                    scenario: selectedScenario == noScenario ? undefined : selectedScenario })
             
             dispatch(setRequestResults({id, results}))
         } catch (e) {
@@ -347,6 +348,28 @@ export const WorkbookProvider = (props: {
             })
             toast.open('Tokens cleared', ToastSeverity.Success)
         } catch (e) {
+            toast.open(`${e}`, ToastSeverity.Error)
+        }
+    }
+
+    const doCopyImageToClipboard = async (base64?: string) => {
+        try {
+            if(base64 && (base64.length > 0)) {
+                await writeImage(base64)
+                toast.open('Image copied to clipboard', ToastSeverity.Success)
+            }
+        } catch(e) {
+            toast.open(`${e}`, ToastSeverity.Error)
+        }
+    }
+
+    const doCopyTextToClipboard = async (text?: string) => {
+        try {
+            if (text && (text.length ?? 0) > 0) {
+                await writeText(text)
+                toast.open('Text copied to clipboard', ToastSeverity.Success)
+            }
+        } catch(e) {
             toast.open(`${e}`, ToastSeverity.Error)
         }
     }

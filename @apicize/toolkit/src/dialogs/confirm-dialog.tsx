@@ -19,7 +19,7 @@ interface ConfirmationDialogProps extends ConfirmationOptions {
     onSubmit: () => void
     onClose: () => void
     onClosed: () => void
-  }
+}
 
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -37,19 +37,24 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         <Dialog
             open={open}
             onClose={onClosed}
+            sx={{ padding: '24px' }}
             aria-labelledby="alert-dialog-title"
             aria-describedby="alert-dialog-description"
         >
             <DialogTitle id="alert-dialog-title">
                 {title}
             </DialogTitle>
-            <DialogContent>
-                <DialogContentText id="alert-dialog-description" sx={{minWidth: '400px'}}>
+            <DialogContent sx={{
+                paddingTop: '24px',
+                paddingRight: '24px',
+                paddingLeft: '24px'
+            }}>
+                <DialogContentText id="alert-dialog-description" sx={{ minWidth: '400px' }}>
                     {message}
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
-            <Button onClick={onSubmit} autoFocus={defaultToCancel !== true}>{okButton}</Button>
+                <Button onClick={onSubmit} autoFocus={defaultToCancel !== true}>{okButton}</Button>
                 <Button onClick={onClose} autoFocus={defaultToCancel === true}>{cancelButton}</Button>
             </DialogActions>
         </Dialog>

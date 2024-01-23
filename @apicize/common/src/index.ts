@@ -5,7 +5,7 @@ export { ApicizeTestResult } from './models/lib/apicize-test-result'
 export { ApicizeResult, ApicizeResults } from './models/lib/apicize-result'
 export { WorkbookRequestGroup } from './models/workbook/workbook-request-group'
 export { NO_AUTHORIZATION } from './models/workbook/workbook-authorization'
-export { WorkbookEnvironment, NO_ENVIRONMENT } from './models/workbook/workbook-environment'
+export { WorkbookScenario, NO_SCENARIO } from './models/workbook/workbook-scenario'
 export { Settings } from './models/storage/stored-settings'
 export { WorkbookAuthorization, WorkbookAuthorizationType, WorkbookApiKeyAuthorization, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization } from './models/workbook/workbook-authorization';
 export { StoredWorkbook } from './models/storage/stored-workbook'
