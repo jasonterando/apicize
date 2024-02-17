@@ -16,8 +16,10 @@ use tauri::async_runtime::Mutex;
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_clipboard::init())
+        // .plugin(tauri_plugin_clipboard::init())
         .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request, cancel_request, clear_cached_authorization])
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .run(tauri::generate_context!())
         .expect("error running Apicize");
 }

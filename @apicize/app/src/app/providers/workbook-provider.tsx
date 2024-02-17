@@ -5,12 +5,12 @@ import { ToastContext, ToastStore, initializeWorkbook, ToastSeverity, WorkbookSt
 import { useDispatch, useSelector } from 'react-redux'
 import { useConfirmation } from "@apicize/toolkit/dist/services/confirmation-service"
 import { Settings, StoredWorkbook, ApicizeRequest, ApicizeResponse, ApicizeTestResult, NO_AUTHORIZATION, WorkbookRequest, WorkbookRequestGroup } from "@apicize/common"
-import { register } from "@tauri-apps/api/globalShortcut"
+import { register } from "@tauri-apps/plugin-global-shortcut"
 import { emit, listen } from "@tauri-apps/api/event"
-import { writeTextFile } from "@tauri-apps/api/fs"
+import { writeTextFile } from "@tauri-apps/plugin-fs"
 import { ApicizeResult, ApicizeResults } from "@apicize/common/dist/models/lib/apicize-result"
 import { noAuthorization, noScenario } from "@apicize/toolkit/dist/models/store"
-import { writeImage, writeText } from "tauri-plugin-clipboard-api"
+// import { writeImage, writeText } from "tauri-plugin-clipboard-api"
 
 export interface WorkbookServiceStore { }
 export const WorkbookContext = createContext<WorkbookServiceStore>({})
@@ -61,11 +61,11 @@ export const WorkbookProvider = (props: {
     let _settings = useRef<Settings | undefined>()
     let _loaded = useRef(false)
 
-    let _api: typeof import('@tauri-apps/api') | undefined
-    const getTauriApi = async () => {
-        if (_api) return _api
-        _api = await import('@tauri-apps/api')
-        return _api
+    let _core: typeof import('@tauri-apps/api/core') | undefined
+    const getTauriApiCore = async () => {
+        if (_core) return _core
+        _core = await import('@tauri-apps/api/core')
+        return _core
     }
 
     let _path: typeof import('@tauri-apps/api/path') | undefined
@@ -75,10 +75,10 @@ export const WorkbookProvider = (props: {
         return _path
     }
 
-    let _dialog: typeof import('@tauri-apps/api/dialog') | undefined
+    let _dialog: typeof import('@tauri-apps/plugin-dialog') | undefined
     const getTauriDialog = async () => {
         if (_dialog) return _dialog
-        _dialog = await import('@tauri-apps/api/dialog')
+        _dialog = await import('@tauri-apps/plugin-dialog')
         return _dialog
     }
 
@@ -86,9 +86,13 @@ export const WorkbookProvider = (props: {
         if (! _loaded.current) {
             _loaded.current = true;
             (async () => {
-                let settings = await loadSettings()
-                if ((settings?.lastWorkbookFileName?.length ?? 0) > 0) {
-                    await doOpenWorkbook(settings.lastWorkbookFileName)
+                try {
+                    let settings = await loadSettings()
+                    if ((settings?.lastWorkbookFileName?.length ?? 0) > 0) {
+                        await doOpenWorkbook(settings.lastWorkbookFileName)
+                    }
+                } catch(e) {
+                    toast.open(`${e}`, ToastSeverity.Error)
                 }
             })()
         }
@@ -133,7 +137,7 @@ export const WorkbookProvider = (props: {
     useEffect(() => {
         (async () => {
             const window = await getTauriWindow()
-            window.appWindow.setTitle(((workbookDisplayName?.length ?? 0) > 0 )
+            window.getCurrent().setTitle(((workbookDisplayName?.length ?? 0) > 0 )
                 ? `Apicize - ${workbookDisplayName}`
                 : 'Apicize (New Workbook)')
         })()
@@ -186,7 +190,7 @@ export const WorkbookProvider = (props: {
         }
 
         if ((fileName?.length ?? 0) === 0) {
-            const selected = await dialog.open({
+            const selected = (await dialog.open({
                 multiple: false,
                 title: 'Open Apicize Workbook',
                 defaultPath: settings?.workbookDirectory,
@@ -195,15 +199,16 @@ export const WorkbookProvider = (props: {
                     name: 'All Files',
                     extensions: ['json']
                 }]
-            })
-            if (typeof selected === 'string') fileName = selected
+            })) as any
+            if (selected) fileName = selected['path']
         }
+
 
         if (!fileName) return
 
-        const api = await getTauriApi()
+        const core = await getTauriApiCore()
         try {
-            const data: StoredWorkbook = await api.invoke('open_workbook', { path: fileName })
+            const data: StoredWorkbook = await core.invoke('open_workbook', { path: fileName })
             const results = workbookToStateStorage(data)
             dispatch(initializeWorkbook({
                 displayName: await path.basename(fileName),
@@ -227,7 +232,7 @@ export const WorkbookProvider = (props: {
             if (! (workbookFullName && workbookFullName.length > 0)) {
                 return
             }
-            const api = await getTauriApi()
+            const core = await getTauriApiCore()
             const path = await getTauriPath()
 
             const state = workbookStore.getState()
@@ -239,7 +244,7 @@ export const WorkbookProvider = (props: {
                 state.selectedScenario,
             )
 
-            await api.invoke('save_workbook', { workbook, path: workbookFullName })
+            await core.invoke('save_workbook', { workbook, path: workbookFullName })
 
             await updateSettings({ lastWorkbookFileName: workbookFullName })
             toast.open(`Saved ${workbookFullName}`, ToastSeverity.Success)
@@ -254,7 +259,7 @@ export const WorkbookProvider = (props: {
 
     const doSaveWorkbookAs = async () => {
         try {
-            const api = await getTauriApi()
+            const core = await getTauriApiCore()
             const dialog = await getTauriDialog()
             const path = await getTauriPath()
             const settings = await loadSettings()
@@ -282,7 +287,7 @@ export const WorkbookProvider = (props: {
                 state.selectedScenario,
             )
 
-            await api.invoke('save_workbook', { workbook, path: fileName })
+            await core.invoke('save_workbook', { workbook, path: fileName })
             await updateSettings({ lastWorkbookFileName: fileName })
             toast.open(`Saved ${fileName}`, ToastSeverity.Success)
             dispatch(saveWorkbook({
@@ -305,12 +310,12 @@ export const WorkbookProvider = (props: {
         const request = stateStorageToRequestEntry(activeRequest.id, state.requests)
 
         try {
-            const api = await getTauriApi()
+            const core = await getTauriApiCore()
             dispatch(setRequestRunning({
                 id,
                 onOff: true
             }))
-            let results = await api.invoke<ApicizeResult[][]>
+            let results = await core.invoke<ApicizeResult[][]>
                 ('run_request', { 
                     request,
                     authorization: selectedAuthorization == noAuthorization ? undefined : selectedAuthorization,
@@ -330,8 +335,8 @@ export const WorkbookProvider = (props: {
         if (! activeRequest) return
         const id = activeRequest.id
         try {
-            const api = await getTauriApi()
-            await api.invoke('cancel_request', {
+            const core = await getTauriApiCore()
+            await core.invoke('cancel_request', {
                 request: activeRequest
             })
         } catch (e) {
@@ -342,8 +347,8 @@ export const WorkbookProvider = (props: {
     const doClearToken = async () => {
         if(! activeAuthorization) return
         try {
-            const api = await getTauriApi()
-            await api.invoke('clear_cached_authorization', {
+            const core = await getTauriApiCore()
+            await core.invoke('clear_cached_authorization', {
                 authorization: activeAuthorization
             })
             toast.open('Tokens cleared', ToastSeverity.Success)
@@ -354,10 +359,11 @@ export const WorkbookProvider = (props: {
 
     const doCopyImageToClipboard = async (base64?: string) => {
         try {
-            if(base64 && (base64.length > 0)) {
-                await writeImage(base64)
-                toast.open('Image copied to clipboard', ToastSeverity.Success)
-            }
+            throw new Error('Not supported yet!')
+            // if(base64 && (base64.length > 0)) {
+            //     await writeImage(base64)
+            //     toast.open('Image copied to clipboard', ToastSeverity.Success)
+            // }
         } catch(e) {
             toast.open(`${e}`, ToastSeverity.Error)
         }
@@ -365,10 +371,11 @@ export const WorkbookProvider = (props: {
 
     const doCopyTextToClipboard = async (text?: string) => {
         try {
-            if (text && (text.length ?? 0) > 0) {
-                await writeText(text)
-                toast.open('Text copied to clipboard', ToastSeverity.Success)
-            }
+            throw new Error('Not supported yet!')
+            // if (text && (text.length ?? 0) > 0) {
+            //     await writeText(text)
+            //     toast.open('Text copied to clipboard', ToastSeverity.Success)
+            // }
         } catch(e) {
             toast.open(`${e}`, ToastSeverity.Error)
         }
@@ -378,7 +385,7 @@ export const WorkbookProvider = (props: {
         if (_settings.current) return _settings.current
 
         let path = await import('@tauri-apps/api/path')
-        let fs = await import('@tauri-apps/api/fs')
+        let fs = await import('@tauri-apps/plugin-fs')
 
         let settings: Settings | undefined
         const configDirectory = await path.appConfigDir()

@@ -1,82 +1,8 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
-  "build": {
-    "beforeBuildCommand": "yarn build",
-    "beforeDevCommand": "yarn dev",
-    "devPath": "http://localhost:3000",
-    "distDir": "../out"
-  },
-  "package": {
-    "productName": "apicize",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "dialog": {
-        "all": true
-      },
-      "fs": {
-        "scope": [
-          "$APPDATA",
-          "$APPDATA/*",
-          "$APPCONFIG/settings.json"
-        ],
-        "readFile": true,
-        "writeFile": true,
-        "readDir": true,
-        "exists": true
-      },
-      "globalShortcut": {
-        "all": true
-      },
-      "notification": {
-        "all": true
-      },
-      "path": {
-        "all": true
-      },
-      "window": {
-        "setTitle": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "identifier": "apicize",
-      "longDescription": "Apicize",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [],
-      "shortDescription": "",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+  "$schema": "../../../node_modules/@tauri-apps/cli/schema.json",
+  "app": {
     "security": {
       "csp": null
-    },
-    "updater": {
-      "active": false
     },
     "windows": [
       {
@@ -84,8 +10,79 @@
         "height": 800,
         "resizable": true,
         "title": "Apicize",
-        "width": 1000
+        "width": 1200
       }
     ]
-  }
+  },
+  "build": {
+    "beforeBuildCommand": "yarn build",
+    "beforeDevCommand": "yarn dev",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../out"
+  },
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "copyright": "",
+    "externalBin": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "longDescription": "Apicize",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "resources": [],
+    "shortDescription": "",
+    "targets": "all",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "identifier": "apicize",
+  "plugins": {
+    "updater": {},
+    "fs": {
+      "scope": {
+        "allow": [
+          "$CONFIG",
+          "$CONFIG/**",
+          "$APP_CONFIG",
+          "$APP_CONFIG/**"
+        ],
+        "requireLiteralLeadingDot": false
+      },
+      "scope-appconfig": true,
+      "scope-appconfig-index": true,
+      "allow-appconfig-meta": true,
+      "allow-appconfig-read": true,
+      "allow-appconfig-write": true,
+      "scope-appconfig-recursive": true,
+      "allow-appconfig-index-recursive": true,
+      "allow-appconfig-meta-recursive": true,
+      "allow-appconfig-read-recursive": true,
+      "allow-appconfig-write-recursive": true,
+      "allow-applocaldata-read-recursive": true,
+      "allow-applocaldata-write-recursive": true,
+      "allow-document-read-recursive": true,
+      "allow-document-write-recursive": true
+    }
+  },
+  "productName": "apicize",
+  "version": "0.1.0"
 }

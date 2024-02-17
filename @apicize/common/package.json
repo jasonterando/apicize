@@ -1,5 +1,6 @@
 {
   "name": "@apicize/common",
+  "private": true,
   "version": "0.0.1",
   "description": "Basic model and service definitions for Apicize",
   "scripts": {

@@ -1,0 +1,51 @@
+{
+  "identifier": "migrated",
+  "description": "permissions that were migrated from v1",
+  "context": "local",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "path:default",
+    "event:default",
+    "window:default",
+    "app:default",
+    "resources:default",
+    "menu:default",
+    "tray:default",
+    "global-shortcut:allow-register",
+    "window:allow-set-title",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    {
+      "identifier": "fs:write-files",
+      "allow": [
+        { "path": "$APPDATA/*" },
+        { "path": "$APPCONFIG/*" },
+        { "path": "$DATA/*" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCONFIG/**" },
+        { "path": "$DATA/**" }
+      ]
+    },
+    {
+      "identifier": "fs:read-files",
+      "allow": [
+        { "path": "$APPDATA/*" },
+        { "path": "$APPCONFIG/*" },
+        { "path": "$DATA/*" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCONFIG/**" },
+        { "path": "$DATA/**" }
+      ]
+    }
+  ],
+  "platforms": [
+    "linux",
+    "macOS",
+    "windows",
+    "android",
+    "iOS"
+  ]
+}
