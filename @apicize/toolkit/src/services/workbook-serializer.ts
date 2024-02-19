@@ -1,4 +1,4 @@
-import { BodyType, Identifiable, NO_AUTHORIZATION, NO_SCENARIO, StoredWorkbook, WorkbookAuthorization, WorkbookScenario, WorkbookRequest, WorkbookRequestGroup } from "@apicize/common";
+import { BodyType, Identifiable, NO_AUTHORIZATION, NO_SCENARIO, StoredWorkbook, WorkbookAuthorization, WorkbookScenario, WorkbookRequest, WorkbookRequestGroup } from "@apicize/lib-typescript";
 import { GenerateIdentifier } from "./random-identifier-generator";
 import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization";
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario";

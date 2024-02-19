@@ -2,10 +2,8 @@ import { TextField, Grid, Select, MenuItem, FormControl, InputLabel } from '@mui
 import { useEffect, useState } from 'react'
 import { WorkbookState, updateRequest } from '../../../models/store'
 import { useDispatch, useSelector } from 'react-redux'
-import { Method, Methods } from '@apicize/common'
+import { Method, Methods } from '@apicize/lib-typescript'
 import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
-
-// import './request-editor.css'
 
 export function RequestParametersEditor() {
     const dispatch = useDispatch()

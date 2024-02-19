@@ -63,7 +63,9 @@ export function ResultInfoViewer(props: {
             {result.response?.status === undefined
                 ? (<></>)
                 : (<TestInfo text={`Status: ${result.response.status} ${result.response.statusText}`} />)}
-            <TestInfo text={`Exeucted At: ${result.executedAt.toLocaleString()} ms`} />
+            {(result.executedAt > 0)
+                ? (<TestInfo text={`Exeucted At: ${result.executedAt.toLocaleString()} ms`} />) 
+                : (<></>)}
             {(result.milliseconds && result.milliseconds > 0)
                 ? (<TestInfo text={`Duration: ${result.milliseconds.toLocaleString()} ms`} />)
                 : (<></>)}

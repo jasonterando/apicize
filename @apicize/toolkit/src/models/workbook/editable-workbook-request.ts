@@ -1,4 +1,4 @@
-import { WorkbookRequest } from "@apicize/common"
+import { WorkbookRequest } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { EditableNameValuePair } from "./editable-name-value-pair"
 

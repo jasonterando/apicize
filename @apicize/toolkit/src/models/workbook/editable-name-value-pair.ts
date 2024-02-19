@@ -1,4 +1,4 @@
-import { NameValuePair } from "@apicize/common";
+import { NameValuePair } from "@apicize/lib-typescript";
 
 /**
  * Used for editing headers, query string parameters, etc.

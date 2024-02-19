@@ -6,7 +6,7 @@ import {
   NO_SCENARIO,
   GetTitle,
   WorkbookAuthorizationType,
-} from '@apicize/common'
+} from '@apicize/lib-typescript'
 import { GenerateIdentifier } from '../services/random-identifier-generator'
 import { EditableWorkbookRequest } from './workbook/editable-workbook-request'
 import { EditableWorkbookRequestGroup } from './workbook/editable-workbook-request-group'
@@ -15,8 +15,8 @@ import { EditableWorkbookScenario } from './workbook/editable-workbook-scenario'
 import { addRequestEntryToStore, castEntryAsGroup, castEntryAsRequest, deleteRequestEntryFromStore } from './workbook/helpers/editable-workbook-request-helpers'
 import { StateStorage, moveInStorage } from './state-storage'
 import { EditableNameValuePair } from './workbook/editable-name-value-pair'
-import { ApicizeResult } from '@apicize/common/dist/models/lib/apicize-result'
-import { WorkbookBodyData } from '@apicize/common/dist/models/workbook/workbook-request'
+import { ApicizeResult } from '@apicize/lib-typescript/dist/models/lib/apicize-result'
+import { WorkbookBodyData } from '@apicize/lib-typescript/dist/models/workbook/workbook-request'
 import { ApicizeRunResultsToWorkbookExecutionResults, WorkbookExecution, WorkbookExecutionResult } from './workbook/workbook-execution'
 import { EditableWorkbookRequestEntry } from './workbook/editable-workbook-request-entry'
 

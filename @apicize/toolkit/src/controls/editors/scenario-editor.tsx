@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSelector } from "react-redux";
 import { WorkbookState, updateScenario } from '../../models/store'
 import { useDispatch } from 'react-redux'
-import { NameValuePair } from '@apicize/common'
+import { NameValuePair } from '@apicize/lib-typescript'
 import React from 'react';
 import { GenerateIdentifier } from '../../services/random-identifier-generator';
 import { EditableNameValuePair } from '../../models/workbook/editable-name-value-pair';

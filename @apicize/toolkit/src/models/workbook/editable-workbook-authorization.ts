@@ -1,6 +1,6 @@
-import { WorkbookAuthorization } from "@apicize/common"
+import { WorkbookAuthorization } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { WorkbookApiKeyAuthorization, WorkbookAuthorizationBase, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization } from "@apicize/common/dist/models/workbook/workbook-authorization"
+import { WorkbookApiKeyAuthorization, WorkbookAuthorizationBase, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization } from "@apicize/lib-typescript/dist/models/workbook/workbook-authorization"
 
 export interface EditableWorkbookAuthorization extends Editable, WorkbookAuthorizationBase {
 }

@@ -4,8 +4,6 @@ import { useSelector } from "react-redux";
 import { useEffect, useState } from 'react'
 import { WorkbookState, updateRequestGroup } from '../../../models/store'
 import { useDispatch } from 'react-redux'
-
-import '../../styles.css'
 import { castEntryAsGroup } from '../../../models/workbook/helpers/editable-workbook-request-helpers';
 
 export function RequestGroupEditor(props: {

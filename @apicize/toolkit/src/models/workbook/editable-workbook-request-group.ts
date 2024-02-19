@@ -1,4 +1,4 @@
-import { WorkbookRequestGroup } from "@apicize/common"
+import { WorkbookRequestGroup } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { EditableWorkbookRequestEntry } from "./editable-workbook-request-entry"
 

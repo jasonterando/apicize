@@ -1,7 +1,7 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./@apicize/rust/lib/Cargo.toml",
-        "./@apicize/rust/cli/Cargo.toml",
+        "./@apicize/lib-rust/Cargo.toml",
+        "./@apicize/cli/Cargo.toml",
         "./@apicize/app/src-tauri/Cargo.toml"
     ]
 }

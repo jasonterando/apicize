@@ -142,7 +142,7 @@ export default function Home() {
           <ToastProvider>
             <ConfirmationServiceProvider>
               <WorkbookProvider>
-                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '12px' }}>
+                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
                   <Navigation
                     triggerNew={() => emit('new')}
                     triggerOpen={() => emit('open')}

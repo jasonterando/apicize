@@ -3,16 +3,16 @@
     "private": true,
     "workspaces": {
         "packages": [
-            "@apicize/common",
+            "@apicize/lib-typescript",
             "@apicize/toolkit",
             "@apicize/app"
         ]
     },
     "scripts": {
-        "build-deps": "yarn workspace @apicize/common build && yarn workspace @apicize/toolkit build",
-        "watch-deps": "concurrently \"yarn workspace @apicize/common watch\" \"yarn workspace @apicize/toolkit watch\"",
-        "dev": "concurrently \"yarn workspace @apicize/common watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn run build-deps && yarn workspace @apicize/app tauri dev\"",
-        "zzz_dev": "yarn workspace @apicize/app tauri dev"
+        "build-deps": "yarn workspace @apicize/lib-typescript build && yarn workspace @apicize/toolkit build",
+        "ui": "yarn run build-deps && yarn workspace @apicize/app tauri dev",
+        "watch-deps": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\"",
+        "ui:watch": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn run build-deps && yarn workspace @apicize/app tauri dev\""
     },
     "devDependencies": {
         "concurrently": "^8.2.2"

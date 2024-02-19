@@ -1,4 +1,4 @@
-import { NameValuePair } from "@apicize/common";
+import { NameValuePair } from "@apicize/lib-typescript";
 import { EditableNameValuePair } from "../../models/workbook/editable-name-value-pair";
 import { Box } from "@mui/system";
 import AddIcon from '@mui/icons-material/Add'

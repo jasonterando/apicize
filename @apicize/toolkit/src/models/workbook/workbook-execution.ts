@@ -1,4 +1,4 @@
-import { ApicizeResult } from "@apicize/common";
+import { ApicizeResult } from "@apicize/lib-typescript";
 import { EditableWorkbookRequestEntry } from "./editable-workbook-request-entry";
 import { MAX_TEXT_RENDER_LENGTH } from "../../controls/viewers/text-viewer";
 

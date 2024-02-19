@@ -1,4 +1,4 @@
-import { Identifiable } from "@apicize/common"
+import { Identifiable } from "@apicize/lib-typescript"
 
 /**
  * Interface to track state of editable entity

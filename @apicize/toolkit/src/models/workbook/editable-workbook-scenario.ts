@@ -1,4 +1,4 @@
-import { WorkbookScenario } from "@apicize/common"
+import { WorkbookScenario } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { EditableNameValuePair } from "./editable-name-value-pair"
 

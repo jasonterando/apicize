@@ -7,7 +7,7 @@ import { useDispatch } from 'react-redux'
 import { AuthorizationBasicPanel } from './authorization/authorization-basic';
 import { AuthorizationOAuth2ClientPanel } from './authorization/authorization-oauth2-client';
 import { AuthorizationApiKeyPanel } from './authorization/authorization-api-key';
-import { WorkbookAuthorizationType } from '@apicize/common';
+import { WorkbookAuthorizationType } from '@apicize/lib-typescript';
 
 export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
     const authorization = useSelector((state: WorkbookState) => state.activeAuthorization)

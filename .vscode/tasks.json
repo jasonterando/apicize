@@ -24,7 +24,7 @@
 			// change this to your `beforeBuildCommand`:
 			"command": "yarn",
 			"args": [
-				"build-devs"
+				"build-deps"
 			]
 		},
 		{
@@ -38,7 +38,7 @@
 				"isDefault": true
 			},
 			"options": {
-				"cwd": "${workspaceFolder}/@apicize/rust/cli"
+				"cwd": "${workspaceFolder}/@apicize/cli"
 			},
 			"label": "rust: build cli",
 		},

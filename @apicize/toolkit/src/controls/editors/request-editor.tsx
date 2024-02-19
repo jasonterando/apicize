@@ -43,7 +43,7 @@ export function RequestEditor(props: {
     }
 
     return (
-        <Stack direction='column' sx={{ flex: 1 }}>
+        <Stack direction='column' sx={{ flex: 1, padding: '8px'}}>
             {
                 castEntryAsRequest(requestEntry)
                     ? (

@@ -34,7 +34,7 @@
     "undici-types": "^5.27.2"
   },
   "dependencies": {
-    "@apicize/common": "^0.0.1",
+    "@apicize/lib-typescript": "^0.0.1",
     "@dnd-kit/core": "^6.1.0",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",

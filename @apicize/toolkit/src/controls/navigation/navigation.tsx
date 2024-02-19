@@ -28,8 +28,7 @@ import AddIcon from '@mui/icons-material/Add'
 import React, { ReactNode, SyntheticEvent, useContext, useState } from 'react'
 import { useConfirmation } from '../../services/confirmation-service'
 import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensors, useSensor, PointerSensor } from '@dnd-kit/core'
-import './navigation.css'
-import { GetTitle } from '@apicize/common';
+import { GetTitle } from '@apicize/lib-typescript';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
 import { ToastContext, ToastStore } from '../../services/toast-service';
 
@@ -668,7 +667,7 @@ export function Navigation(props: {
     // console.log('Default expanded: ' + defaultExpanded.join(', '))
 
     return (
-        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', paddingRight: '48px' }}>
+        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '8px', paddingRight: '40px', backgroundColor: '#202020' }}>
             <Box sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px' }}>
                 <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
                     <PostAddIcon />

@@ -1,7 +1,7 @@
 import { ButtonGroup, FormControl, Grid, InputLabel, MenuItem, Select, ToggleButton } from '@mui/material';
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
 import { useDispatch, useSelector } from 'react-redux';
-import { GetTitle, NO_AUTHORIZATION, NO_SCENARIO } from '@apicize/common';
+import { GetTitle, NO_AUTHORIZATION, NO_SCENARIO } from '@apicize/lib-typescript';
 import { WorkbookState, setSelectedAuthorization, setSelectedExecutionResult, setSelectedScenario } from '../../../models/store';
 import { Stack, SxProps } from '@mui/system';
 import { useEffect, useState } from 'react';
