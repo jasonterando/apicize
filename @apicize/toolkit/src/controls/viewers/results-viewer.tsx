@@ -59,7 +59,7 @@ export function ResultsViewer(props: {
             <ToggleButton value="Preview" title="Show Body as Preview" aria-label='show body preview' disabled={result?.longTextInResponse || inProgress || !result?.response}><PreviewIcon /></ToggleButton>
             <ToggleButton value="Request" title="Show Request" aria-label='show request' disabled={inProgress || !result?.response}><SendIcon /></ToggleButton>
         </ToggleButtonGroup>
-        <Box sx={{ overflow: 'auto', flexGrow: 1 }}>
+        <Box sx={{ overflow: 'auto', flexGrow: 1, bottom: '0' }}>
             {
                 inProgress ? <RequestRunProgress cancelRequest={props.cancelRequest} /> :
                     execution === undefined ? <Box /> :

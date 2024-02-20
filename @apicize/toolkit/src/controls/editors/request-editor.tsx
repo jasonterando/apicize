@@ -43,7 +43,7 @@ export function RequestEditor(props: {
     }
 
     return (
-        <Stack direction='column' sx={{ flex: 1, padding: '8px'}}>
+        <Stack direction='column' sx={{ flex: 1, padding: '8px' }}>
             {
                 castEntryAsRequest(requestEntry)
                     ? (
@@ -84,7 +84,7 @@ export function RequestEditor(props: {
                     flexDirection: 'row',
                     boxSizing: 'border-box',
                     position: 'relative',
-                    height: 'calc(100vh - 400px)',
+                    height: 'calc(100vh - 460px)',
                     flexGrow: 0,
                     flexShrink: 0,
                     bottom: 0,

@@ -22,6 +22,7 @@ tauri = { version = "2.0.0-beta", features = [] }
 lazy_static = "1.4.0"
 tokio-util = "0.7.10"
 tauri-plugin-fs = "2.0.0-beta"
+tauri-plugin-clipboard-manager = "2.0.0-beta"
 tauri-plugin-global-shortcut = "2.0.0-beta"
 tauri-plugin-dialog = "2.0.0-beta"
 # tauri-plugin-clipboard = "0.5.5"

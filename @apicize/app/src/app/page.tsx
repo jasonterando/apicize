@@ -7,17 +7,17 @@ import {
 import type { } from '@mui/x-tree-view/themeAugmentation';
 import { Stack, Box, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui/material'
 import { ToastProvider } from '@apicize/toolkit'
-import { WorkbookProvider, registerKeyboardShortcuts } from './providers/workbook-provider';
+import { WorkbookProvider } from './providers/workbook-provider';
 import { Provider } from 'react-redux';
 import React, { useEffect } from 'react'
 import { emit } from '@tauri-apps/api/event'
-import "typeface-open-sans";
+import "typeface-open-sans"
 
 export default function Home() {
   const darkTheme = createTheme({
     typography: {
       fontFamily: [
-        'open-sans',
+        'Open Sans',
         'sans',
       ].join(','),
     },
@@ -106,17 +106,20 @@ export default function Home() {
         styleOverrides: {
           h1: {
             fontSize: '26px',
+            fontWeight: 'normal',
             marginTop: '8px',
             marginBottom: '26px'
           },
           h2: {
             fontSize: '22px',
+            fontWeight: 'normal',
             marginTop: '8px',
             marginBottom: '22px',
             paddingTop: '4px',
           },
           h3: {
             fontSize: '18px',
+            fontWeight: 'normal',
             marginTop: '8px',
             marginBottom: '18px',
             paddingTop: '4px',
@@ -127,10 +130,6 @@ export default function Home() {
     palette: {
       mode: 'dark',
     },
-  })
-
-  useEffect(() => {
-    registerKeyboardShortcuts()
   })
 
   return (
@@ -144,20 +143,20 @@ export default function Home() {
               <WorkbookProvider>
                 <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
                   <Navigation
-                    triggerNew={() => emit('new')}
-                    triggerOpen={() => emit('open')}
-                    triggerSave={() => emit('save')}
-                    triggerSaveAs={() => emit('saveAs')}
+                    triggerNew={() => emit('action', 'new')}
+                    triggerOpen={() => emit('action', 'open')}
+                    triggerSave={() => emit('action', 'save')}
+                    triggerSaveAs={() => emit('action', 'saveAs')}
                   />
                   <Box sx={{
-                    height: '100vh',
+                    // height: '100vh',
                     display: 'flex',
                     flexDirection: 'row',
                     flexGrow: 1,
                   }}>
                     <RequestEditor
-                      triggerRun={() => emit("run")}
-                      triggerCancel={() => emit("cancel")}
+                      triggerRun={() => emit('action', 'run')}
+                      triggerCancel={() => emit('action', 'cancel')}
                       triggerCopyTextToClipboard={(text?: string) => {
                         emit("copyText", text)
                       }}

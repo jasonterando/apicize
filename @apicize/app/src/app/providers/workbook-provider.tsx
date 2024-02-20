@@ -5,39 +5,16 @@ import { ToastContext, ToastStore, initializeWorkbook, ToastSeverity, WorkbookSt
 import { useDispatch, useSelector } from 'react-redux'
 import { useConfirmation } from "@apicize/toolkit/dist/services/confirmation-service"
 import { Settings, StoredWorkbook } from "@apicize/lib-typescript"
-import { register } from "@tauri-apps/plugin-global-shortcut"
-import { emit, listen } from "@tauri-apps/api/event"
+import { listen, Event } from "@tauri-apps/api/event"
 import { writeTextFile } from "@tauri-apps/plugin-fs"
 import { ApicizeResult } from "@apicize/lib-typescript/dist/models/lib/apicize-result"
 import { noAuthorization, noScenario } from "@apicize/toolkit/dist/models/store"
+import { writeText } from "@tauri-apps/plugin-clipboard-manager"
 // import { writeImage, writeText } from "tauri-plugin-clipboard-api"
 
 export interface WorkbookServiceStore { }
 export const WorkbookContext = createContext<WorkbookServiceStore>({})
 
-// export type TriggerEvent = (name: string, data?: any) => void
-
-export const registerKeyboardShortcuts = () => {
-    register('CommandOrControl+N', async (e) => {
-        emit('new')
-    })
-
-    register('CommandOrControl+O', async (e) => {
-        emit('open')
-    })
-
-    register('CommandOrControl+S', async (e) => {
-        emit('save')
-    })
-
-    register('CommandOrControl+Shift+S', async (e) => {
-        emit('saveAs')
-    })
-
-    register('CommandOrControl+R', async (e) => {
-        emit('run')
-    })
-}
 
 export const WorkbookProvider = (props: {
     children?: ReactNode
@@ -97,13 +74,7 @@ export const WorkbookProvider = (props: {
             })()
         }
 
-        const unlistenNew = listen('new', async () => { await doNewWorkbook() })
-        const unlistenOpen = listen('open', async () => { await doOpenWorkbook() })
-        const unlistenSave = listen('save', async () => { await doWorkbookSave() })
-        const unlistenSaveAs = listen('saveAs', async () => { await doSaveWorkbookAs() })
-        const unlistenRun = listen('run', async () => { await doRunRequest() })
-        const unlistenCancel = listen('cancel', async () => { await doCancelRequest() })
-        const unlistenClearToken = listen('clearToken', async () => { await doClearToken() })
+        const unlistenAction = listen('action', async (payload: Event<string>) => { await doRouteAction(payload) })
         const unlistenCopyTextToClipboard = listen<string | undefined>('copyText', async(event) => { 
             await doCopyTextToClipboard(event.payload) 
         })
@@ -112,13 +83,7 @@ export const WorkbookProvider = (props: {
         })
 
         return () => {
-            unlistenNew.then(f => f())
-            unlistenOpen.then(f => f())
-            unlistenSave.then(f => f())
-            unlistenSaveAs.then(f => f())
-            unlistenRun.then(f => f())
-            unlistenCancel.then(f => f())
-            unlistenClearToken.then(f => f())
+            unlistenAction.then(f => f())
             unlistenCopyTextToClipboard.then(f => f())
             unlistenCopyImageToClipboard.then(f => f())
         }
@@ -143,6 +108,35 @@ export const WorkbookProvider = (props: {
         })()
     }, [workbookDisplayName])
 
+    
+    const doRouteAction = async (event: Event<string>) => {
+        switch(event.payload) {
+            case 'new':
+                await doNewWorkbook()
+                break
+            case 'open':
+                await doOpenWorkbook()
+                break
+            case 'save':
+                await doSaveWorkbook()
+                break
+            case 'saveAs':
+                await doSaveWorkbookAs()
+                break
+            case 'run':
+                await doRunRequest()
+                break
+            case 'cancel':
+                await doCancelRequest()
+                break
+            case 'clearToken':
+                await doClearToken()
+                break
+            default:
+                console.warn(`Invalid action: ${event.payload}`)
+        }
+    }
+    
     // Triggers the start of a new workbook
     const doNewWorkbook = async () => {
         if (dirty) {
@@ -227,7 +221,7 @@ export const WorkbookProvider = (props: {
         }
     }
 
-    const doWorkbookSave = async () => {
+    const doSaveWorkbook = async () => {
         try {
             if (! (workbookFullName && workbookFullName.length > 0)) {
                 return
@@ -371,11 +365,10 @@ export const WorkbookProvider = (props: {
 
     const doCopyTextToClipboard = async (text?: string) => {
         try {
-            throw new Error('Not supported yet!')
-            // if (text && (text.length ?? 0) > 0) {
-            //     await writeText(text)
-            //     toast.open('Text copied to clipboard', ToastSeverity.Success)
-            // }
+            if (text && (text.length ?? 0) > 0) {
+                await writeText(text)
+                toast.open('Text copied to clipboard', ToastSeverity.Success)
+            }
         } catch(e) {
             toast.open(`${e}`, ToastSeverity.Error)
         }

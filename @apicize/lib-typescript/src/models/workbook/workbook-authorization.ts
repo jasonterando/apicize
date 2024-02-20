@@ -5,7 +5,7 @@ export const NO_AUTHORIZATION = '\0'
 /**
  * Specifies the type of authorization used for a request
  */
-export enum WorkbookAuthorizationType { None = 'none', Basic = 'Basic', OAuth2Client = 'OAuth2Client', ApiKey = 'api-key'};
+export enum WorkbookAuthorizationType { None = 'none', Basic = 'Basic', OAuth2Client = 'OAuth2Client', ApiKey = 'ApiKey'};
 
 // export interface WorkbookAuthorization extends Named {
 //     type: WorkbookAuthorizationType

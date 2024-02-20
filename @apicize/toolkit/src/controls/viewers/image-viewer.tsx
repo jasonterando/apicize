@@ -1,4 +1,4 @@
-import { Button } from "@mui/material"
+import { Box, Button } from "@mui/material"
 
 export const KNOWN_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'tif', 'tiff']
 
@@ -7,23 +7,28 @@ export function ImageViewer(props: {
     extensionToRender?: string
 }) {
     if (props.base64ToRender && props.base64ToRender.length > 0 && props.extensionToRender && props.extensionToRender.length > 0) {
-        const base64 = props.base64ToRender
         return (
-            <>
+            <Box
+                style={{
+                    flexGrow: 0,
+                    flexBasis: 0,
+                    overflow: 'auto',
+                    marginTop: 0,
+                    bottom: 0
+                }}
+            >
                 <img
-                    src={`data:image/${props.extensionToRender};base64,${props.base64ToRender}`}
                     style={{
-                        flexGrow: 1,
-                        flexBasis: 0,
-                        objectFit: 'scale-down',
-                        overflow: 'auto',
                         objectPosition: 'left top',
-                        marginTop: 0
-                    }} />
-            </>
+                        objectFit: 'scale-down',
+                        maxWidth: '100%'
+                    }}
+                    src={`data:image/${props.extensionToRender};base64,${props.base64ToRender}`}
+                />
+            </Box>
         )
     } else {
-        return null
+        return (<></>)
     }
 
 }

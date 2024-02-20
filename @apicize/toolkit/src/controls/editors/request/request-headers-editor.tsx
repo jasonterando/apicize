@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { WorkbookState, updateRequest } from '../../../models/store'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
-import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
 
 export function RequestHeadersEditor() {

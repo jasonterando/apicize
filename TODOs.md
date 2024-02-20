@@ -15,7 +15,11 @@ async and use threading instead.
 
 ### Allow updating of Scenario from V8 scripts (LIB)
 
-Support adding or updating scenario values from V8, allow the user to save a result value for use in subsequent request tests in the same group
+Support adding or updating Scenario values from V8, allow the user to save a result value for use in subsequent request tests in the same group
+
+### Support Cookies, Multi-Part Forms and Proxies (All)
+
+Support cookies, multi-part forms (uploads) and proxies for tests
 
 ### Reporting Formats (CLI)
 

@@ -12,7 +12,7 @@ use apicize_lib::{
     },
     FileSystem, Runnable, oauth2::{clear_oauth2_token, clear_all_oauth2_tokens},
 };
-use tauri::async_runtime::Mutex;
+use tauri::{async_runtime::Mutex, Manager};
 
 fn main() {
     tauri::Builder::default()
@@ -20,6 +20,40 @@ fn main() {
         .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request, cancel_request, clear_cached_authorization])
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .setup(|app| {
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
+
+                let ctrl_n_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyN);
+                let ctrl_o_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyO);
+                let ctrl_s_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyS);
+                let ctrl_shift_s_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyS);
+                let handle = app.handle().clone();
+                app.handle().plugin(
+                    tauri_plugin_global_shortcut::Builder::with_handler(move |_app, shortcut| {
+                        if shortcut == &ctrl_n_shortcut {
+                            handle.emit("action", "new").unwrap()
+                        } else if shortcut == &ctrl_o_shortcut {
+                            handle.emit("action", "open").unwrap()
+                        } else if shortcut == &ctrl_s_shortcut {
+                            handle.emit("action", "save").unwrap()
+                        } else if shortcut == &ctrl_shift_s_shortcut {
+                            handle.emit("action", "saveAs").unwrap()
+                        }
+                    })
+                    .build(),
+                )?;
+
+                app.global_shortcut().register(ctrl_n_shortcut)?;
+                app.global_shortcut().register(ctrl_o_shortcut)?;
+                app.global_shortcut().register(ctrl_s_shortcut)?;
+                app.global_shortcut().register(ctrl_shift_s_shortcut)?;
+            }
+
+            Ok(())
+        })        
         .run(tauri::generate_context!())
         .expect("error running Apicize");
 }

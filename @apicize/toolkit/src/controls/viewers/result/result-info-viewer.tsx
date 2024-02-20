@@ -1,17 +1,23 @@
 import { useSelector } from "react-redux"
 import { WorkbookState } from "../../../models/store"
-import { Box, Stack } from "@mui/system"
+import { Box, Stack, textTransform } from "@mui/system"
 import { IconButton, Typography } from "@mui/material"
 import CheckIcon from '@mui/icons-material/Check';
 import BlockIcon from '@mui/icons-material/Block';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
 
-const TestInfo = (props: { text: string }) =>
+const TestInfo = (props: { isError?: boolean, text: string }) =>
 (
     <Stack direction='row' sx={{ marginBottom: '18px' }}>
         <Stack direction='column' sx={{marginLeft: '32px'}}>
-            <Typography variant='h3' sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }}>{props.text}</Typography>
+            <Typography variant='h3' sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, color: '#80000' }}>
+            {
+                props.isError === true
+                    ? (<Box color='#FF0000' sx={{textTransform: 'capitalize'}}>{props.text}</Box>)
+                    : (<>{props.text}</>)
+            }
+            </Typography>
         </Stack>
     </Stack>
 )
@@ -59,7 +65,9 @@ export function ResultInfoViewer(props: {
                     <ContentCopyIcon />
                 </IconButton>
             </Typography>
-            {((result.errorMessage?.length ?? 0) == 0) ? null : (<Typography color="error">{result.errorMessage}</Typography>)}
+            {((result.errorMessage?.length ?? 0) == 0) 
+                ? (<></>) 
+                : (<TestInfo isError={true} text={`${result.errorMessage}`} />)}
             {result.response?.status === undefined
                 ? (<></>)
                 : (<TestInfo text={`Status: ${result.response.status} ${result.response.statusText}`} />)}

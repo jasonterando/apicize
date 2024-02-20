@@ -10,23 +10,16 @@ import { GenerateIdentifier } from '../../services/random-identifier-generator';
 import { EditableNameValuePair } from '../../models/workbook/editable-name-value-pair';
 import { NameValueEditor } from './name-value-editor';
 
-const setupVariables = (variables: NameValuePair[] | undefined) =>
-    (variables ?? []).map(h => ({
-        id: GenerateIdentifier(),
-        name: h.name,
-        value: h.value
-    }))
-
 export function ScenarioEditor() {
     const dispatch = useDispatch()
     const scenario = useSelector((state: WorkbookState) => state.activeScenario)
 
     const [name, setName] = useState<string | undefined>(scenario?.name ?? '')
-    const [variables, setVariables] = React.useState<EditableNameValuePair[]>(setupVariables(scenario?.variables))
+    const [variables, setVariables] = React.useState(scenario?.variables)
 
     useEffect(() => {
         setName(scenario?.name ?? '')
-        setVariables(setupVariables(scenario?.variables))
+        setVariables(scenario?.variables)
     }, [scenario])
 
     if (!scenario) {
