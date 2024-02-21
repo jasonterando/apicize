@@ -43,49 +43,51 @@ export function RequestEditor(props: {
     }
 
     return (
-        <Stack direction='column' sx={{ flex: 1, padding: '8px' }}>
-            {
-                castEntryAsRequest(requestEntry)
-                    ? (
-                        <Box sx={{ display: "flex", bottom: 0 }}>
-                            <ToggleButtonGroup
-                                className='button-column'
-                                orientation='vertical'
-                                exclusive
-                                onChange={handlePanelChanged}
-                                value={panel}
-                                sx={{ marginRight: '24px' }}
-                                aria-label="text alignment">
-                                <ToggleButton value="Parameters" title="Show Request Parameters" aria-label='show parameters'><DisplaySettingsIcon /></ToggleButton>
-                                <ToggleButton value="Query String" title="Show Request Query String" aria-label='show query string'><ViewListIcon /></ToggleButton>
-                                <ToggleButton value="Headers" title="Show Request Headers" aria-label='show headers'><ViewListOutlinedIcon /></ToggleButton>
-                                <ToggleButton value="Body" title="Show Request Body" aria-label='show body'><ArticleOutlinedIcon /></ToggleButton>
-                                <ToggleButton value="Test" title="Show Request Test" aria-label='show test'><ScienceIcon /></ToggleButton>
-                            </ToggleButtonGroup>
-                            <Box className='panels' sx={{ flexGrow: 1 }}>
-                                <Typography variant='h1'><SendIcon /> {requestEntry.name?.length ?? 0 > 0 ? requestEntry.name : '(Unnamed)'} - {panel}</Typography>
-                                {panel === 'Parameters' ? <RequestParametersEditor />
-                                    : panel === 'Headers' ? <RequestHeadersEditor />
-                                        : panel === 'Query String' ? <RequestQueryStringEditor />
-                                            : panel === 'Body' ? <RequestBodyEditor />
-                                                : panel === 'Test' ? <RequestTestEditor />
-                                                    : null}
+        <Stack direction='column' sx={{ flex: 1, paddingLeft: '8px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', height: '100vh' }}>
+            <Stack sx={{ height: '55vh', paddingBottom: '48px', flexBasis: 2 }}>
+                {
+                    castEntryAsRequest(requestEntry)
+                        ? (
+                            <Box sx={{ display: "flex", bottom: 0 }}>
+                                <ToggleButtonGroup
+                                    className='button-column'
+                                    orientation='vertical'
+                                    exclusive
+                                    onChange={handlePanelChanged}
+                                    value={panel}
+                                    sx={{ marginRight: '24px' }}
+                                    aria-label="text alignment">
+                                    <ToggleButton value="Parameters" title="Show Request Parameters" aria-label='show parameters'><DisplaySettingsIcon /></ToggleButton>
+                                    <ToggleButton value="Query String" title="Show Request Query String" aria-label='show query string'><ViewListIcon /></ToggleButton>
+                                    <ToggleButton value="Headers" title="Show Request Headers" aria-label='show headers'><ViewListOutlinedIcon /></ToggleButton>
+                                    <ToggleButton value="Body" title="Show Request Body" aria-label='show body'><ArticleOutlinedIcon /></ToggleButton>
+                                    <ToggleButton value="Test" title="Show Request Test" aria-label='show test'><ScienceIcon /></ToggleButton>
+                                </ToggleButtonGroup>
+                                <Box className='panels' sx={{ flexGrow: 1 }}>
+                                    <Typography variant='h1'><SendIcon /> {requestEntry.name?.length ?? 0 > 0 ? requestEntry.name : '(Unnamed)'} - {panel}</Typography>
+                                    {panel === 'Parameters' ? <RequestParametersEditor />
+                                        : panel === 'Headers' ? <RequestHeadersEditor />
+                                            : panel === 'Query String' ? <RequestQueryStringEditor />
+                                                : panel === 'Body' ? <RequestBodyEditor />
+                                                    : panel === 'Test' ? <RequestTestEditor />
+                                                        : null}
+                                </Box>
                             </Box>
-                        </Box>
-                    )
-                    : (
-                        <RequestGroupEditor sx={{ display: "flex", bottom: 0 }} />
-                    )
-            }
-            <RequestTestContext sx={{ flexGrow: 0, marginTop: '48px', marginBottom: '48px' }} triggerRun={props.triggerRun} />
+                        )
+                        : (
+                            <RequestGroupEditor sx={{ display: "flex", bottom: 0 }} />
+                        )
+                }
+                <RequestTestContext sx={{ flexGrow: 0, marginTop: '48px' }} triggerRun={props.triggerRun} />
+            </Stack>
             <ResultsViewer
                 sx={{
                     display: 'flex',
                     flexDirection: 'row',
                     boxSizing: 'border-box',
                     position: 'relative',
-                    height: 'calc(100vh - 460px)',
-                    flexGrow: 0,
+                    height: '45vh',
+                    flexGrow: 1,
                     flexShrink: 0,
                     bottom: 0,
                 }}

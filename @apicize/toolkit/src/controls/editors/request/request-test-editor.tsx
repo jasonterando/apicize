@@ -7,6 +7,7 @@ import 'prismjs/components/prism-javascript'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
 import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
+import { Box } from '@mui/system'
 
 export function RequestTestEditor() {
   const dispatch = useDispatch()
@@ -22,7 +23,7 @@ export function RequestTestEditor() {
     setTest(test)
   }, [requestEntry])
 
-  if(! requestEntry) {
+  if (!requestEntry) {
     return null
   }
 
@@ -35,18 +36,19 @@ export function RequestTestEditor() {
   }, [])
 
   return (
+    <Box sx={{
+      border: '1px solid #444!important',
+      borderRadius: '4px',
+      overflow: 'auto'
+    }}>
       <Editor
         autoFocus
         padding={10}
         style={{
-          fontFamily: 'monospace', 
-          minHeight: '200px',
+          fontFamily: 'monospace',
+          // minHeight: '200px',
           outline: 'none',
-          border: '1px !important',
-          borderColor: '#444',
-          borderWidth: '1px',
-          borderRadius: '4px',
-          borderStyle: 'solid'
+          maxHeight: '20vh',
           // borderTopStyle: 'solid !important',
           // borderBottomStyle: 'solid !important',
           // borderLeftStyle: 'solid !important',
@@ -56,5 +58,6 @@ export function RequestTestEditor() {
         highlight={code => highlight(code, languages.javascript, 'javascript')}
         onValueChange={updateTest}
       />
+    </Box>
   )
 }
