@@ -1,15 +1,15 @@
 "use client"
 
 import { ReactNode, createContext, useContext, useEffect, useRef } from "react"
-import { ToastContext, ToastStore, initializeWorkbook, ToastSeverity, WorkbookState, saveWorkbook, workbookStore, setRequestRunning, setRequestResults, workbookToStateStorage, stateStorageToWorkbook, stateStorageToRequestEntry } from "@apicize/toolkit"
+import { ToastContext, ToastStore, initializeWorkbook, ToastSeverity, WorkbookState, saveWorkbook, workbookStore, setRequestRunning, setRequestResults,
+    workbookToStateStorage, stateStorageToWorkbook, stateStorageToRequestEntry, useConfirmation, noAuthorization, noScenario } from "@apicize/toolkit"
 import { useDispatch, useSelector } from 'react-redux'
-import { useConfirmation } from "@apicize/toolkit/dist/services/confirmation-service"
 import { Settings, StoredWorkbook } from "@apicize/lib-typescript"
 import { listen, Event } from "@tauri-apps/api/event"
 import { writeTextFile } from "@tauri-apps/plugin-fs"
 import { ApicizeResult } from "@apicize/lib-typescript/dist/models/lib/apicize-result"
-import { noAuthorization, noScenario } from "@apicize/toolkit/dist/models/store"
 import { writeText } from "@tauri-apps/plugin-clipboard-manager"
+import { join } from "path"
 // import { writeImage, writeText } from "tauri-plugin-clipboard-api"
 
 export interface WorkbookServiceStore { }
@@ -406,8 +406,15 @@ export const WorkbookProvider = (props: {
         }
 
         if (!settings) {
+            const workbookDirectory = await path.appDataDir()
+            const lastWorkbookFileName = join(workbookDirectory, 'demo.json')
+            if (! await fs.exists(lastWorkbookFileName)) {
+                await fs.writeTextFile(lastWorkbookFileName, `{"version":1.0,"requests":[{"id":"c9c0301b-c9d7-4acd-8026-c513c9e1c206","name":"Google Landing Page","test":"describe('status', () => {\\n  it('equals 200', () => {\\n    expect(response.status).to.equal(200)\\n  })\\n})\\n","url":"https://www.google.com","method":"GET","headers":[{"name":"aaa","value":"1234"}]},{"id":"baa599ee-7a7c-4dce-9cda-b23e546c2d14","name":"Star Wars Images","children":[{"id":"d539a33a-82c4-4239-8162-05c2bcfd1eac","name":"Image #1","test":"describe('status', () => {\\n  it('equals 200', () => {\\n    expect(response.status).to.equal(200)\\n  })\\n})\\n\\ndescribe('content-type', () => {\\n  it('indicates JPEG', () => {\\n    console.log('Testing ext')\\n    expect(response.headers['content-type']).to.equal('image/jpeg')\\n  })\\n})","url":"https://lumiere-a.akamaihd.net/v1/images/{{image-1}}.jpeg","method":"GET","timeout":5000,"headers":[{"name":"x-test","value":"12345"}]},{"id":"dcc00429-3dc0-4ac9-bdc4-a5a0d8792a4b","name":"Image #2","test":"describe('status', () => {\\n   it('equals 200', () => {\\n      expect(response.status).to.equal(200)\\n   })\\n})","url":"https://lumiere-a.akamaihd.net/v1/images/{{image-2}}.jpeg","method":"GET","timeout":5000}],"runs":1},{"id":"b9dfa3f5-af50-4343-9cb8-26c547ea9369","name":"Small JSON data set","test":"describe('status', () => {\\n  it('equals 200', () => {\\n    expect(response.status).to.equal(200)\\n  })\\n})","url":"http://ip-api.com/json/54.148.84.95","method":"GET","timeout":4995},{"id":"289c5193-c66d-46ed-9ce0-488b4a787efd","name":"Huge JSON data set","url":"https://data.wa.gov/api/views/f6w7-q2d2/rows.json","method":"GET"}],"authorizations":[{"type":"Basic","id":"c3b8dd9b-a149-4a2c-a40f-a9f827b11d09","name":"Sample Basic","username":"test","password":"test"},{"type":"ApiKey","id":"cbcaa934-6fe6-47f7-b0fe-ef1db66f5baf","name":"Sample API Key","header":"x-api-key","value":"abcdef"}],"scenarios":[{"id":"c18bebab-4fbe-414b-ab1a-e052d7fc3608","name":"Sith","variables":[{"name":"image-1","value":"darth-vader-main_4560aff7"},{"name":"image-2","value":"image_55f96135"}]},{"id":"b8a39cd4-89f1-424d-a3a1-0da4294234f1","name":"Jedi","variables":[{"name":"image-1","value":"obi-wan-kenobi-main_3286c63c"},{"name":"image-2","value":"databank_plokoon_01_169_92e6679c"}]}],"settings":{"selectedScenarioId":"c18bebab-4fbe-414b-ab1a-e052d7fc3608"}}`)
+            }
+
             settings = {
-                workbookDirectory: await path.appDataDir()
+                workbookDirectory,
+                lastWorkbookFileName
             }
         }
 

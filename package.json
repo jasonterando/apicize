@@ -9,12 +9,14 @@
         ]
     },
     "scripts": {
+        "clean": "rimraf node_modules @apicize/app/src-tauri/target @apicize/app/.next @apicize/app/node_modules @apicize/cli/target @apicize/lib-rust/target @apicize/lib-typescript/dist @apicize/lib-typescript/node_modules @apicize/lib-typescript/tsconfig.tsbuildinfo @apicize/toolkit/dist @apicize/toolkit/node_modules @apicize/toolkit/tsconfig.tsbuildinfo",
         "build-deps": "yarn workspace @apicize/lib-typescript build && yarn workspace @apicize/toolkit build",
         "ui": "yarn run build-deps && yarn workspace @apicize/app tauri dev",
         "watch-deps": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\"",
         "ui:watch": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn run build-deps && yarn workspace @apicize/app tauri dev\""
     },
     "devDependencies": {
-        "concurrently": "^8.2.2"
+        "concurrently": "^8.2.2",
+        "rimraf": "^5.0.5"
     }
 }

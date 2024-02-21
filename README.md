@@ -15,6 +15,16 @@ to execute the testing, and Tauri, React and Redux for the UI.
 * [Technology Choices](#technology-choices)
 * [To-Do List](./TODOs.md)
 
+
+### Getting Started
+
+To get this thing running, you'll need yarn and Rust (1.6 or greater)
+
+From the project directory, run `yarn` which will pull in all of the NodeJS dependencies.  Then run `yarn ui` which will build and launch the Tauri app.
+
+If you want to run the CLI, navigate to the `@apicize/@cli` directory and execute `cargo build` and then `cargo run (workbookFileName)`
+
+
 ### Features
 
 * Cross-platform (Linux, Windows and Mac)
@@ -64,7 +74,7 @@ no reason why each of these components can't be its own repo, triggering upstrea
 
 ### Requirements
 
-You'll need Rust (latest and greatest) and Tauri v2 (currently in beta).  For editing, I've been using Visual Studio Code with the rust-analyzer and CodeLLDB extensions.
+You'll need Rust (1.6 or greater).  For editing, I've been using Visual Studio Code with the rust-analyzer and CodeLLDB extensions for debugging.
 
 The project uses [yarn](https://yarnpkg.com/migration/overview).  Yarn's workspace functionality works better for me than NPMs.
 
