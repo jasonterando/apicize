@@ -20,6 +20,20 @@
     "clipboard-manager:allow-write",
     "fs:default",
     {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        { "path": "$CONFIG/apicize" },
+        { "path": "$DOCUMENT/apicize" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [
+        { "path": "$CONFIG/apicize" },
+        { "path": "$DOCUMENT/apicize" }
+      ]
+    },
+    {
       "identifier": "fs:write-files",
       "allow": [
         { "path": "$APPDATA/*" },
@@ -27,7 +41,9 @@
         { "path": "$DATA/*" },
         { "path": "$APPDATA/**" },
         { "path": "$APPCONFIG/**" },
-        { "path": "$DATA/**" }
+        { "path": "$DATA/**" },
+        { "path": "$CONFIG/apicize/**" },
+        { "path": "$DOCUMENT/apicize/**" }
       ]
     },
     {
@@ -38,7 +54,8 @@
         { "path": "$DATA/*" },
         { "path": "$APPDATA/**" },
         { "path": "$APPCONFIG/**" },
-        { "path": "$DATA/**" }
+        { "path": "$CONFIG/apicize/**" },
+        { "path": "$DOCUMENT/apicize/**" }
       ]
     }
   ],

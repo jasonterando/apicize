@@ -9,7 +9,6 @@ import { listen, Event } from "@tauri-apps/api/event"
 import { writeTextFile } from "@tauri-apps/plugin-fs"
 import { ApicizeResult } from "@apicize/lib-typescript/dist/models/lib/apicize-result"
 import { writeText } from "@tauri-apps/plugin-clipboard-manager"
-import { join } from "path"
 // import { writeImage, writeText } from "tauri-plugin-clipboard-api"
 
 export interface WorkbookServiceStore { }
@@ -57,6 +56,13 @@ export const WorkbookProvider = (props: {
         if (_dialog) return _dialog
         _dialog = await import('@tauri-apps/plugin-dialog')
         return _dialog
+    }
+
+    let _fs: typeof import('@tauri-apps/plugin-fs') | undefined
+    const getTauriFS = async () => {
+        if (_fs) return _fs
+        _fs = await import('@tauri-apps/plugin-fs')
+        return _fs
     }
 
     useEffect(() => {
@@ -190,8 +196,8 @@ export const WorkbookProvider = (props: {
                 defaultPath: settings?.workbookDirectory,
                 directory: false,
                 filters: [{
-                    name: 'All Files',
-                    extensions: ['json']
+                    name: 'Apicize Files',
+                    extensions: ['apicize']
                 }]
             })) as any
             if (selected) fileName = selected['path']
@@ -244,7 +250,7 @@ export const WorkbookProvider = (props: {
             toast.open(`Saved ${workbookFullName}`, ToastSeverity.Success)
             dispatch(saveWorkbook({
                 fullName: workbookFullName,
-                displayName: await path.basename(workbookFullName, '.json')
+                displayName: await path.basename(workbookFullName, '.apicize')
             }))
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
@@ -262,8 +268,8 @@ export const WorkbookProvider = (props: {
                 title: 'Save Apicize Workbook',
                 defaultPath: workbookFullName ?? settings.workbookDirectory,
                 filters: [{
-                    name: 'All Files',
-                    extensions: ['json']
+                    name: 'Apicize Files',
+                    extensions: ['apicize']
                 }]
             })
 
@@ -286,7 +292,7 @@ export const WorkbookProvider = (props: {
             toast.open(`Saved ${fileName}`, ToastSeverity.Success)
             dispatch(saveWorkbook({
                 fullName: fileName,
-                displayName: await path.basename(fileName, '.json')
+                displayName: await path.basename(fileName, '.apicize')
             }))
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
@@ -377,12 +383,13 @@ export const WorkbookProvider = (props: {
     const loadSettings = async () => {
         if (_settings.current) return _settings.current
 
-        let path = await import('@tauri-apps/api/path')
-        let fs = await import('@tauri-apps/plugin-fs')
+        let path = await getTauriPath()
+        let fs = await getTauriFS()
 
         let settings: Settings | undefined
         const configDirectory = await path.appConfigDir()
         const settingsFileName = await path.join(configDirectory, 'settings.json')
+        let newInstallation = false
 
         if (await fs.exists(settingsFileName)) {
             try {
@@ -403,19 +410,29 @@ export const WorkbookProvider = (props: {
             } catch (e) {
                 console.error(`Unable to read ${settingsFileName} - ${e}`)
             }
+        } else {
+            if(! await fs.exists(configDirectory)) {
+                await fs.mkdir(configDirectory, { recursive: true})
+            }
+        }
+        if (!settings) {
+            settings = {
+                workbookDirectory: await path.join(await path.documentDir(), 'apicize')
+            }
+            newInstallation = true
         }
 
-        if (!settings) {
-            const workbookDirectory = await path.appDataDir()
-            const lastWorkbookFileName = join(workbookDirectory, 'demo.json')
+        // Make sure workbook directory exists
+        if(! await fs.exists(settings.workbookDirectory)) {
+            await fs.mkdir(settings.workbookDirectory, { recursive: true})
+        }
+
+        if (newInstallation) {
+            const lastWorkbookFileName = await path.join(settings.workbookDirectory, 'demo.apicize')
             if (! await fs.exists(lastWorkbookFileName)) {
                 await fs.writeTextFile(lastWorkbookFileName, `{"version":1.0,"requests":[{"id":"c9c0301b-c9d7-4acd-8026-c513c9e1c206","name":"Google Landing Page","test":"describe('status', () => {\\n  it('equals 200', () => {\\n    expect(response.status).to.equal(200)\\n  })\\n})\\n","url":"https://www.google.com","method":"GET","headers":[{"name":"aaa","value":"1234"}]},{"id":"baa599ee-7a7c-4dce-9cda-b23e546c2d14","name":"Star Wars Images","children":[{"id":"d539a33a-82c4-4239-8162-05c2bcfd1eac","name":"Image #1","test":"describe('status', () => {\\n  it('equals 200', () => {\\n    expect(response.status).to.equal(200)\\n  })\\n})\\n\\ndescribe('content-type', () => {\\n  it('indicates JPEG', () => {\\n    console.log('Testing ext')\\n    expect(response.headers['content-type']).to.equal('image/jpeg')\\n  })\\n})","url":"https://lumiere-a.akamaihd.net/v1/images/{{image-1}}.jpeg","method":"GET","timeout":5000,"headers":[{"name":"x-test","value":"12345"}]},{"id":"dcc00429-3dc0-4ac9-bdc4-a5a0d8792a4b","name":"Image #2","test":"describe('status', () => {\\n   it('equals 200', () => {\\n      expect(response.status).to.equal(200)\\n   })\\n})","url":"https://lumiere-a.akamaihd.net/v1/images/{{image-2}}.jpeg","method":"GET","timeout":5000}],"runs":1},{"id":"b9dfa3f5-af50-4343-9cb8-26c547ea9369","name":"Small JSON data set","test":"describe('status', () => {\\n  it('equals 200', () => {\\n    expect(response.status).to.equal(200)\\n  })\\n})","url":"http://ip-api.com/json/54.148.84.95","method":"GET","timeout":4995},{"id":"289c5193-c66d-46ed-9ce0-488b4a787efd","name":"Huge JSON data set","url":"https://data.wa.gov/api/views/f6w7-q2d2/rows.json","method":"GET"}],"authorizations":[{"type":"Basic","id":"c3b8dd9b-a149-4a2c-a40f-a9f827b11d09","name":"Sample Basic","username":"test","password":"test"},{"type":"ApiKey","id":"cbcaa934-6fe6-47f7-b0fe-ef1db66f5baf","name":"Sample API Key","header":"x-api-key","value":"abcdef"}],"scenarios":[{"id":"c18bebab-4fbe-414b-ab1a-e052d7fc3608","name":"Sith","variables":[{"name":"image-1","value":"darth-vader-main_4560aff7"},{"name":"image-2","value":"image_55f96135"}]},{"id":"b8a39cd4-89f1-424d-a3a1-0da4294234f1","name":"Jedi","variables":[{"name":"image-1","value":"obi-wan-kenobi-main_3286c63c"},{"name":"image-2","value":"databank_plokoon_01_169_92e6679c"}]}],"settings":{"selectedScenarioId":"c18bebab-4fbe-414b-ab1a-e052d7fc3608"}}`)
             }
-
-            settings = {
-                workbookDirectory,
-                lastWorkbookFileName
-            }
+            settings.lastWorkbookFileName = lastWorkbookFileName
         }
 
         _settings.current = settings
