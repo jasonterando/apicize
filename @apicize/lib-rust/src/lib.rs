@@ -59,11 +59,11 @@ pub trait Serializable<T> {
 #[async_trait]
 pub trait Runnable {
     /// Dispatch the associated Apicize Request (dispatching the web call and executing defined  tests, if any)
-    async fn run(
-        self,
-        authorization: Option<WorkbookAuthorization>,
-        scenario: Option<WorkbookScenario>,
-        cancellation: Option<CancellationToken>,
+    async fn run<'a>(
+        &self,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
+        cancellation: &'a Option<CancellationToken>,
     ) -> Result<ApicizeResultRuns, RunError>;
 }
 
@@ -71,17 +71,17 @@ pub trait Runnable {
 #[async_trait]
 pub trait Dispatchable<T> {
     /// Dispatch HTTP request defined in Apicize Request info and coolect response
-    async fn dispatch(
+    async fn dispatch<'a>(
         &self,
-        authorization: Option<WorkbookAuthorization>,
-        scenario: Option<WorkbookScenario>,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
     ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError>;
 
     /// Dispatch HTTP requests defined in multiple Apicize Requests and collect responses
-    async fn dispatch_multi(
-        requests: &Vec<T>,
-        authorization: Option<WorkbookAuthorization>,
-        scenario: Option<WorkbookScenario>,
+    async fn dispatch_multi<'a >(
+        requests: &'a Vec<T>,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
     ) -> HashMap<String, Result<(ApicizeRequest, ApicizeResponse), ExecutionError>>;
 }
 
@@ -137,10 +137,10 @@ fn clone_and_sub(text: &str, subs: &Vec<(String, String)>) -> String {
 #[async_recursion]
 async fn run_int<'a>(
     tests_started: SystemTime,
-    parent_request_name: Vec<String>,
-    request: WorkbookRequestEntry,
-    authorization: Option<WorkbookAuthorization>,
-    scenario: Option<WorkbookScenario>,
+    parent_request_name: &'a Vec<String>,
+    request: &'a WorkbookRequestEntry,
+    authorization: &'a Option<WorkbookAuthorization>,
+    scenario: &'a Option<WorkbookScenario>,
     run: u32,
     total_runs: u32,
 ) -> Vec<ApicizeResult> {
@@ -158,7 +158,7 @@ async fn run_int<'a>(
                     match test_response {
                         Ok(test_results) => {
                             results.push(ApicizeResult {
-                                request_id: info.id,
+                                request_id: info.id.clone(),
                                 run,
                                 total_runs,
                                 request: Some(request),
@@ -172,7 +172,7 @@ async fn run_int<'a>(
                         }
                         Err(err) => {
                             results.push(ApicizeResult {
-                                request_id: info.id,
+                                request_id: info.id.clone(),
                                 run: 0,
                                 total_runs: 1,
                                 request: Some(request),
@@ -188,7 +188,7 @@ async fn run_int<'a>(
                 }
                 Err(err) => {
                     results.push(ApicizeResult {
-                        request_id: info.id,
+                        request_id: info.id.clone(),
                         run: 0,
                         total_runs: 1,
                         request: None,
@@ -212,10 +212,10 @@ async fn run_int<'a>(
                 results.append(
                     &mut run_int(
                         tests_started,
-                        request_name.clone(),
-                        item.clone(),
-                        authorization.clone(),
-                        scenario.clone(),
+                        &request_name,
+                        item,
+                        authorization,
+                        scenario,
                         run,
                         total_runs
                     )
@@ -230,45 +230,36 @@ async fn run_int<'a>(
 #[async_trait]
 impl Runnable for WorkbookRequestEntry {
     /// Dispatch the request (info or group) and test results
-    async fn run(
-        self: WorkbookRequestEntry,
-        authorization: Option<WorkbookAuthorization>,
-        scenario: Option<WorkbookScenario>,
-        cancellation: Option<CancellationToken>,
+    async fn run<'a>(
+        self: &WorkbookRequestEntry,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
+        _cancellation: &'a Option<CancellationToken>,
     ) -> Result<ApicizeResultRuns, RunError> {
         
         let mut runs: JoinSet<Option<Vec<ApicizeResult>>> = JoinSet::new();
         let mut results: Vec<ApicizeResult> = Vec::new();
 
-        let token = match cancellation {
-            Some(cancellation_token) => cancellation_token,
-            None => CancellationToken::new()
-        };
+        // let token = match cancellation {
+        //     Some(cancellation_token) => cancellation_token,
+        //     None => & CancellationToken::new()
+        // };
        
-        let total_runs = match &self {
+        let total_runs = match self {
             WorkbookRequestEntry::Info(_) => 1,
             WorkbookRequestEntry::Group(group) => group.runs
         };
         for run in 0..total_runs {
-            let entry = self.clone();
-            let cloned_token = token.clone();
-            let cloned_auth = authorization.clone();
-            let cloned_scenario = scenario.clone();
-            runs.spawn(async move {
-                select! {
-                    _ = cloned_token.cancelled() => None,
-                   result = run_int(
-                        SystemTime::now(),
-                        vec![], 
-                        entry, 
-                        cloned_auth,
-                        cloned_scenario,
-                        run,
-                        total_runs
-                    ) => Some(result),
-                }
-            });
-            
+            let result = run_int(
+                SystemTime::now(),
+                &vec![], 
+                self, 
+                authorization,
+                scenario,
+                run,
+                total_runs
+            ).await;
+            results.extend(result);
         }
 
         let mut caught: Option<RunError> = None;
@@ -318,10 +309,10 @@ impl Runnable for WorkbookRequestEntry {
 #[async_trait]
 impl Dispatchable<WorkbookRequest> for WorkbookRequest {
     /// Dispatch the specified request (via reqwest), returning either the repsonse or error
-    async fn dispatch(
+    async fn dispatch<'a>(
         self: &WorkbookRequest,
-        authorization: Option<WorkbookAuthorization>,
-        scenario: Option<WorkbookScenario>,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
     ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError> {
 
         let method: reqwest::Method;
@@ -354,7 +345,7 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
 
         match scenario {
             Some(active_scenario) => {
-                match active_scenario.variables {
+                match &active_scenario.variables {
                     Some(pairs) => {
                         subs = pairs
                             .iter()
@@ -602,15 +593,15 @@ impl Dispatchable<WorkbookRequest> for WorkbookRequest {
     }
 
     /// Dispatch multiple requests and retrieve HTTP responses
-    async fn dispatch_multi(
-        requests: &Vec<WorkbookRequest>,
-        authorization: Option<WorkbookAuthorization>,
-        scenario: Option<WorkbookScenario>,
+    async fn dispatch_multi<'a>(
+        requests: &'a Vec<WorkbookRequest>,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
     ) -> HashMap<String, Result<(ApicizeRequest, ApicizeResponse), ExecutionError>> {
         let responses = future::join_all(requests.iter().map(|r| async {
             (
                 r.id.clone(),
-                r.dispatch(authorization.clone(), scenario.clone()).await,
+                r.dispatch(authorization, scenario).await,
             )
         }))
         .await;
@@ -753,7 +744,7 @@ mod lib_tests {
             test: None,
         };
 
-        let result = request.dispatch(None, None).await;
+        let result = request.dispatch(&None, &None).await;
         mock.assert();
 
         match result {

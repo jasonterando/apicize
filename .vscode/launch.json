@@ -8,10 +8,10 @@
       "type": "lldb",
       "request": "launch",
       "name": "Debug Rust CLI",
-      "program": "${workspaceFolder}/@apicize/cli/target/debug/apicize_cli",
+      "program": "${workspaceFolder}/@apicize/cli/target/debug/apicize",
       "preLaunchTask": "rust: build cli",
       "args": [
-        "/home/jterando/.local/share/apicize/test1.json"
+        "/home/jterando/Documents/apicize/demo.apicize"
       ],
       "cwd": "${workspaceFolder}/@apicize/cli",
       "stopOnEntry": false,

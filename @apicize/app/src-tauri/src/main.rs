@@ -96,7 +96,7 @@ async fn run_request(
         let mut tokens = CANCELLATION_TOKENS.lock().await;
         tokens.insert(id.clone(), cancellation.clone());
     }
-    let result = match request.run(authorization, scenario, Some(cancellation)).await {
+    let result = match request.run(&authorization, &scenario, &Some(cancellation)).await {
         Ok(response) => Ok(response),
         Err(err) => Err(format!("{}", err))
     };

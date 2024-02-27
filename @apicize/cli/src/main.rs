@@ -48,8 +48,8 @@ async fn main() {
     let mut iter = workbook.requests.iter();
 
     while let Some(r) = iter.next() {
-        println!("Request: {}", r);
-        let run_response = r.clone().run(auth.clone(), scene.clone(), None).await;
+        // println!("Request: {}", r);
+        let run_response = r.clone().run(&auth, &scene, &None).await;
         match run_response {
             Ok(runs) => {
                 let mut run_number = 0;

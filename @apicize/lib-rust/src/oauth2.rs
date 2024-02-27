@@ -20,24 +20,24 @@ lazy_static! {
 /// Retrieve OAuth2 credentials from token URL, returning a result of either tuple of
 /// expiration of seconds after the Unic epoch (if none = 0) and bearer token, or an error
 async fn fetch_oauth2_credentials(
-    token_url: String,
-    client_id: String,
-    client_secret: String,
-    scope: Option<String>) -> Result<(Instant, String), ExecutionError> {
+    token_url: &String,
+    client_id: &String,
+    client_secret: &String,
+    scope: &Option<String>) -> Result<(Instant, String), ExecutionError> {
     let client = BasicClient::new(
-        ClientId::new(client_id),
+        ClientId::new(client_id.clone()),
         if client_secret.is_empty() {
             None
         } else {
-            Some(ClientSecret::new(client_secret))
+            Some(ClientSecret::new(client_secret.clone()))
         },
         AuthUrl::new(token_url.clone()).unwrap(),
-        Some(TokenUrl::new(token_url).unwrap()),
+        Some(TokenUrl::new(token_url.clone()).unwrap()),
     );
 
     let mut token_request = client.exchange_client_credentials();
-    if scope.is_some() {
-        token_request = token_request.add_scope(Scope::new(scope.unwrap()));
+    if let Some(scope_value) = scope {
+        token_request = token_request.add_scope(Scope::new(scope_value.clone() ));
     }
     let token_result = token_request.request_async(async_http_client).await;
 
@@ -58,14 +58,14 @@ async fn fetch_oauth2_credentials(
 
 /// Return cached oauth2 token, with indicator of whether value was cached
 pub async fn oauth2_client_credentials(
-    id: String,
-    token_url: String,
-    client_id: String,
-    client_secret: String,
-    scope: Option<String>) -> Result<(String, bool), ExecutionError> {
+    id: &String,
+    token_url: &String,
+    client_id: &String,
+    client_secret: &String,
+    scope: &Option<String>) -> Result<(String, bool), ExecutionError> {
     
     let mut tokens = OAUTH2_TOKEN_CACHE.lock().await;
-    let valid_token = match tokens.get(&id) {
+    let valid_token = match tokens.get(id) {
         Some(existing) => {
             if existing.0.gt(& Instant::now()) {
                 Some((existing.1.clone(), true))
@@ -80,7 +80,7 @@ pub async fn oauth2_client_credentials(
         Some(token) => Ok(token),
         None => {
             let retrieved = fetch_oauth2_credentials(token_url, client_id, client_secret, scope).await?;
-            tokens.insert(id, retrieved.clone());
+            tokens.insert(id.clone(), retrieved.clone());
             Ok((retrieved.1, false))
         }
     }
