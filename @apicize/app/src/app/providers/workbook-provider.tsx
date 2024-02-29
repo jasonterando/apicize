@@ -323,7 +323,8 @@ export const WorkbookProvider = (props: {
             
             dispatch(setRequestResults({id, results}))
         } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
+            let msg1 = `${e}`
+            toast.open(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
             dispatch(setRequestRunning({
                 id,
                 onOff: false
@@ -333,11 +334,10 @@ export const WorkbookProvider = (props: {
 
     const doCancelRequest = async () => {
         if (! activeRequest) return
-        const id = activeRequest.id
         try {
             const core = await getTauriApiCore()
             await core.invoke('cancel_request', {
-                request: activeRequest
+                id: activeRequest.id
             })
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)

@@ -344,6 +344,7 @@ const apicizeSlice = createSlice({
       if (action.payload.test !== undefined) {
         match.test = (action.payload.test && action.payload.test.length > 0) ? action.payload.test : undefined
       }
+
       match.dirty = true
       state.dirty = true
       if (state.activeRequestEntry?.id === action.payload.id) {

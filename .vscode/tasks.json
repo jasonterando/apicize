@@ -11,7 +11,7 @@
 			// change this to your `beforeDevCommand`:
 			"command": "yarn",
 			"args": [
-				"dev"
+				"ui"
 			],
 			"problemMatcher": {
 				"base": "$rustc",

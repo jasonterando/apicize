@@ -11,10 +11,10 @@ to execute the testing, and Tauri, React and Redux for the UI.
 
 * [Project Organization](#project-organization)
 * [Apicize Terminology](#apicize-terminology)
+* [Testing in Apicize](#testing-in-apicize)
 * [License and Attributions](#license-and-attributions)
 * [Technology Choices](#technology-choices)
 * [To-Do List](./TODOs.md)
-
 
 ### Getting Started
 
@@ -50,7 +50,58 @@ it may involve evaluating the response body, or it may be a negative test (i.e. 
 * *Authorization*:  Webservices often enforce authorization of the caller.  Currently supported authorizations include Basic Authentication, API Key Authentication, and OAuth2 Client Authentication
 * *Scenarios*:  A list of variables that can be substituted in a Request.  For example, you may have a set of calls that you want to test against different products.  Rather than having to create a copy of those requests, you can just execute the same tests against different scenarios.
 * *Workbook*:  Contains a set of Requests, Authorizations and Scenarios
-* *Test*:  
+* *Test*: A block of JavaScript that either runs to completion (success) or throws an error (failure)
+
+## Testing in Apicize
+
+Tests in Apicize are designed to indicate a request call is successful.  By default, this test is created for you when defining a new request:
+
+```js
+describe('status', () => {
+  it('equals 200', () => {
+    expect(response.status).to.equal(200)
+  })
+})
+```
+
+This test simply indicates that you received a 200 response.  You can test for much more though...
+
+The `expect` assertion is imported from the [Chai](https://www.chaijs.com/) library.
+
+You will have access to the `request`, `response` and `scenario` used when executing a test.
+
+**request** properties include:
+
+* `url` (including query string parameters)
+* `method`
+* `headers`
+* `body`
+
+**response** properties include:
+
+* `status`
+* `status_text`
+* `headers`
+* `body`
+* `auth_token_cached` (set to true if previously generated OAuth token was used)
+
+The body properties mentioned above have two properties:  `data` which is a Base64 representation of data and `text` which, if the Base64 data could be converted to UTF8, 
+will contain textual content
+
+The **scenario** property is a name/value set of scenario variables passed into the test. If you are testing a group, you can update values in **scenario** and they will
+be available for the next test.  For example, if you have a group of tests that create, update and delete a record using a REST API, you can store the ID in a scenario 
+variable called `id` and use it in subsequent calls *in that group*.  Example:
+
+```js
+describe('status', () => {
+  it('equals 200', () => {
+    expect(response.status).to.equal(200)
+    // Assuming id is a property returned in the response...
+    scenario.id = JSON.parse(response.body.text).id
+  })
+})
+
+```
 
 ## Project Organization
 

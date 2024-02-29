@@ -13,6 +13,9 @@
       "args": [
         "/home/jterando/Documents/apicize/demo.apicize"
       ],
+      "env": {
+        "RUST_BACKTRACE": "full"
+      },
       "cwd": "${workspaceFolder}/@apicize/cli",
       "stopOnEntry": false,
       "internalConsoleOptions": "openOnSessionStart",

@@ -49,7 +49,7 @@ async fn main() {
 
     while let Some(r) = iter.next() {
         // println!("Request: {}", r);
-        let run_response = r.clone().run(&auth, &scene, &None).await;
+        let run_response = r.clone().run(&auth, &scene, None).await;
         match run_response {
             Ok(runs) => {
                 let mut run_number = 0;

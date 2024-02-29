@@ -10,7 +10,7 @@ use apicize_lib::{
     models::{
         ApicizeResultRuns, Workbook, WorkbookAuthorization, WorkbookRequestEntry, WorkbookScenario 
     },
-    FileSystem, Runnable, oauth2::{clear_oauth2_token, clear_all_oauth2_tokens},
+    FileSystem, Runnable, oauth2_client_tokens::{clear_oauth2_token, clear_all_oauth2_tokens},
 };
 use tauri::{async_runtime::Mutex, Manager};
 
@@ -62,7 +62,7 @@ fn main() {
 async fn open_workbook(path: String) -> Result<Workbook, String> {
     match Workbook::open_from_path(&path) {
         Ok(result) => {
-            clear_all_oauth2_tokens().await;
+            clear_all_oauth2_tokens();
             Ok(result)
         },
         Err(err) => Err(format!("{}", err)),
@@ -96,7 +96,7 @@ async fn run_request(
         let mut tokens = CANCELLATION_TOKENS.lock().await;
         tokens.insert(id.clone(), cancellation.clone());
     }
-    let result = match request.run(&authorization, &scenario, &Some(cancellation)).await {
+    let result = match request.run(&authorization, &scenario, Some(cancellation)).await {
         Ok(response) => Ok(response),
         Err(err) => Err(format!("{}", err))
     };
@@ -109,13 +109,9 @@ async fn run_request(
 
 #[tauri::command]
 async fn cancel_request(
-    request: WorkbookRequestEntry
+    id: String
 ) {
     let tokens = CANCELLATION_TOKENS.lock().await;
-    let id = match &request {
-        WorkbookRequestEntry::Info(info) => info.id.clone(),
-        WorkbookRequestEntry::Group(group) => group.id.clone()
-    };
     let token = tokens.get(&id);
     if token.is_some() {
         token.unwrap().cancel()
@@ -128,7 +124,7 @@ async fn clear_cached_authorization(
 ) -> Option<bool> {
     match authorization {
         WorkbookAuthorization::OAuth2Client { id, name: _, access_token_url: _, client_id: _, client_secret: _, scope: _ } => 
-            Some(clear_oauth2_token(id).await),
+            Some(clear_oauth2_token(id)),
         _ => None
     }
 }

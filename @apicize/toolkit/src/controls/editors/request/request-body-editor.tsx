@@ -34,22 +34,22 @@ export function RequestBodyEditor() {
     return null
   }
 
-  const updateBodyAsText = React.useCallback((val: string | undefined) => {
+  const updateBodyAsText = (val: string | undefined) => {
     // setBodyData(val ?? '')
     dispatch(updateRequest({
       id: requestEntry.id,
       bodyData: val
     }))
-  }, [])
+  }
 
-  const updateBodyType = React.useCallback((val: BodyType | string) => {
+  const updateBodyType = (val: BodyType | string) => {
     const newBodyType = (val == "" ? undefined : val as unknown as BodyType) ?? BodyType.Text
     dispatch(updateRequest({
       id: requestEntry.id,
       bodyType: newBodyType
     }))
     checkTypeHeader(newBodyType)
-  }, [])
+  }
 
   const checkTypeHeader = (val: BodyType | undefined | null) => {
     let needsContextHeaderUpdate = true
@@ -155,7 +155,7 @@ export function RequestBodyEditor() {
             autoFocus
             padding={10}
             style={{fontFamily: 'monospace', minHeight: '200px' }}
-            value={bodyData as string}
+            value={bodyData.toString()}
             highlight={code => processHighlight(code)}
             onValueChange={updateBodyAsText}
           />

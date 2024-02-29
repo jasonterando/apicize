@@ -75,7 +75,7 @@ export function RequestEditor(props: {
                             </Box>
                         )
                         : (
-                            <RequestGroupEditor sx={{ display: "flex", bottom: 0 }} />
+                            <RequestGroupEditor sx={{ bottom: 0 }} />
                         )
                 }
                 <RequestTestContext sx={{ flexGrow: 0, marginTop: '48px' }} triggerRun={props.triggerRun} />

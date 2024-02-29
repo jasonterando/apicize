@@ -15,6 +15,7 @@ console = {
 
 var request = {};
 var response = {};
+var scenario = {};
 var names = [];
 var inIt = false;
 var results = [];
@@ -55,12 +56,29 @@ function it(behavior, run) {
     }
 }
 
-const runTestSuite = (request1, response1, testSuite) => {
+const runTestSuite = (request1, response1, scenario1, testSuite) => {
     request = request1;
     response = response1;
+    scenario = Object.fromEntries(scenario1?.variables?.filter(v => v.disabled !== true).map(v => [v.name, v.value]) ?? []);
     names = []
     clearLog()
     results = []
     testSuite()
-    return JSON.stringify(results)
+    if (! scenario) scenario = {
+        id: `temp-${Date.now()}`,
+        name: 'temp',
+        variables: []
+    }
+    for(const [name, value] of Object.entries(scenario)) {
+        const match = scenario1.variables.find(v => v.name === name)
+        if (match) {
+            match.value = value
+        } else {
+            scenario1.variables.push({name, value})
+        }
+    }
+    return JSON.stringify({
+        results,
+        scenario: scenario1
+    })
 };

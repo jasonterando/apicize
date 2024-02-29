@@ -41,28 +41,26 @@ export function RequestGroupEditor(props: {
     return (
         <Stack direction='column' className='no-button-column' sx={props.sx}>
             <Typography variant='h1'><FolderIcon /> {name?.length ?? 0 > 0 ? name : '(Unnamed)'}</Typography>
-            <Stack direction='row' spacing={3} maxWidth={1000}>
+            <Stack direction='row' display='flex' spacing={3} maxWidth={1000}>
                 <TextField
                     id='group-name'
                     label='Name'
                     aria-label='name'
-                    
+                    sx={{flexGrow: 1}}
                     // size='small'
                     value={name}
                     onChange={e => updateName(e.target.value)}
-                    fullWidth
+                    
                 />
-                <FormControl>
-                    <TextField
-                        aria-label='Numer of Run Attempts'
-                        placeholder='Attempts'
-                        label='Numer of Run Attempts'
-                        sx={{ marginLeft: '24px', width: '8em' }}
-                        type='number'
-                        value={runs}
-                        onChange={e => updateRuns(parseInt(e.target.value))}
-                    />
-                </FormControl>
+                <TextField
+                    aria-label='Numer of Run Attempts'
+                    placeholder='Attempts'
+                    label='Numer of Run Attempts'
+                    sx={{ marginLeft: '24px', width: '8em', flexGrow: 0 }}
+                    type='number'
+                    value={runs}
+                    onChange={e => updateRuns(parseInt(e.target.value))}
+                />
             </Stack>
         </Stack>
     )

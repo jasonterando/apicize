@@ -1,5 +1,9 @@
 # List of stuff that needs to be done
 
+### User Guide for application
+
+### Install sets for application
+
 ### Encrypt or remove privileged authentication configuration (GUI and CLI)
 
 Give the user the option to symmetrically encrypt or remove passwords, API keys, etc.
@@ -10,14 +14,9 @@ Improve positioning and sizing of nested panels, scrolling, input controls, etc.
 
 ### Reduce cloning in lib if possible (LIB)
 
-Figure out if lifecycles, Box, etc. can be used to reduce cloning when making async calls to web and V8.  May be easier to nuke
-async and use threading instead.
+Figure out if lifecycles, Box, etc. can be used to reduce cloning when making move/async calls to web and V8.  
 
-### Allow updating of Scenario from V8 scripts (LIB)
-
-Support adding or updating Scenario values from V8, allow the user to save a result value for use in subsequent request tests in the same group
-
-### Support Cookies, Multi-Part Forms and Proxies (All)
+### Support Cookies, Multi-Part Forms, Certificates and Proxies (All)
 
 Support cookies, multi-part forms (uploads) and proxies for tests
 

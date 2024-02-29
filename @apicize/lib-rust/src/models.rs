@@ -33,9 +33,12 @@ pub enum ExecutionError {
     /// HTTP errors
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
+    /// Join/async errors
+    #[error(transparent)]
+    Join(#[from] JoinError),
     /// OAuth2 authentication errors
     #[error(transparent)]
-    OAuth2(#[from] RequestTokenError<oauth2::reqwest::Error<reqwest::Error>, StandardErrorResponse<BasicErrorResponseType>>),
+    OAuth2(#[from] RequestTokenError<oauth2::reqwest::Error, StandardErrorResponse<BasicErrorResponseType>>),
     /// Failed test execution
     #[error("{0}")]
     FailedTest(String),
@@ -44,9 +47,12 @@ pub enum ExecutionError {
 /// Represents errors occuring during Workbook running, dispatching and testing
 #[derive(Error, Debug)]
 pub enum RunError {
-    /// Other/join error
-    #[error(transparent)]
-    Other(JoinError),
+    /// Other error
+    #[error("Other")]
+    Other(String),
+    /// Join error
+    #[error("JoinError")]
+    JoinError(JoinError),
     /// Execution cancelled
     #[error("Cancelled")]
     Cancelled,
@@ -287,7 +293,7 @@ pub enum WorkbookAuthorization {
 pub struct WorkbookScenario {
     /// Uniquely identifies scenario
     #[serde(default = "generate_uuid")]
-    id: String,
+    pub id: String,
     /// Name of variable to substitute (avoid using curly braces)
     pub name: String,
     /// Value of variable to substitute
@@ -374,6 +380,16 @@ pub struct ApicizeResponse {
     pub body: Option<ApicizeBody>,
     /// True if authorization token cached
     pub auth_token_cached: Option<bool>,
+}
+
+/// Response when executing an Apicize test
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ApicizeTestResponse {
+    /// Results of test
+    pub results: Option<Vec<ApicizeTestResult>>,
+    /// Scenario values (if any)
+    pub scenario: Option<WorkbookScenario>,
 }
 
 /// Information about an executed Apicize test
