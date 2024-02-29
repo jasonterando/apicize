@@ -345,13 +345,16 @@ export const WorkbookProvider = (props: {
     }
 
     const doClearToken = async () => {
-        if(! activeAuthorization) return
         try {
             const core = await getTauriApiCore()
-            await core.invoke('clear_cached_authorization', {
+            const result = await core.invoke('clear_cached_authorization', {
                 authorization: activeAuthorization
             })
-            toast.open('Tokens cleared', ToastSeverity.Success)
+            if (result) {
+                toast.open('Token cleared for this authorization', ToastSeverity.Success)
+            } else {
+                toast.open('No token for this authorization to clear', ToastSeverity.Info)
+            }
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
         }

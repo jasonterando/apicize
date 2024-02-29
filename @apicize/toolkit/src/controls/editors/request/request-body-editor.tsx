@@ -147,18 +147,22 @@ export function RequestBodyEditor() {
         ? <NameValueEditor values={bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={onUpdateFormData} />
         : <Box
           sx={{
-            width: '100%',
-            border: 0
+            borderRadius: '4px',
+            overflow: 'auto',
+            border: '1px solid #444!important',
           }}
         >
-          <Editor
-            autoFocus
-            padding={10}
-            style={{fontFamily: 'monospace', minHeight: '200px' }}
-            value={bodyData.toString()}
-            highlight={code => processHighlight(code)}
-            onValueChange={updateBodyAsText}
-          />
+          { bodyType == BodyType.Base64
+            ? <Box padding='10px'>{(bodyData as ArrayBuffer).byteLength} Bytes</Box>
+            : <Editor
+              autoFocus
+              padding={10}
+              style={{fontFamily: 'monospace', minHeight: '200px' }}
+              value={bodyData.toString()}
+              highlight={code => processHighlight(code)}
+              onValueChange={updateBodyAsText}
+            />
+          }
         </Box>
       }
     </Stack>

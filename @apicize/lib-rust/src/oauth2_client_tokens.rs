@@ -4,12 +4,12 @@
 
 use std::collections::HashMap;
 use std::ops::Add;
-use std::sync::Mutex;
 use std::time::Instant;
 
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::reqwest;
 use oauth2::{ClientId, ClientSecret, Scope, TokenResponse, TokenUrl};
+use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;
 
 use crate::ExecutionError;
@@ -34,26 +34,26 @@ pub async fn get_oauth2_client_credentials(
     let cloned_client_secret = client_secret.clone();
     let cloned_scope = scope.clone();
 
-    // We have to create a blocked span because we are accesing a static cache of tokens,
-    // and some error types in oauth2 library do not implement Copy
-    match spawn_blocking(move || {
-        let mut tokens = OAUTH2_TOKEN_CACHE.lock().unwrap();
-        let valid_token = match tokens.get(&cloned_id) {
-            Some(existing) => {
-                if existing.0.gt(&Instant::now()) {
-                    Some(existing.1.clone())
-                } else {
-                    None
-                }
+    // Check cache and return if token found and not expired
+    let mut tokens = OAUTH2_TOKEN_CACHE.lock().await;
+    let valid_token = match tokens.get(&cloned_id) {
+        Some(existing) => {
+            if existing.0.gt(&Instant::now()) {
+                Some(existing.1.clone())
+            } else {
+                None
             }
-            None => None,
-        };
-
-        // If cached token is valid not expired, return it
-        if let Some(token) = valid_token {
-            return Ok((token, true));
         }
+        None => None,
+    };
 
+    if let Some(token) = valid_token {
+        return Ok((token, true));
+    }
+
+    // We have to create a blocked span when using oauth because some error types 
+    // in oauth2 library dependencies do not implement Copy
+    match spawn_blocking(move || {
         // Retrieve an access token
         let mut client = BasicClient::new(ClientId::new(cloned_client_id))
             .set_token_uri(
@@ -74,34 +74,37 @@ pub async fn get_oauth2_client_credentials(
             .build()
             .expect("Unable to build OAuth HTTP client");
 
-        match token_request.request(&http_client) {
-            Ok(token_response) => {
-                let expiration = match token_response.expires_in() {
-                    Some(token_expires_in) => Instant::now().add(token_expires_in),
-                    None => Instant::now(),
-                };
-                let token = token_response.access_token().secret().clone();
-
-                tokens.insert(cloned_id, (expiration, token.clone()));
-                Ok((token, false))
-            }
-            Err(err) => Err(ExecutionError::OAuth2(err)),
-        }
+        token_request.request(&http_client)
     })
     .await
     {
-        Ok(result) => result,
+        Ok(token_result) => {
+            match token_result {
+                Ok(token_response) => {
+                    let expiration = match token_response.expires_in() {
+                        Some(token_expires_in) => Instant::now().add(token_expires_in),
+                        None => Instant::now(),
+                    };
+                    let token = token_response.access_token().secret().clone();
+                    tokens.insert(cloned_id, (expiration, token.clone()));
+                    Ok((token, false))
+                }
+                Err(err) => Err(ExecutionError::OAuth2(err)),
+            }
+        },
         Err(err) => Err(ExecutionError::Join(err)),
     }
 }
 
 /// Clear all cached OAuth2 tokens
-pub fn clear_all_oauth2_tokens() {
-    OAUTH2_TOKEN_CACHE.lock().unwrap().clear();
+pub async fn clear_all_oauth2_tokens() -> usize {
+    let mut cache = OAUTH2_TOKEN_CACHE.lock().await;
+    let count = cache.len();
+    cache.clear();
+    count
 }
 
 /// Clear specified cached OAuth2 credentials, returning true if value was cached
-pub fn clear_oauth2_token(id: String) -> bool {
-    let mut tokens = OAUTH2_TOKEN_CACHE.lock().unwrap();
-    tokens.remove(&id).is_some()
+pub async fn clear_oauth2_token(id: String) -> bool {
+    OAUTH2_TOKEN_CACHE.lock().await.remove(&id).is_some()
 }

@@ -10,7 +10,7 @@ import beautify from "js-beautify";
 const TestInfo = (props: { isError?: boolean, text: string }) =>
 (
     <Stack direction='row' sx={{ marginBottom: '18px' }}>
-        <Stack direction='column' sx={{ marginLeft: '32px' }}>
+        <Stack direction='column' sx={{ marginLeft: '40px' }}>
             <Typography variant='h3' sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, color: '#80000' }}>
                 {
                     props.isError === true
@@ -82,7 +82,7 @@ export function ResultInfoViewer(props: {
                 ? (<TestInfo text={`Duration: ${result.milliseconds.toLocaleString()} ms`} />)
                 : (<></>)}
             {cached
-                ? (<TestInfo text='OAuth bearer token retrieved from cached' />)
+                ? (<TestInfo text='OAuth bearer token retrieved from cache' />)
                 : (<></>)}
             <Box>
             {

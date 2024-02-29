@@ -158,13 +158,16 @@ export default function Home() {
                       triggerRun={() => emit('action', 'run')}
                       triggerCancel={() => emit('action', 'cancel')}
                       triggerCopyTextToClipboard={(text?: string) => {
-                        emit("copyText", text)
+                        emit('copyText', text)
                       }}
                       triggerCopyImageToClipboard={(base64?: string) => {
-                        emit("copyImage", base64)
+                        emit('copyImage', base64)
                       }}
                     />
-                    <AuthorizationEditor triggerClearToken={() => emit("clearToken")} />
+                    <AuthorizationEditor triggerClearToken={() => {
+                      console.log('triggerClearToken')
+                      emit('action', 'clearToken')}
+                    }/>
                     <ScenarioEditor />
                   </Box>
                 </Stack>

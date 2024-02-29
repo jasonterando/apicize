@@ -62,7 +62,7 @@ fn main() {
 async fn open_workbook(path: String) -> Result<Workbook, String> {
     match Workbook::open_from_path(&path) {
         Ok(result) => {
-            clear_all_oauth2_tokens();
+            clear_all_oauth2_tokens().await;
             Ok(result)
         },
         Err(err) => Err(format!("{}", err)),
@@ -124,7 +124,7 @@ async fn clear_cached_authorization(
 ) -> Option<bool> {
     match authorization {
         WorkbookAuthorization::OAuth2Client { id, name: _, access_token_url: _, client_id: _, client_secret: _, scope: _ } => 
-            Some(clear_oauth2_token(id)),
+            Some(clear_oauth2_token(id).await),
         _ => None
     }
 }
