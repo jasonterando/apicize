@@ -42,12 +42,12 @@ export enum WorkbookBodyType {
     JSON = 'JSON',
     XML = 'XML',
     Form = 'Form',
-    Base64 = 'Base64',
+    Raw = 'Raw',
 }
 
-export type WorkbookBodyData = string | ArrayBuffer | WorkbookNameValuePair[]
+export type WorkbookBodyData = string | number[] | WorkbookNameValuePair[]
 
-export const WorkbookBodyTypes = [WorkbookBodyType.Text, WorkbookBodyType.JSON, WorkbookBodyType.XML, WorkbookBodyType.Form, WorkbookBodyType.Base64]
+export const WorkbookBodyTypes = [WorkbookBodyType.Text, WorkbookBodyType.JSON, WorkbookBodyType.XML, WorkbookBodyType.Form, WorkbookBodyType.Raw]
 
 export interface WorkbookBody {
     type?: WorkbookBodyType

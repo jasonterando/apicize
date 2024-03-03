@@ -2,11 +2,11 @@
 
 import { ReactNode, createContext, useContext, useEffect, useRef } from "react"
 import { ToastContext, ToastStore, initializeWorkbook, ToastSeverity, WorkbookState, saveWorkbook, workbookStore, setRequestRunning, setRequestResults,
-    workbookToStateStorage, stateStorageToWorkbook, stateStorageToRequestEntry, useConfirmation, noAuthorization, noScenario } from "@apicize/toolkit"
+    workbookToStateStorage, stateStorageToWorkbook, stateStorageToRequestEntry, updateRequest, useConfirmation, noAuthorization, noScenario } from "@apicize/toolkit"
 import { useDispatch, useSelector } from 'react-redux'
-import { Settings, StoredWorkbook } from "@apicize/lib-typescript"
+import { BodyType, Settings, StoredWorkbook, WorkbookRequest } from "@apicize/lib-typescript"
 import { listen, Event } from "@tauri-apps/api/event"
-import { writeTextFile } from "@tauri-apps/plugin-fs"
+import { readFile, writeTextFile } from "@tauri-apps/plugin-fs"
 import { ApicizeResult } from "@apicize/lib-typescript/dist/models/lib/apicize-result"
 import { writeText } from "@tauri-apps/plugin-clipboard-manager"
 // import { writeImage, writeText } from "tauri-plugin-clipboard-api"
@@ -138,6 +138,9 @@ export const WorkbookProvider = (props: {
             case 'clearToken':
                 await doClearToken()
                 break
+            case 'bodyFromFile':
+                await doSetBodyFromFile()
+                break
             default:
                 console.warn(`Invalid action: ${event.payload}`)
         }
@@ -209,6 +212,7 @@ export const WorkbookProvider = (props: {
         const core = await getTauriApiCore()
         try {
             const data: StoredWorkbook = await core.invoke('open_workbook', { path: fileName })
+            debugger
             const results = workbookToStateStorage(data)
             dispatch(initializeWorkbook({
                 displayName: await path.basename(fileName),
@@ -360,16 +364,16 @@ export const WorkbookProvider = (props: {
         }
     }
 
-    const doCopyImageToClipboard = async (base64?: string) => {
-        try {
-            throw new Error('Not supported yet!')
-            // if(base64 && (base64.length > 0)) {
-            //     await writeImage(base64)
-            //     toast.open('Image copied to clipboard', ToastSeverity.Success)
-            // }
-        } catch(e) {
-            toast.open(`${e}`, ToastSeverity.Error)
-        }
+    const doCopyImageToClipboard = async (_base64?: string) => {
+        toast.open('Copy image to clipboard not yet supported', ToastSeverity.Warning)
+        // try {
+        //     if(base64 && (base64.length > 0)) {
+        //         await writeImage(base64)
+        //         toast.open('Image copied to clipboard', ToastSeverity.Success)
+        //     }
+        // } catch(e) {
+        //     toast.open(`${e}`, ToastSeverity.Error)
+        // }
     }
 
     const doCopyTextToClipboard = async (text?: string) => {
@@ -456,6 +460,33 @@ export const WorkbookProvider = (props: {
         }
 
         await writeTextFile(_settingsFileName.current, JSON.stringify(_settings.current))
+    }
+
+    // Triggers opening a workbook
+    const doSetBodyFromFile = async () => {
+        if(! activeRequest) return
+        const dialog = await getTauriDialog()
+        const settings = await loadSettings()
+        const selected = (await dialog.open({
+            multiple: false,
+            title: 'Set Body From File',
+            defaultPath: settings?.workbookDirectory,
+            directory: false
+        })) as any
+        if (! selected) return
+        const fileName = selected['path']
+        try {
+            const data = await readFile(fileName)
+            dispatch(updateRequest({
+                id: activeRequest.id,
+                bodyType: BodyType.Raw,
+                bodyData: Array.from(data)
+
+            }))
+            toast.open(`Data set from ${fileName}`, ToastSeverity.Success)
+        } catch(e) {
+            toast.open(`${e}`, ToastSeverity.Error)
+        }
     }
 
     return (

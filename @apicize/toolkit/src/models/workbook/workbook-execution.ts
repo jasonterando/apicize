@@ -12,7 +12,6 @@ interface IndexedText {
      text: string
 }
 
-
 export interface WorkbookExecution {
      requestID: string
      running: boolean

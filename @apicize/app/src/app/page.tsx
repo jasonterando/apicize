@@ -9,7 +9,7 @@ import { Stack, Box, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui
 import { ToastProvider } from '@apicize/toolkit'
 import { WorkbookProvider } from './providers/workbook-provider';
 import { Provider } from 'react-redux';
-import React, { useEffect } from 'react'
+import React from 'react'
 import { emit } from '@tauri-apps/api/event'
 import "typeface-open-sans"
 
@@ -163,6 +163,7 @@ export default function Home() {
                       triggerCopyImageToClipboard={(base64?: string) => {
                         emit('copyImage', base64)
                       }}
+                      triggerSetBodyFromFile={() => emit('action', 'bodyFromFile')}
                     />
                     <AuthorizationEditor triggerClearToken={() => {
                       console.log('triggerClearToken')

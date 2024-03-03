@@ -21,7 +21,7 @@
     "frontendDist": "../out"
   },
   "bundle": {
-    "active": true,
+    "active": false,
     "category": "DeveloperTool",
     "copyright": "",
     "externalBin": [],

@@ -22,7 +22,8 @@ export function RequestEditor(props: {
     triggerRun: () => {},
     triggerCancel: () => {},
     triggerCopyTextToClipboard: (text?: string) => void
-    triggerCopyImageToClipboard: (base64?: string) => void
+    triggerCopyImageToClipboard: (base64?: string) => void,
+    triggerSetBodyFromFile: () => void,
 }) {
     const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
 
@@ -68,7 +69,7 @@ export function RequestEditor(props: {
                                     {panel === 'Parameters' ? <RequestParametersEditor />
                                         : panel === 'Headers' ? <RequestHeadersEditor />
                                             : panel === 'Query String' ? <RequestQueryStringEditor />
-                                                : panel === 'Body' ? <RequestBodyEditor />
+                                                : panel === 'Body' ? <RequestBodyEditor triggerSetBodyFromFile={props.triggerSetBodyFromFile} />
                                                     : panel === 'Test' ? <RequestTestEditor />
                                                         : null}
                                 </Box>

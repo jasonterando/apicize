@@ -17,9 +17,8 @@ for (let i = 0; i < chars.length; i++) {
     lookup[chars.charCodeAt(i)] = i;
 }
 
-export function base64Encode(arraybuffer: ArrayBuffer): string {
-    let bytes = new Uint8Array(arraybuffer),
-        i,
+export function base64Encode(bytes: number[]): string {
+    let i,
         len = bytes.length,
         base64 = '';
 
@@ -39,7 +38,7 @@ export function base64Encode(arraybuffer: ArrayBuffer): string {
     return base64;
 }
 
-export function base64Decode(base64: string): ArrayBuffer {
+export function base64Decode(base64: string): number[] {
     let bufferLength = base64.length * 0.75,
         len = base64.length,
         i,
@@ -56,8 +55,7 @@ export function base64Decode(base64: string): ArrayBuffer {
         }
     }
 
-    const arraybuffer = new ArrayBuffer(bufferLength),
-        bytes = new Uint8Array(arraybuffer);
+    const bytes = new Uint8Array(bufferLength);
 
     for (i = 0; i < len; i += 4) {
         encoded1 = lookup[base64.charCodeAt(i)];
@@ -70,7 +68,7 @@ export function base64Decode(base64: string): ArrayBuffer {
         bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
     }
 
-    return arraybuffer;
+    return Array.from(bytes);
 }
 
 export function workbookToStateStorage(data: StoredWorkbook): {
@@ -129,9 +127,18 @@ export function workbookToStateStorage(data: StoredWorkbook): {
             const r = request as EditableWorkbookRequest
             r.headers?.forEach(h => h.id = GenerateIdentifier())
             r.queryStringParams?.forEach(p => p.id = GenerateIdentifier())
-            if (r.body && r.body.type === BodyType.Form && r.body.data) {
-                (r.body.data as EditableNameValuePair[])
-                    .forEach(h => h.id = GenerateIdentifier())
+            if (r.body && r.body.data) {
+                switch(r.body.type) {
+                    case BodyType.Form:
+                        (r.body.data as EditableNameValuePair[])
+                            .forEach(h => h.id = GenerateIdentifier())
+                        break
+                    case BodyType.Raw:
+                        if (typeof r.body.data === 'string') {
+                            r.body.data = base64Decode(r.body.data)
+                        }
+                        break
+                }
             }
         }),
         authorizations: stateAuthorizations,
@@ -182,14 +189,19 @@ export function stateStorageToRequestEntry(id: string, storage: StateStorage<Edi
                         }
                     }
                     break
-                case BodyType.Base64:
-                    const bodyAsData = r.body.data as ArrayBuffer
-                    bodyIsValid = bodyAsData.byteLength > 0
-                    if (bodyIsValid) {
-                        stored.body = {
-                            type: BodyType.Base64,
-                            data: base64Encode(bodyAsData)
+                case BodyType.Raw:
+                    if (Array.isArray(r.body.data)) {
+                        const data = r.body.data
+                        bodyIsValid = data.length > 0
+                        if (bodyIsValid) {
+                            stored.body = {
+                                type: BodyType.Raw,
+                                data: base64Encode(data as number[])
+                            }
                         }
+    
+                    } else {
+                        bodyIsValid = false
                     }
                     break
                 default:
@@ -197,7 +209,7 @@ export function stateStorageToRequestEntry(id: string, storage: StateStorage<Edi
                     bodyIsValid = bodyAsText.length > 0
                     if (bodyIsValid) {
                         stored.body = {
-                            type: BodyType.Base64,
+                            type: r.body.type,
                             data: bodyAsText
                         }
                     }

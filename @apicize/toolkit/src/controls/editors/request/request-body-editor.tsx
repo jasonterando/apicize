@@ -7,14 +7,15 @@ import { highlight, languages } from 'prismjs'
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
-import { Button, FormControl, InputLabel, MenuItem, Select, Stack } from '@mui/material'
+import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
 import { BodyType, BodyTypes } from '@apicize/lib-typescript'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
+import FileOpenIcon from '@mui/icons-material/FileOpen'
 import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
 
-export function RequestBodyEditor() {
+export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void }) {
   const dispatch = useDispatch()
 
   const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
@@ -51,37 +52,36 @@ export function RequestBodyEditor() {
     checkTypeHeader(newBodyType)
   }
 
-  const checkTypeHeader = (val: BodyType | undefined | null) => {
+  const checkTypeHeader = (bodyType: BodyType | undefined | null) => {
     let needsContextHeaderUpdate = true
-    if (val) {
-      const contentTypeHeader = castEntryAsRequest(requestEntry)?.headers?.find(h => h.name === 'Content-Type')
-      if (contentTypeHeader) {
-        needsContextHeaderUpdate = contentTypeHeader.value.indexOf(val.toLowerCase()) === -1
-      }
+    let mimeType = getBodyTypeMimeType(bodyType)
+    const contentTypeHeader = castEntryAsRequest(requestEntry)?.headers?.find(h => h.name === 'Content-Type')
+    if (contentTypeHeader) {
+      needsContextHeaderUpdate = contentTypeHeader.value !== mimeType
     }
     setAllowUpdateHeader(needsContextHeaderUpdate)
   }
 
-  const updateTypeHeader = () => {
-    let mimeType: string
+  const getBodyTypeMimeType = (bodyType: BodyType | undefined | null) => {
     switch (bodyType) {
       case BodyType.JSON:
-        mimeType = 'application/json'
-        break
+        return 'application/json'
       case BodyType.XML:
-        mimeType = 'application/xml'
-        break
+        return 'application/xml'
       case BodyType.Text:
-        mimeType = 'text/plain'
-        break
+        return 'text/plain'
       case BodyType.Form:
-        mimeType = 'application/x-www-form-urlencoded'
-        break
+        return 'application/x-www-form-urlencoded'
       default:
-        return
+        return 'application/octet-stream'
     }
+  }
 
-    const headers = castEntryAsRequest(requestEntry)?.headers ?? []
+  const updateTypeHeader = () => {
+    const mimeType = getBodyTypeMimeType(bodyType)
+    const requestHeaders = castEntryAsRequest(requestEntry)?.headers
+    const headers = requestHeaders ? structuredClone(requestHeaders) : []
+    debugger
     const contentTypeHeader = headers.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
       contentTypeHeader.value = mimeType
@@ -152,16 +152,24 @@ export function RequestBodyEditor() {
             border: '1px solid #444!important',
           }}
         >
-          { bodyType == BodyType.Base64
-            ? <Box padding='10px'>{(bodyData as ArrayBuffer).byteLength} Bytes</Box>
-            : <Editor
+          {bodyType == BodyType.Raw
+            ? <Stack direction='row'>
+              <IconButton aria-label='from-file' title='Set Body from File' onClick={() => props.triggerSetBodyFromFile()} sx={{ marginRight: '4px' }}>
+                <FileOpenIcon />
+              </IconButton>
+              <Box padding='10px'>{bodyData.length.toLocaleString()} Bytes</Box>
+            </Stack>
+            :
+            <Box>
+              <Editor
               autoFocus
               padding={10}
-              style={{fontFamily: 'monospace', minHeight: '200px' }}
+              style={{ fontFamily: 'monospace', minHeight: '200px', overflowWrap: 'anywhere', width: '90%' }}
               value={bodyData.toString()}
               highlight={code => processHighlight(code)}
               onValueChange={updateBodyAsText}
             />
+            </Box>
           }
         </Box>
       }

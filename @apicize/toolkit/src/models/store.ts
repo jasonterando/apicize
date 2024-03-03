@@ -47,10 +47,11 @@ const encodeFormData = (data: EditableNameValuePair[]) => {
   return result
 }
 
-const decodeFormData = (bodyData: string | ArrayBuffer | undefined) => {
+const decodeFormData = (bodyData: string | number[] | undefined) => {
   let data: string | undefined;
-  if (bodyData instanceof ArrayBuffer) {
-    data = (new TextDecoder()).decode(bodyData)
+  if (bodyData instanceof Array) {
+    const buffer = Uint8Array.from(bodyData)
+    data = (new TextDecoder()).decode(buffer)
   } else {
     data = bodyData
   }
@@ -303,25 +304,26 @@ const apicizeSlice = createSlice({
 
         if (newBodyType !== match.body?.type) {
           switch (newBodyType) {
-            case BodyType.Base64:
-              newBodyData = new ArrayBuffer(0)
+            case BodyType.Raw:
+              newBodyData = Array.from((new TextEncoder()).encode(newBodyData?.toString() ?? ''))
               break
             case BodyType.Form:
-              if ([BodyType.Text, BodyType.JSON, BodyType.XML].indexOf(oldBodyType) !== -1) {
-                const formData = decodeFormData(newBodyData as string)
-                formData.forEach(d => (d as EditableNameValuePair).id = GenerateIdentifier())
-                newBodyData = formData
-              } else {
-                newBodyData = []
-              }
+              const formData = decodeFormData(newBodyData as string)
+              formData.forEach(d => (d as EditableNameValuePair).id = GenerateIdentifier())
+              newBodyData = formData
               break
             default:
               switch (oldBodyType) {
                 case BodyType.Form:
                   newBodyData = encodeFormData(newBodyData as EditableNameValuePair[])
                   break
-                case BodyType.Base64:
-                  newBodyData = ''
+                case BodyType.Raw:
+                  const data = newBodyData as number[] | undefined
+                  if (data && data.length > 0) {
+                    newBodyData = (new TextDecoder('utf-8')).decode(Uint8Array.from(data))
+                  } else {
+                    newBodyData = ''
+                  }
                   break
               }
               break
@@ -943,7 +945,7 @@ export const {
   setSelectedScenario,
   setRequestRunning,
   setRequestResults,
-  setSelectedExecutionResult,
+  setSelectedExecutionResult
 } = apicizeSlice.actions
 
 export const workbookStore = configureStore<ApicizeWorkbookState>({

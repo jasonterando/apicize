@@ -212,12 +212,20 @@ async fn dispatch<'a>(
             client_secret,
             scope, // send_credentials_in_body: _,
         }) => {
-            match get_oauth2_client_credentials(id, access_token_url, client_id, client_secret, scope).await {
+            match get_oauth2_client_credentials(
+                id,
+                access_token_url,
+                client_id,
+                client_secret,
+                scope,
+            )
+            .await
+            {
                 Ok((token, cached)) => {
                     auth_token_cached = Some(cached);
                     request_builder = request_builder.bearer_auth(token);
-                },
-                Err(err) => return Err(err)
+                }
+                Err(err) => return Err(err),
             }
         }
         None => {}
@@ -267,7 +275,7 @@ async fn dispatch<'a>(
                 .collect::<HashMap<String, String>>();
             request_builder = request_builder.form(&form_data);
         }
-        Some(WorkbookRequestBody::Base64 { data }) => {
+        Some(WorkbookRequestBody::Raw { data }) => {
             request_builder = request_builder.body(Body::from(data.clone()));
         }
         None => {}
@@ -481,28 +489,29 @@ async fn run_int<'a>(
                     let test_response = execute_test(info, response, scenario);
                     match test_response {
                         Ok(test_results) => {
-                            if let Some(active_test_results) = test_results {
-                                (
-                                    vec![ApicizeResult {
-                                        request_id: info.id.clone(),
-                                        run: run.clone(),
-                                        total_runs: total_runs.clone(),
-                                        request: Some(request.clone()),
-                                        response: Some(response.clone()),
-                                        tests: active_test_results.results,
-                                        executed_at: now
-                                            .duration_since(tests_started)
-                                            .unwrap()
-                                            .as_millis(),
-                                        milliseconds: now.elapsed().unwrap().as_millis(),
-                                        success: true,
-                                        error_message: None,
-                                    }],
-                                    active_test_results.scenario,
-                                )
-                            } else {
-                                (vec![], None)
-                            }
+                            let (reported_test_results, reported_test_scenario) = match test_results
+                            {
+                                Some(results) => (results.results, results.scenario),
+                                None => (None, None),
+                            };
+                            (
+                                vec![ApicizeResult {
+                                    request_id: info.id.clone(),
+                                    run: run.clone(),
+                                    total_runs: total_runs.clone(),
+                                    request: Some(request.clone()),
+                                    response: Some(response.clone()),
+                                    tests: reported_test_results,
+                                    executed_at: now
+                                        .duration_since(tests_started)
+                                        .unwrap()
+                                        .as_millis(),
+                                    milliseconds: now.elapsed().unwrap().as_millis(),
+                                    success: true,
+                                    error_message: None,
+                                }],
+                                reported_test_scenario,
+                            )
                         }
                         Err(err) => (
                             vec![ApicizeResult {

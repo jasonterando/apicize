@@ -124,7 +124,7 @@ pub enum WorkbookRequestBody {
         data: Vec<WorkbookNameValuePair>,
     },
     /// Binary body data serialized as Base64
-    Base64 {
+    Raw {
         /// Base-64 encoded binary data
         #[serde_as(as = "Base64<Standard, Unpadded>")]
         data: Vec<u8>,
@@ -875,7 +875,7 @@ mod model_tests {
                 keep_alive: None,
                 headers: None,
                 query_string_params: None,
-                body: Some(WorkbookRequestBody::Base64 { 
+                body: Some(WorkbookRequestBody::Raw { 
                     data: Vec::from([84, 101, 115, 116, 105, 110, 103, 32, 49, 50, 51]),
                 }),
                 test: None,
