@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  api:
+    build: 
+       context: .
+       dockerfile: ./Dockerfile
+    networks:
+      - local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+    
+networks:
+  local:
+    driver: bridge

@@ -38,6 +38,7 @@ export const WorkbookMethods = [
 ]
 
 export enum WorkbookBodyType {
+    None = 'None',
     Text = 'Text',
     JSON = 'JSON',
     XML = 'XML',
@@ -45,9 +46,9 @@ export enum WorkbookBodyType {
     Raw = 'Raw',
 }
 
-export type WorkbookBodyData = string | number[] | WorkbookNameValuePair[]
+export type WorkbookBodyData = any | WorkbookNameValuePair[]
 
-export const WorkbookBodyTypes = [WorkbookBodyType.Text, WorkbookBodyType.JSON, WorkbookBodyType.XML, WorkbookBodyType.Form, WorkbookBodyType.Raw]
+export const WorkbookBodyTypes = [WorkbookBodyType.None, WorkbookBodyType.Text, WorkbookBodyType.JSON, WorkbookBodyType.XML, WorkbookBodyType.Form, WorkbookBodyType.Raw]
 
 export interface WorkbookBody {
     type?: WorkbookBodyType

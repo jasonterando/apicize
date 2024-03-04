@@ -531,7 +531,7 @@ export function Navigation(props: {
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
-                    <ListItemText>Add Folder</ListItemText>
+                    <ListItemText>Add Group</ListItemText>
                 </MenuItem>
             </Menu>
         )

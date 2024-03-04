@@ -133,11 +133,20 @@ export function workbookToStateStorage(data: StoredWorkbook): {
                         (r.body.data as EditableNameValuePair[])
                             .forEach(h => h.id = GenerateIdentifier())
                         break
+                    case BodyType.JSON:
+                        if (r.body.data) {
+                            r.body.data = JSON.stringify(r.body.data)
+                        }
+                        break
                     case BodyType.Raw:
                         if (typeof r.body.data === 'string') {
                             r.body.data = base64Decode(r.body.data)
                         }
                         break
+                }
+            } else {
+                r.body = {
+                    type: BodyType.None
                 }
             }
         }),
@@ -179,6 +188,8 @@ export function stateStorageToRequestEntry(id: string, storage: StateStorage<Edi
         let bodyIsValid = false
         if (r.body?.data) {
             switch (r.body?.type) {
+                case BodyType.None:
+                    break
                 case BodyType.Form:
                     const bodyAsForm = r.body.data as EditableNameValuePair[]
                     bodyIsValid = bodyAsForm.length > 0
@@ -187,6 +198,17 @@ export function stateStorageToRequestEntry(id: string, storage: StateStorage<Edi
                             type: BodyType.Form,
                             data: bodyAsForm.map(editableToNameValuePair)
                         }
+                    }
+                    break
+                case BodyType.JSON:
+                    try {
+                        stored.body = {
+                            type: r.body.type,
+                            data: JSON.parse(r.body.data)
+                        }
+                        bodyIsValid = true
+                    } catch {
+                        bodyIsValid = false
                     }
                     break
                 case BodyType.Raw:
@@ -199,7 +221,6 @@ export function stateStorageToRequestEntry(id: string, storage: StateStorage<Edi
                                 data: base64Encode(data as number[])
                             }
                         }
-    
                     } else {
                         bodyIsValid = false
                     }

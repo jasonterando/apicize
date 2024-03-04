@@ -7,7 +7,7 @@ import { highlight, languages } from 'prismjs'
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
-import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
+import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextareaAutosize } from '@mui/material'
 import { BodyType, BodyTypes } from '@apicize/lib-typescript'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
@@ -36,7 +36,7 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
   }
 
   const updateBodyAsText = (val: string | undefined) => {
-    // setBodyData(val ?? '')
+    setBodyData(val ?? '')
     dispatch(updateRequest({
       id: requestEntry.id,
       bodyData: val
@@ -58,12 +58,16 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
     const contentTypeHeader = castEntryAsRequest(requestEntry)?.headers?.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
       needsContextHeaderUpdate = contentTypeHeader.value !== mimeType
+    } else {
+      needsContextHeaderUpdate = mimeType.length !== 0
     }
     setAllowUpdateHeader(needsContextHeaderUpdate)
   }
 
   const getBodyTypeMimeType = (bodyType: BodyType | undefined | null) => {
     switch (bodyType) {
+      case BodyType.None:
+        return ''
       case BodyType.JSON:
         return 'application/json'
       case BodyType.XML:
@@ -80,17 +84,23 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
   const updateTypeHeader = () => {
     const mimeType = getBodyTypeMimeType(bodyType)
     const requestHeaders = castEntryAsRequest(requestEntry)?.headers
-    const headers = requestHeaders ? structuredClone(requestHeaders) : []
-    debugger
+    let headers = requestHeaders ? structuredClone(requestHeaders) : []
     const contentTypeHeader = headers.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
-      contentTypeHeader.value = mimeType
+      if (mimeType.length === 0) {
+        headers = headers.filter(h => h.name !== 'Content-Type')
+      } else {
+        contentTypeHeader.value = mimeType
+
+      }
     } else {
-      headers.push({
-        id: GenerateIdentifier(),
-        name: 'Content-Type',
-        value: mimeType
-      })
+      if (mimeType.length > 0) {
+        headers.push({
+          id: GenerateIdentifier(),
+          name: 'Content-Type',
+          value: mimeType
+        })
+      }
     }
     setAllowUpdateHeader(false)
     dispatch(updateRequest({
@@ -143,35 +153,56 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
         </FormControl>
         <Button disabled={!allowUpdateHeader} onClick={updateTypeHeader}>Update Content-Type Header</Button>
       </Stack>
-      {bodyType == BodyType.Form
-        ? <NameValueEditor values={bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={onUpdateFormData} />
-        : <Box
-          sx={{
-            borderRadius: '4px',
-            overflow: 'auto',
-            border: '1px solid #444!important',
-          }}
-        >
-          {bodyType == BodyType.Raw
-            ? <Stack direction='row'>
+      {bodyType == BodyType.None
+        ? <></>
+        : bodyType == BodyType.Form
+          ? <NameValueEditor values={bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={onUpdateFormData} />
+          : bodyType == BodyType.Raw
+            ? <Stack
+              direction='row'
+              sx={{
+                borderRadius: '4px',
+                overflow: 'auto',
+                border: '1px solid #444!important',
+              }}
+            >
               <IconButton aria-label='from-file' title='Set Body from File' onClick={() => props.triggerSetBodyFromFile()} sx={{ marginRight: '4px' }}>
                 <FileOpenIcon />
               </IconButton>
               <Box padding='10px'>{bodyData.length.toLocaleString()} Bytes</Box>
             </Stack>
             :
-            <Box>
-              <Editor
+            <TextareaAutosize
               autoFocus
-              padding={10}
-              style={{ fontFamily: 'monospace', minHeight: '200px', overflowWrap: 'anywhere', width: '90%' }}
-              value={bodyData.toString()}
-              highlight={code => processHighlight(code)}
-              onValueChange={updateBodyAsText}
-            />
-            </Box>
-          }
-        </Box>
+              maxRows={20}
+              style={{
+                borderStyle: 'solid',
+                borderWidth: '1px',
+                borderLeftColor: '#444',
+                borderRightColor: '#444',
+                borderTopColor: '#444',
+                borderBottomColor: '#444',
+                borderRadius: '4px',
+                  fontFamily: 'monospace',
+                fontSize: '12pt',
+                outline: 'none',
+                minHeight: '10vh',
+                padding: '10px',
+                width: '100%',
+                color: '#FFFFFF',
+                backgroundColor: '#202020',
+                overflow: 'auto'
+              }}
+              value={bodyData}
+              onChange={(e) => updateBodyAsText(e.target.value)} />
+        // <Editor
+        // autoFocus
+        // padding={10}
+        // style={{ fontFamily: 'monospace', minHeight: '140px' }}
+        // value={bodyData.toString()}
+        // highlight={code => processHighlight(code)}
+        // onValueChange={updateBodyAsText}
+        // />
       }
     </Stack>
   )

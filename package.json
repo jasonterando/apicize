@@ -13,7 +13,9 @@
         "build-deps": "yarn workspace @apicize/lib-typescript build && yarn workspace @apicize/toolkit build",
         "ui": "yarn run build-deps && yarn workspace @apicize/app tauri dev",
         "watch-deps": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\"",
-        "ui:watch": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn run build-deps && yarn workspace @apicize/app tauri dev\""
+        "ui:watch": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn run build-deps && yarn workspace @apicize/app tauri dev\"",
+        "build:release": "npm run build-deps && yarn tauri build",
+        "ui:release": "npm run build:release && ./@apicize/app/src-tauri/target/release/apicize"
     },
     "devDependencies": {
         "concurrently": "^8.2.2",
