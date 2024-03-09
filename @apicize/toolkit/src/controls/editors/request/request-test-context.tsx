@@ -29,7 +29,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
         setResultsLists(execution?.resultLists)
     }, [execution])
 
-    if (! requestEntry) {
+    if (!requestEntry) {
         return null
     }
 
@@ -62,7 +62,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
     return (
         <Stack direction={'row'} sx={props.sx}>
             <ButtonGroup
-                sx={{marginRight: '24px'}}
+                sx={{ marginRight: '24px' }}
                 orientation='vertical'
                 aria-label="request run context">
                 <ToggleButton value='Run' title='Run selected request' disabled={disableRun} onClick={handleRunClick()}>
@@ -116,7 +116,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                 </Grid>
                 {
                     runList
-                    && runList.length > 1
+                        && runList.length > 1
                         ?
                         <Grid item>
                             <FormControl>
@@ -141,12 +141,12 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                         : <></>
                 }
                 {
-                    execution 
-                    && execution.runIndex !== undefined 
-                    && resultsLists
-                    && resultsLists[execution.runIndex]
-                    && resultsLists[execution.runIndex].length > 1
-                    ?
+                    execution
+                        && execution.runIndex !== undefined
+                        && resultsLists
+                        && resultsLists[execution.runIndex]
+                        && resultsLists[execution.runIndex].length > 1
+                        ?
                         <Grid item>
                             <FormControl>
                                 <InputLabel id='result-id'>Results</InputLabel>
@@ -158,6 +158,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                                     sx={{ minWidth: '10em' }}
                                     onChange={e => updateSelectedResult(parseInt(e.target.value))}
                                 >
+                                    <MenuItem key={`result-group`} value={-1}>Group Summary</MenuItem>
                                     {
                                         resultsLists[execution.runIndex].map(r => {
                                             return (

@@ -25,19 +25,20 @@ export function ResultsViewer(props: {
     cancelRequest: (request: EditableWorkbookRequestEntry) => void
 }) {
     const execution = useSelector((state: WorkbookState) => state.activeExecution)
-    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
+    const executionResult = useSelector((state: WorkbookState) => state.selectedExecutionResult)
+    const groupResults = useSelector((state: WorkbookState) => state.groupExecutionResults)
     const runningRequestCount = useSelector((state: WorkbookState) => state.runningCount)
     const [inProgress, setInProgress] = React.useState(false)
     const [panel, setPanel] = React.useState<string>('Info')
 
     useEffect(() => {
         setInProgress(execution?.running === true)
-        if (!(result?.response) && panel !== 'Info') {
+        if (!(executionResult?.response) && panel !== 'Info') {
             setPanel('Info')
         }
-    }, [execution, result, runningRequestCount])
+    }, [execution, executionResult, runningRequestCount])
 
-    if (!(result || inProgress)) {
+    if (!(executionResult || groupResults ||inProgress)) {
         return null
     }
 
@@ -45,6 +46,7 @@ export function ResultsViewer(props: {
         if (newValue) setPanel(newValue)
     }
 
+    const disableOtherPanels = inProgress || groupResults !== undefined || executionResult?.response === undefined
     return (<Stack direction={'row'} sx={props.sx}>
         <ToggleButtonGroup
             orientation='vertical'
@@ -54,10 +56,10 @@ export function ResultsViewer(props: {
             sx={{ marginRight: '24px' }}
             aria-label="text alignment">
             <ToggleButton value="Info" title="Show Result Info" aria-label='show info' disabled={inProgress}><ScienceIcon /></ToggleButton>
-            <ToggleButton value="Headers" title="Show Response Headers" aria-label='show headers' disabled={inProgress || !result?.response}><ViewListOutlinedIcon /></ToggleButton>
-            <ToggleButton value="Text" title="Show Response Body as Text" aria-label='show body text' disabled={inProgress || !result?.response}><ArticleOutlinedIcon /></ToggleButton>
-            <ToggleButton value="Preview" title="Show Body as Preview" aria-label='show body preview' disabled={result?.longTextInResponse || inProgress || !result?.response}><PreviewIcon /></ToggleButton>
-            <ToggleButton value="Request" title="Show Request" aria-label='show request' disabled={inProgress || !result?.response}><SendIcon /></ToggleButton>
+            <ToggleButton value="Headers" title="Show Response Headers" aria-label='show headers' disabled={disableOtherPanels}><ViewListOutlinedIcon /></ToggleButton>
+            <ToggleButton value="Text" title="Show Response Body as Text" aria-label='show body text' disabled={disableOtherPanels}><ArticleOutlinedIcon /></ToggleButton>
+            <ToggleButton value="Preview" title="Show Body as Preview" aria-label='show body preview' disabled={disableOtherPanels || executionResult?.longTextInResponse}><PreviewIcon /></ToggleButton>
+            <ToggleButton value="Request" title="Show Request" aria-label='show request' disabled={disableOtherPanels}><SendIcon /></ToggleButton>
         </ToggleButtonGroup>
         <Box sx={{ overflow: 'auto', flexGrow: 1, bottom: '0' }}>
             {

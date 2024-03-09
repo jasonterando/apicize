@@ -212,6 +212,7 @@ export const WorkbookProvider = (props: {
         const core = await getTauriApiCore()
         try {
             const data: StoredWorkbook = await core.invoke('open_workbook', { path: fileName })
+            debugger
             const results = workbookToStateStorage(data)
             dispatch(initializeWorkbook({
                 displayName: await path.basename(fileName),

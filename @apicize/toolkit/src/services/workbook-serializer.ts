@@ -78,6 +78,7 @@ export function workbookToStateStorage(data: StoredWorkbook): {
     selectedAuthorization: EditableWorkbookAuthorization | undefined,
     selectedScenario: EditableWorkbookScenario | undefined,
 } {
+    debugger
     if (data.version !== 1) {
         throw new Error(`Invalid stored workbook version: ${data.version}`)
     }

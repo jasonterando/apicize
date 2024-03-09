@@ -7,7 +7,7 @@ use std::ops::Add;
 use std::time::Instant;
 
 use oauth2::basic::BasicClient;
-use oauth2::reqwest::reqwest;
+use oauth2::reqwest;
 use oauth2::{ClientId, ClientSecret, Scope, TokenResponse, TokenUrl};
 use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;

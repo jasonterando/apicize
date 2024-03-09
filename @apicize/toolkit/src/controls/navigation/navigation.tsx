@@ -231,7 +231,7 @@ export function Navigation(props: {
                             }}
                         >
                             <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
-                            <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetTitle(props.item)} (Group)</Box>
+                            <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetTitle(props.item)}</Box>
                             <IconButton
                                 sx={{
                                     visibility: props.item.id === selected ? 'normal' : 'hidden'

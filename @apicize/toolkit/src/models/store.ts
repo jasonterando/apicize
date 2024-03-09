@@ -17,7 +17,7 @@ import { StateStorage, moveInStorage } from './state-storage'
 import { EditableNameValuePair } from './workbook/editable-name-value-pair'
 import { ApicizeResult } from '@apicize/lib-typescript/dist/models/lib/apicize-result'
 import { WorkbookBodyData } from '@apicize/lib-typescript/dist/models/workbook/workbook-request'
-import { ApicizeRunResultsToWorkbookExecutionResults, WorkbookExecution, WorkbookExecutionResult } from './workbook/workbook-execution'
+import { ApicizeRunResultsToWorkbookExecutionResults, IndexedText, WorkbookExecution, WorkbookExecutionResult, WorkbookExecutionSummary } from './workbook/workbook-execution'
 import { EditableWorkbookRequestEntry } from './workbook/editable-workbook-request-entry'
 
 export interface NavigationListItem {
@@ -101,6 +101,7 @@ interface ApicizeWorkbookState {
   selectedAuthorization: EditableWorkbookAuthorization
   selectedScenario: EditableWorkbookScenario
   selectedExecutionResult: WorkbookExecutionResult | undefined
+  groupExecutionResults: WorkbookExecutionSummary | undefined
 }
 
 // Tally the number of running tests
@@ -149,12 +150,58 @@ const updateActive = (
   state.activeAuthorization = authorization
   state.activeScenario = scenario
   state.activeExecution = request ? state.executions[request.id] : undefined
-  state.selectedExecutionResult = (state.activeExecution !== undefined 
-      && state.activeExecution.results !== undefined
-      && state.activeExecution.runIndex !== undefined
-      && state.activeExecution.resultIndex !== undefined)
-    ? state.activeExecution.results[state.activeExecution.runIndex][state.activeExecution.resultIndex]
-    : undefined
+  updateSelectedExecutionResult(state,
+    state.activeExecution?.runIndex,
+    state.activeExecution?.resultIndex
+  )
+}
+
+const updateSelectedExecutionResult = (
+  state: ApicizeWorkbookState,
+  runIndex: number | undefined,
+  resultIndex: number | undefined
+) => {
+  if (state.activeExecution?.results
+    && runIndex !== undefined
+    && resultIndex !== undefined
+    && resultIndex <= (state.activeExecution.results[runIndex]?.length ?? -1)
+    ) {
+    state.activeExecution.runIndex = runIndex
+    state.activeExecution.resultIndex = resultIndex
+    const runResults = state.activeExecution.results[runIndex]
+    if (resultIndex === -1 && runResults.length > 1) {
+      state.selectedExecutionResult = undefined
+      state.groupExecutionResults = {
+        run: runIndex + 1,
+        totalRuns: runResults[0].totalRuns,
+        requests: runResults.map(r => ({
+          name: state.requests.entities[r.requestId]?.name ?? '(Unnamed)',
+          response: r.response ? { status: r.response.status, statusText: r.response.statusText } : undefined,
+          tests: r.tests?.map(t => ({
+            testName: t.testName,
+            success: t.success,
+            error: t.error,
+            logs: t.logs
+          })),
+          executedAt: r.executedAt,
+          milliseconds: r.milliseconds,
+          success: r.success,
+          errorMessage: r.errorMessage
+        }))
+      }
+    } else {
+      state.selectedExecutionResult = runResults[0]
+      state.groupExecutionResults = undefined
+    }
+    const matchingExecution = state.executions[state.activeExecution.requestID]
+    if (matchingExecution) {
+      matchingExecution.runIndex = runIndex
+      matchingExecution.resultIndex = resultIndex
+    }
+  } else {
+    state.selectedExecutionResult = undefined
+    state.groupExecutionResults = undefined
+  }
 }
 
 export const defaultWorkbookState: ApicizeWorkbookState = {
@@ -171,6 +218,7 @@ export const defaultWorkbookState: ApicizeWorkbookState = {
   activeRequestEntry: undefined,
   activeExecution: undefined,
   selectedExecutionResult: undefined,
+  groupExecutionResults: undefined,
   activeAuthorization: undefined,
   activeScenario: undefined,
   selectedAuthorization: noAuthorization,
@@ -843,6 +891,10 @@ const apicizeSlice = createSlice({
       if (state.activeExecution?.requestID === action.payload.id) {
         if (!action.payload.onOff) state.activeExecution.results = undefined
         state.activeExecution.running = action.payload.onOff
+        if (action.payload.onOff) {
+          state.selectedExecutionResult = undefined
+          state.groupExecutionResults = undefined
+        }
       }
       updateRunningCount(state)
     },
@@ -871,18 +923,14 @@ const apicizeSlice = createSlice({
           }
           match.results = workbookResults
           match.runIndex = workbookResults.length > 0 ? 0 : undefined
-          match.resultIndex = workbookResults.length > 0 && workbookResults[0].length > 0 ? 0 : undefined
+          match.resultIndex = workbookResults.length > 0 && workbookResults[0].length > 0 ? -1 : undefined
 
           if (state.activeExecution && state.activeExecution.requestID === action.payload.id) {
             state.activeExecution.running = false
             state.activeExecution.results = workbookResults
-            state.activeExecution.runIndex = match.runIndex
             state.activeExecution.runList = match.runList
             state.activeExecution.resultLists = match.resultLists
-            state.activeExecution.resultIndex = match.resultIndex
-            state.selectedExecutionResult = (state.activeExecution.runIndex !== undefined && state.activeExecution.resultIndex !== undefined)
-              ? workbookResults[state.activeExecution.runIndex][state.activeExecution.resultIndex]
-              : undefined
+            updateSelectedExecutionResult(state, match.runIndex, match.resultIndex)
           }
         }
       }
@@ -896,23 +944,7 @@ const apicizeSlice = createSlice({
         resultIndex: number | undefined
       }>
     ) => {
-      if (action.payload.runIndex !== undefined
-        && action.payload.resultIndex !== undefined
-        && state.activeExecution?.results
-        && action.payload.runIndex < (state.activeExecution.results?.length ?? -1)
-        && action.payload.resultIndex < (state.activeExecution.results[action.payload.runIndex]?.length ?? -1)
-      ) {
-        state.selectedExecutionResult = state.activeExecution.results[action.payload.runIndex][action.payload.resultIndex]
-        state.activeExecution.runIndex = action.payload.runIndex
-        state.activeExecution.resultIndex = action.payload.resultIndex
-        const match = state.executions[state.activeExecution.requestID]
-        if (match) {
-          match.runIndex = state.activeExecution.runIndex
-          match.resultIndex = state.activeExecution.resultIndex
-        }
-      } else {
-        state.selectedExecutionResult = undefined
-      }
+      updateSelectedExecutionResult(state, action.payload.runIndex, action.payload.resultIndex)
     },
   }
 })

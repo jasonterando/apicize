@@ -516,8 +516,8 @@ async fn run_int<'a>(
                         Err(err) => (
                             vec![ApicizeResult {
                                 request_id: info.id.clone(),
-                                run: 0,
-                                total_runs: 1,
+                                run: run.clone(),
+                                total_runs: total_runs.clone(),
                                 request: Some(request.clone()),
                                 response: Some(response.clone()),
                                 tests: None,
@@ -533,8 +533,8 @@ async fn run_int<'a>(
                 Err(err) => (
                     vec![ApicizeResult {
                         request_id: info.id.clone(),
-                        run: 0,
-                        total_runs: 1,
+                        run: run.clone(),
+                        total_runs: total_runs.clone(),
                         request: None,
                         response: None,
                         tests: None,

@@ -38,7 +38,7 @@ pub enum ExecutionError {
     Join(#[from] JoinError),
     /// OAuth2 authentication errors
     #[error(transparent)]
-    OAuth2(#[from] RequestTokenError<oauth2::reqwest::Error, StandardErrorResponse<BasicErrorResponseType>>),
+    OAuth2(#[from] RequestTokenError<oauth2::HttpClientError<oauth2::reqwest::Error>, StandardErrorResponse<BasicErrorResponseType>>),
     /// Failed test execution
     #[error("{0}")]
     FailedTest(String),
