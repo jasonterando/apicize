@@ -3,7 +3,6 @@ const setupQuote = async () => {
     const sqlite3 = require('sqlite3')
     const express = require('express')
     const router = express.Router()
-    const morgan = require('morgan')
 
     const db = await open({
         filename: ':memory:',
@@ -13,9 +12,6 @@ const setupQuote = async () => {
     await db.run('CREATE TABLE quotes (id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT NOT NULL, quote TEXT NOT NULL)')
     await db.run('INSERT INTO quotes (id, author, quote) VALUES (1, "Mark Twain", "Politicians and diapers must be changed often, and for the same reason.")')
 
-    morgan.token('body', (req, res) => JSON.stringify(req.body));
-    router.use(morgan(':method :url :status :response-time ms - :res[content-length] :body - :req[content-length]'));
-    // app.use(morgan('dev'));
     router.use(
         express.json({
             limit: '5mb',

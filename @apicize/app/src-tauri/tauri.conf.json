@@ -21,7 +21,7 @@
     "frontendDist": "../out"
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "category": "DeveloperTool",
     "copyright": "",
     "externalBin": [],
@@ -45,9 +45,11 @@
       "providerShortName": null,
       "signingIdentity": null
     },
-    "resources": [],
+    "resources": [
+      "samples/demo.apicize"
+    ],
     "shortDescription": "",
-    "targets": "all",
+    "targets": ["deb"],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
@@ -56,14 +58,15 @@
   },
   "identifier": "apicize",
   "plugins": {
-    "updater": {},
     "fs": {
       "scope": {
         "allow": [
           "$CONFIG",
           "$CONFIG/**",
           "$APP_CONFIG",
-          "$APP_CONFIG/**"
+          "$APP_CONFIG/**",
+          "$RESOURCCES/*",
+          "$RESOURCCES/**"
         ],
         "requireLiteralLeadingDot": false
       },

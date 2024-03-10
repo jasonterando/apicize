@@ -5,6 +5,7 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.3",
+    "jimp": "^0.22.12",
     "morgan": "^1.10.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
