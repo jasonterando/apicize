@@ -1,45 +1,29 @@
 import { Typography, Stack, Container, TextField, Grid } from '@mui/material'
 import LanguageIcon from '@mui/icons-material/Language';
-import { useEffect, useState } from 'react'
+import { useContext } from 'react'
 import { useSelector } from "react-redux";
-import { WorkbookState, updateScenario } from '../../models/store'
-import { useDispatch } from 'react-redux'
-import { NameValuePair } from '@apicize/lib-typescript'
-import React from 'react';
-import { GenerateIdentifier } from '../../services/random-identifier-generator';
+import { WorkbookState } from '../../models/store'
 import { EditableNameValuePair } from '../../models/workbook/editable-name-value-pair';
 import { NameValueEditor } from './name-value-editor';
+import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
 
 export function ScenarioEditor() {
-    const dispatch = useDispatch()
-    const scenario = useSelector((state: WorkbookState) => state.activeScenario)
+    const scenario = useContext(WorkbookStorageContext).scenario
 
-    const [name, setName] = useState<string | undefined>(scenario?.name ?? '')
-    const [variables, setVariables] = React.useState(scenario?.variables)
+    const id = useSelector((state: WorkbookState) => state.scenario.id)
+    const name = useSelector((state: WorkbookState) => state.scenario.name)
+    const variables = useSelector((state: WorkbookState) => state.scenario.variables)
 
-    useEffect(() => {
-        setName(scenario?.name ?? '')
-        setVariables(scenario?.variables)
-    }, [scenario])
-
-    if (!scenario) {
+    if (!id) {
         return null
     }
 
     const updateName = (name: string) => {
-        setName(name)
-        dispatch(updateScenario({
-            id: scenario.id,
-            name
-        }))
+        scenario.setName(id, name)
     }
 
     const updateVariables = (data: EditableNameValuePair[]) => {
-        setVariables(data)
-        dispatch(updateScenario({
-            id: scenario.id,
-            variables: data
-        }))
+        scenario.setVariables(id, data)
     }
 
     return (

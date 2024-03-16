@@ -5,15 +5,21 @@ import { IconButton, Typography } from "@mui/material"
 import { Box } from "@mui/system"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
+import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context"
+import { useContext } from "react"
 
 export function ResultRequestViewer(props: {
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
-    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
-    const request = result?.request
-    if (! request) {
+    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    useSelector((state: WorkbookState) => state.execution.resultIndex)
+    useSelector((state: WorkbookState) => state.execution.runIndex)
+    if (!executionId) {
         return null
     }
+
+    const execution = useContext(WorkbookStorageContext).execution
+    const request = execution.getRequest(executionId)
 
     const text = beautify.js_beautify(JSON.stringify(request), {})
     return (

@@ -1,39 +1,26 @@
 import { Grid, TextField } from "@mui/material"
-import { WorkbookState, updateAuthorization } from "../../../models/store"
-import { useEffect, useState } from "react"
-import { useDispatch, useSelector } from "react-redux"
-import { EditableWorkbookBasicAuthorization } from "../../../models/workbook/editable-workbook-authorization"
+import { WorkbookState } from "../../../models/store"
+import { useContext } from "react"
+import { useSelector } from "react-redux"
+import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context"
 
 export function AuthorizationBasicPanel() {
-    const dispatch = useDispatch()
+    const auth = useContext(WorkbookStorageContext).authorization
 
-    const authorization = useSelector((state: WorkbookState) => state.activeAuthorization as EditableWorkbookBasicAuthorization)
-    const [username, setUsername] = useState<string>(authorization?.username ?? '')
-    const [password, setPassword] = useState<string>(authorization?.password ?? '')
+    const id = useSelector((state: WorkbookState) => state.authorization.id)
+    const username = useSelector((state: WorkbookState) => state.authorization.username)
+    const password = useSelector((state: WorkbookState) => state.authorization.password)
 
-    useEffect(() => {
-        setUsername(authorization?.username ?? '')
-        setPassword(authorization?.password ?? '')
-    }, [authorization])
-
-    if(! authorization) {
+    if(! id) {
         return null
     }
 
     const updateUsername = (updatedUsername: string) => {
-        setUsername(updatedUsername)
-        dispatch(updateAuthorization({
-            id: authorization.id,
-            username: updatedUsername ?? '',
-        }))
+        auth.setUsername(id, updatedUsername)
     }
 
     const updatePassword = (updatedPassword: string) => {
-        setPassword(updatedPassword)
-        dispatch(updateAuthorization({
-            id: authorization.id,
-            password: updatedPassword ?? ''
-        }))
+        auth.setPassword(id, updatedPassword)
     }
 
     return (<Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>

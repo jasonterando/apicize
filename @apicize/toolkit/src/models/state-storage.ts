@@ -42,13 +42,52 @@ export function findInStorage<T>(id: string, storage: StateStorage<T>): [index: 
     throw new Error(`Unable to find entry ID ${id}`)
 }
 
+
+/**
+ * Utility to delete the specified ID in storage
+ * @param id 
+ * @param storage 
+ * @returns 
+ */
+export function deleteFromStorage<T>(id: string, storage: StateStorage<T>): void {
+    let found = false
+    let idx = storage.topLevelIDs.indexOf(id)
+    if (idx !== -1) {
+        storage.topLevelIDs.splice(idx, 1)
+        found = true
+    } else {
+        if (storage.childIDs !== undefined) {
+            for (const [parentID, children] of Object.entries(storage.childIDs)) {
+                idx = children.indexOf(id)
+                if (idx !== -1) {
+                    children.splice(idx, 1)
+                    found = true
+                }
+            }
+        }
+    }
+
+    if (storage.entities[id]) {
+        delete storage.entities[id]
+    }
+
+    if (! found) {
+       throw new Error(`Unable to find entry ID ${id}`)
+    }
+}
+
+
 /**
  * Move an item ID to a differnet destination
  * @param id 
  * @param destinationID 
  * @param storage 
  */
-export function moveInStorage<T>(id: string, destinationID: string | null, storage: StateStorage<T>) {
+export function moveInStorage<T>(id: string,
+    destinationID: string | null,
+    onLowerHalf: boolean | null,
+    onLeft: boolean | null,
+    storage: StateStorage<T>) {
     const [sourceIndex, sourceList] = findInStorage<T>(id, storage)
 
     let destIndex: number
@@ -61,12 +100,15 @@ export function moveInStorage<T>(id: string, destinationID: string | null, stora
     } else {
         [destIndex, destList] = findInStorage<T>(destinationID, storage)
         const children = storage.childIDs ? storage.childIDs[destinationID] : undefined
-        console.log('Dropped on children', children)
 
-        // If destination is a group, then prepend to that group
-        if (children) {
+        // If destination is a group, and on the left, then prepend to that group
+        if (children && onLeft) {
             destIndex = 0
             destList = children
+        } else {
+            if (onLowerHalf) {
+                destIndex++
+            }
         }
     }
 

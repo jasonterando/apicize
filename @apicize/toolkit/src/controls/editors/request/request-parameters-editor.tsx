@@ -1,60 +1,37 @@
 import { TextField, Grid, Select, MenuItem, FormControl, InputLabel } from '@mui/material'
-import { useEffect, useState } from 'react'
-import { WorkbookState, updateRequest } from '../../../models/store'
-import { useDispatch, useSelector } from 'react-redux'
+import { useContext } from 'react'
+import { WorkbookState } from '../../../models/store'
+import { useSelector } from 'react-redux'
 import { Method, Methods } from '@apicize/lib-typescript'
-import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
+import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
 
 export function RequestParametersEditor() {
-    const dispatch = useDispatch()
+    const request = useContext(WorkbookStorageContext).request
 
-    const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
-    const [name, setName] = useState<string | undefined>(requestEntry?.name)
-    const [url, setURL] = useState<string | undefined>(castEntryAsRequest(requestEntry)?.url)
-    const [method, setMethod] = useState<string | undefined>(castEntryAsRequest(requestEntry)?.method ?? Method.Get)
-    const [timeout, setTimeout] = useState(castEntryAsRequest(requestEntry)?.timeout ?? 60000)
+    const id = useSelector((state: WorkbookState) => state.request.id)
+    const name = useSelector((state: WorkbookState) => state.request.name)
+    const url = useSelector((state: WorkbookState) => state.request.url)
+    const method = useSelector((state: WorkbookState) => state.request.method)
+    const timeout = useSelector((state: WorkbookState) => state.request.timeout)
 
-    useEffect(() => {
-        setName(requestEntry?.name ?? '')
-        setURL(castEntryAsRequest(requestEntry)?.url ?? '')
-        setMethod(castEntryAsRequest(requestEntry)?.method ?? '')
-        setTimeout(castEntryAsRequest(requestEntry)?.timeout ?? 60000)
-    }, [requestEntry])
-
-    if (! requestEntry) {
+    if (! id) {
         return null
     }
 
-    const updateName = (name: string | undefined) => {
-        setName(name)
-        dispatch(updateRequest({
-            id: requestEntry.id,
-            name
-        }))
+    const updateName = (name: string) => {
+        request.setName(id, name)
     }
 
-    const updateURL = (url: string | undefined) => {
-        setURL(url)
-        dispatch(updateRequest({
-            id: requestEntry.id,
-            url
-        }))
+    const updateURL = (url: string) => {
+        request.setURL(id, url)
     }
 
-    const updateMethod = (method: string | undefined) => {
-        setMethod(method)
-        dispatch(updateRequest({
-            id: requestEntry.id,
-            method
-        }))
+    const updateMethod = (method: Method) => {
+        request.setMethod(id, method)
     }
 
-    const updateTimeout = (timeout: number | undefined) => {
-        setTimeout(timeout ?? 0)
-        dispatch(updateRequest({
-            id: requestEntry.id,
-            timeout
-        }))
+    const updateTimeout = (timeout: number) => {
+        request.setTimeout(id, timeout)
     }
 
     const methodMenuItems = () => {
@@ -96,7 +73,7 @@ export function RequestParametersEditor() {
                         id="request-method"
                         value={method}
                         label="Method"
-                        onChange={e => updateMethod(e.target.value)}
+                        onChange={e => updateMethod(e.target.value as Method)}
                     >
                         {methodMenuItems()}
                     </Select>

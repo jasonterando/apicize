@@ -1,42 +1,31 @@
-import { TextField, Box, Grid, Select, MenuItem, FormControl, InputLabel, Typography, Stack, Container } from '@mui/material'
+import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Typography, Stack, Container } from '@mui/material'
 import LockIcon from '@mui/icons-material/Lock';
 import { useSelector } from "react-redux";
-import { useEffect, useState } from 'react'
-import { WorkbookState, updateAuthorization } from '../../models/store'
-import { useDispatch } from 'react-redux'
+import { useContext, useEffect, useState } from 'react'
+import { WorkbookState } from '../../models/store'
 import { AuthorizationBasicPanel } from './authorization/authorization-basic';
 import { AuthorizationOAuth2ClientPanel } from './authorization/authorization-oauth2-client';
 import { AuthorizationApiKeyPanel } from './authorization/authorization-api-key';
 import { WorkbookAuthorizationType } from '@apicize/lib-typescript';
+import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
 
 export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
-    const authorization = useSelector((state: WorkbookState) => state.activeAuthorization)
-    const dispatch = useDispatch()
+    const auth = useContext(WorkbookStorageContext).authorization
 
-    const [name, setName] = useState<string | undefined>(authorization?.name ?? '')
-    const [type, setType] = useState<string | undefined>(authorization?.type ?? WorkbookAuthorizationType.Basic)
+    const id = useSelector((state: WorkbookState) => state.authorization.id)
+    const name = useSelector((state: WorkbookState) => state.authorization.name)
+    const type = useSelector((state: WorkbookState) => state.authorization.type)
 
-    useEffect(() => {
-        setName(authorization?.name ?? '')
-        setType(authorization?.type ?? WorkbookAuthorizationType.Basic)
-    }, [authorization])
-
-    if (!authorization) {
+    if (!id) {
         return null
     }
 
-    const updateName = (name: string | undefined) => {
-        dispatch(updateAuthorization({
-            id: authorization.id,
-            name
-        }))
+    const updateName = (name: string) => {
+        auth.setName(id, name)
     }
 
     const updateType = (type: string) => {
-        dispatch(updateAuthorization({
-            id: authorization.id,
-            type
-        }))
+        auth.setType(id, type as WorkbookAuthorizationType)
     }
 
     return (
@@ -72,9 +61,9 @@ export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
                         </FormControl>
                     </Grid>
                     <Grid item>
-                        {authorization.type === WorkbookAuthorizationType.Basic ? <AuthorizationBasicPanel /> :
-                            authorization.type === WorkbookAuthorizationType.OAuth2Client ? <AuthorizationOAuth2ClientPanel triggerClearToken={props.triggerClearToken} /> :
-                                authorization.type === WorkbookAuthorizationType.ApiKey ? <AuthorizationApiKeyPanel /> :
+                        {type === WorkbookAuthorizationType.Basic ? <AuthorizationBasicPanel /> :
+                            type === WorkbookAuthorizationType.OAuth2Client ? <AuthorizationOAuth2ClientPanel triggerClearToken={props.triggerClearToken} /> :
+                                type === WorkbookAuthorizationType.ApiKey ? <AuthorizationApiKeyPanel /> :
                                     null
                         }
                     </Grid>

@@ -37,8 +37,8 @@ export interface WorkbookExecution {
      requestID: string
      running: boolean
      runIndex?: number
-     resultIndex?: number
      runList?: IndexedText[]
+     resultIndex?: number
      resultLists?: IndexedText[][]
      results?: WorkbookExecutionResult[][]
 }

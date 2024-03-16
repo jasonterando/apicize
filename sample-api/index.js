@@ -5,7 +5,7 @@
     
     const app = express()
     app.use(await setupQuote())
-    app.use(await setupImage())
+    app.use(setupImage())
     app.listen(8080)
 })().catch((e) => {
     console.error(`${e}`)

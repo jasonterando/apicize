@@ -1,1 +1,0 @@
-1. Put all useSelector, useDispatch, useEffect at top of hook function before returning anything.  These counts have to be the same for all calls

@@ -8,32 +8,35 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
 import { ApicizeResult } from "@apicize/lib-typescript";
 import { WorkbookExecutionRequest } from "../../../models/workbook/workbook-execution";
+import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context";
+import { useContext } from "react";
+import { ExecutionSummaryInfo } from "../../../models/workbook/execution-summary-info";
 
-const ResultSummary = (props: { executionResult: WorkbookExecutionRequest }) => {
+const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
     let idx = 0
     let info = []
-    if (props.executionResult.response?.status) {
-        info.push(`${props.executionResult.response.status} ${props.executionResult.response.statusText}`)
+    if (props.info.status) {
+        info.push(`${props.info.status} ${props.info.statusText}`)
     }
-    if (props.executionResult.milliseconds && props.executionResult.milliseconds > 0) {
-        info.push(`${props.executionResult.milliseconds.toLocaleString()} ms`)
+    if (props.info.milliseconds && props.info.milliseconds > 0) {
+        info.push(`${props.info.milliseconds.toLocaleString()} ms`)
     }
     return (<Box key={`test-${idx++}`} sx={{marginBottom: '24px'}}>
         <Typography variant='h3' sx={{ marginTop: 0, paddingTop: 0, color: '#80000' }}>
-            {props.executionResult.name} 
+            {props.info.name} 
             <>
                 {info.length === 0 ? '' : ` (${info.join(', ')})`}
             </>
         </Typography>
-        {((props.executionResult.errorMessage?.length ?? 0) == 0)
+        {((props.info.errorMessage?.length ?? 0) == 0)
                 ? (<></>)
-                : (<TestInfo isError={true} text={`${props.executionResult.errorMessage}`} />)}
+                : (<TestInfo isError={true} text={`${props.info.errorMessage}`} />)}
         {
-        props.executionResult.tests
+        props.info.tests
             ? (
                 <Box sx={{marginTop: '18px'}}>
                     {
-                    props.executionResult.tests.map(test => (<TestResult 
+                    props.info.tests.map(test => (<TestResult 
                         key={`test-${idx++}`} 
                         name={test.testName} 
                         success={test.success} 
@@ -47,29 +50,29 @@ const ResultSummary = (props: { executionResult: WorkbookExecutionRequest }) => 
     </Box>)
 }
 
-const ResultDetail = (props: { executionResult: ApicizeResult }) => {
+const ResultDetail = (props: { info: ExecutionSummaryInfo }) => {
     let idx = 0
     return (<Box key={`test-${idx++}`} sx={{marginBottom: '24px'}}>
         <Box sx={{ marginBottom: '18px' }}>
-            {((props.executionResult.errorMessage?.length ?? 0) == 0)
+            {((props.info.errorMessage?.length ?? 0) == 0)
                 ? (<></>)
-                : (<TestInfo isError={true} text={`${props.executionResult.errorMessage}`} />)}
-            {props.executionResult.response?.status === undefined
+                : (<TestInfo isError={true} text={`${props.info.errorMessage}`} />)}
+            {props.info.status === undefined
                 ? (<></>)
-                : (<TestInfo text={`Status: ${props.executionResult.response.status} ${props.executionResult.response.statusText}`} />)}
-            {(props.executionResult.executedAt > 0)
-                ? (<TestInfo text={`Exeucted At: ${props.executionResult.executedAt.toLocaleString()} ms`} />)
+                : (<TestInfo text={`Status: ${props.info.status} ${props.info.statusText}`} />)}
+            {(props.info.executedAt > 0)
+                ? (<TestInfo text={`Exeucted At: ${props.info.executedAt.toLocaleString()} ms`} />)
                 : (<></>)}
-            {(props.executionResult.milliseconds && props.executionResult.milliseconds > 0)
-                ? (<TestInfo text={`Duration: ${props.executionResult.milliseconds.toLocaleString()} ms`} />)
+            {(props.info.milliseconds && props.info.milliseconds > 0)
+                ? (<TestInfo text={`Duration: ${props.info.milliseconds.toLocaleString()} ms`} />)
                 : (<></>)}
             {/* {props.tokenCached
                 ? (<TestInfo text='OAuth bearer token retrieved from cache' />)
                 : (<></>)} */}
         </Box>
         {
-        props.executionResult.tests
-            ? (props.executionResult.tests.map(test => (<TestResult 
+        props.info.tests
+            ? (props.info.tests.map(test => (<TestResult 
                 key={`test-${idx++}`} 
                 name={test.testName} 
                 success={test.success} 
@@ -119,26 +122,24 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
 export function ResultInfoViewer(props: {
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
-    const executionResult = useSelector((state: WorkbookState) => state.selectedExecutionResult)
-    const groupResults = useSelector((state: WorkbookState) => state.groupExecutionResults)
-
-    if (!(executionResult || groupResults)) {
+    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    useSelector((state: WorkbookState) => state.execution.resultIndex)
+    useSelector((state: WorkbookState) => state.execution.runIndex)
+    if (!executionId) {
         return null
     }
 
-    const copyResultToClipboard = () => {
-        const text = beautify.js_beautify(JSON.stringify(executionResult), {})
+    const execution = useContext(WorkbookStorageContext).execution
+    const summary = execution.getSummary(executionId)
+    
+    const copyToClipboard = (data: any) => {
+        const text = beautify.js_beautify(JSON.stringify(data), {})
         props.triggerCopyTextToClipboard(text)
     }
 
-    const copyGroupResultsToClipboard = () => {
-        const text = beautify.js_beautify(JSON.stringify(groupResults), {})
-        props.triggerCopyTextToClipboard(text)
-    }
-
-    if (groupResults !== undefined) {
+    if (Array.isArray(summary)) {
         // let cached = executionResult.response?.authTokenCached === true
-        const allSucceeded = groupResults.requests.reduce((a, r) => a && r.success, true)
+        const allSucceeded = summary.reduce((a, r) => a && r.success, true)
         return (
             <Box>
                 <Typography variant='h2' sx={{ marginTop: 0 }}>
@@ -147,33 +148,33 @@ export function ResultInfoViewer(props: {
                         aria-label="Copy Group Results to Clipboard"
                         title="Copy Group Results to Clipboard"
                         sx={{ marginLeft: '16px' }}
-                        onClick={_ => copyGroupResultsToClipboard()}>
+                        onClick={_ => copyToClipboard(summary)}>
                         <ContentCopyIcon />
                     </IconButton>
                 </Typography>
                 {
-                    groupResults.requests.map(request => (
+                    summary.map(request => (
                         <Box>
-                            <ResultSummary executionResult={request} />
+                            <ResultSummary info={request} />
                         </Box>
                     ))
                 }
             </Box>
         )
-    } else if (executionResult !== undefined) {
+    } else if (summary) {
         return (
             <Box>
                 <Typography variant='h2' sx={{ marginTop: 0 }}>
-                    Request Execution {executionResult.success ? "Completed" : "Failed"}
+                    Request Execution {summary.success ? "Completed" : "Failed"}
                     <IconButton
                         aria-label="Copy Results to Clipboard"
                         title="Copy Results to Clipboard"
                         sx={{ marginLeft: '16px' }}
-                        onClick={_ => copyResultToClipboard()}>
+                        onClick={_ => copyToClipboard(summary)}>
                         <ContentCopyIcon />
                     </IconButton>
                 </Typography>
-                <ResultDetail executionResult={executionResult} />
+                <ResultDetail info={summary} />
             </Box >
         )
     } else {

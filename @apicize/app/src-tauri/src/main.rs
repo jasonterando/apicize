@@ -120,11 +120,7 @@ async fn cancel_request(
 
 #[tauri::command]
 async fn clear_cached_authorization(
-    authorization: WorkbookAuthorization
-) -> Option<bool> {
-    match authorization {
-        WorkbookAuthorization::OAuth2Client { id, name: _, access_token_url: _, client_id: _, client_secret: _, scope: _ } => 
-            Some(clear_oauth2_token(id).await),
-        _ => None
-    }
+    authorization_id: String
+) -> bool {
+    clear_oauth2_token(authorization_id).await
 }

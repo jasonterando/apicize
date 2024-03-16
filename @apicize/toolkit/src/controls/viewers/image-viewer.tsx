@@ -1,4 +1,4 @@
-import { Box, Button } from "@mui/material"
+import { Box } from "@mui/material"
 
 export const KNOWN_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'tif', 'tiff']
 

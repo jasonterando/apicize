@@ -12,6 +12,7 @@ import { Provider } from 'react-redux';
 import React from 'react'
 import { emit } from '@tauri-apps/api/event'
 import "typeface-open-sans"
+import { WorkbookStorageProvider } from '@apicize/toolkit/dist/contexts/workbook-storage-context';
 
 export default function Home() {
   const darkTheme = createTheme({
@@ -131,52 +132,53 @@ export default function Home() {
       mode: 'dark',
     },
   })
-
   return (
     <Provider store={workbookStore}>
-      {/* <main className={styles.main}> */}
-      <main>
-        <ThemeProvider theme={darkTheme}>
-          <CssBaseline />
-          <ToastProvider>
-            <ConfirmationServiceProvider>
-              <WorkbookProvider>
-                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
-                  <Navigation
-                    triggerNew={() => emit('action', 'new')}
-                    triggerOpen={() => emit('action', 'open')}
-                    triggerSave={() => emit('action', 'save')}
-                    triggerSaveAs={() => emit('action', 'saveAs')}
-                  />
-                  <Box sx={{
-                    // height: '100vh',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    flexGrow: 1,
-                  }}>
-                    <RequestEditor
-                      triggerRun={() => emit('action', 'run')}
-                      triggerCancel={() => emit('action', 'cancel')}
-                      triggerCopyTextToClipboard={(text?: string) => {
-                        emit('copyText', text)
-                      }}
-                      triggerCopyImageToClipboard={(base64?: string) => {
-                        emit('copyImage', base64)
-                      }}
-                      triggerSetBodyFromFile={() => emit('action', 'bodyFromFile')}
+      <WorkbookStorageProvider>
+        {/* <main className={styles.main}> */}
+        <main>
+          <ThemeProvider theme={darkTheme}>
+            <CssBaseline />
+            <ToastProvider>
+              <ConfirmationServiceProvider>
+                <WorkbookProvider>
+                  <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
+                    <Navigation
+                      triggerNew={() => emit('action', 'new')}
+                      triggerOpen={() => emit('action', 'open')}
+                      triggerSave={() => emit('action', 'save')}
+                      triggerSaveAs={() => emit('action', 'saveAs')}
                     />
-                    <AuthorizationEditor triggerClearToken={() => {
-                      console.log('triggerClearToken')
-                      emit('action', 'clearToken')}
-                    }/>
-                    <ScenarioEditor />
-                  </Box>
-                </Stack>
-              </WorkbookProvider>
-            </ConfirmationServiceProvider>
-          </ToastProvider>
-        </ThemeProvider>
-      </main>
+                    <Box sx={{
+                      // height: '100vh',
+                      display: 'flex',
+                      flexDirection: 'row',
+                      flexGrow: 1,
+                    }}>
+                      <RequestEditor
+                        triggerRun={() => emit('action', 'run')}
+                        triggerCancel={() => emit('action', 'cancel')}
+                        triggerCopyTextToClipboard={(text?: string) => {
+                          emit('copyText', text)
+                        }}
+                        triggerCopyImageToClipboard={(base64?: string) => {
+                          emit('copyImage', base64)
+                        }}
+                        triggerSetBodyFromFile={() => emit('action', 'bodyFromFile')}
+                      />
+                      <AuthorizationEditor triggerClearToken={() => {
+                        emit('action', 'clearToken')
+                      }
+                      } />
+                      <ScenarioEditor />
+                    </Box>
+                  </Stack>
+                </WorkbookProvider>
+              </ConfirmationServiceProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </main>
+      </WorkbookStorageProvider>
     </Provider>
   )
 }

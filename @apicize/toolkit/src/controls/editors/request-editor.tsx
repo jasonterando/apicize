@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useSelector } from "react-redux";
-import { ToggleButtonGroup, ToggleButton, Typography, Box, Stack, Grid, TextField, SxProps } from '@mui/material'
+import { ToggleButtonGroup, ToggleButton, Typography, Box, Stack } from '@mui/material'
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined'
@@ -15,8 +15,9 @@ import { RequestTestEditor } from './request/request-test-editor'
 import { RequestTestContext } from './request/request-test-context'
 import { ResultsViewer } from '../viewers/results-viewer'
 import { WorkbookState } from '../../models/store'
-import { RequestGroupEditor } from '../..';
-import { castEntryAsRequest } from '../../models/workbook/helpers/editable-workbook-request-helpers';
+import { useContext } from 'react';
+import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
+import { RequestGroupEditor } from './request/request-group-editor';
 
 export function RequestEditor(props: {
     triggerRun: () => {},
@@ -25,7 +26,11 @@ export function RequestEditor(props: {
     triggerCopyImageToClipboard: (base64?: string) => void,
     triggerSetBodyFromFile: () => void,
 }) {
-    const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
+    const request = useContext(WorkbookStorageContext).request
+
+    const requestId = useSelector((state: WorkbookState) => state.request.id)
+    const groupId = useSelector((state: WorkbookState) => state.group.id)
+    const requestName = useSelector((state: WorkbookState) => state.request.name)
 
     const [panel, setPanel] = React.useState<string>('Parameters')
 
@@ -37,9 +42,9 @@ export function RequestEditor(props: {
         if (panel === null) {
             setPanel('Parameters')
         }
-    }, [requestEntry])
+    }, [requestId, groupId])
 
-    if (!requestEntry) {
+    if (!(requestId || groupId)) {
         return null
     }
 
@@ -47,7 +52,7 @@ export function RequestEditor(props: {
         <Stack direction='column' sx={{ flex: 1, paddingLeft: '8px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', height: '100vh' }}>
             <Stack sx={{ height: '55vh', paddingBottom: '48px', flexBasis: 2 }}>
                 {
-                    castEntryAsRequest(requestEntry)
+                    requestId
                         ? (
                             <Box sx={{ display: "flex", bottom: 0 }}>
                                 <ToggleButtonGroup
@@ -65,7 +70,7 @@ export function RequestEditor(props: {
                                     <ToggleButton value="Test" title="Show Request Test" aria-label='show test'><ScienceIcon /></ToggleButton>
                                 </ToggleButtonGroup>
                                 <Box className='panels' sx={{ flexGrow: 1 }}>
-                                    <Typography variant='h1'><SendIcon /> {requestEntry.name?.length ?? 0 > 0 ? requestEntry.name : '(Unnamed)'} - {panel}</Typography>
+                                    <Typography variant='h1'><SendIcon /> {requestName?.length ?? 0 > 0 ? requestName : '(Unnamed)'} - {panel}</Typography>
                                     {panel === 'Parameters' ? <RequestParametersEditor />
                                         : panel === 'Headers' ? <RequestHeadersEditor />
                                             : panel === 'Query String' ? <RequestQueryStringEditor />

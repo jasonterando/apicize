@@ -1,4 +1,3 @@
-const { raw } = require('body-parser')
 const jimp = require('jimp')
 const express = require('express')
 const router = express.Router()
@@ -30,7 +29,7 @@ const setupImage = () => {
     )
 
     router.post('/right', async (req, res) => {
-        await rotate(90, req, res)
+        await rotate(270, req, res)
     })
 
     router.post('/flip', async (req, res) => {
@@ -38,7 +37,7 @@ const setupImage = () => {
     })
 
     router.post('/left', async (req, res) => {
-        await rotate(270, req, res)
+        await rotate(90, req, res)
     })
 
     return router

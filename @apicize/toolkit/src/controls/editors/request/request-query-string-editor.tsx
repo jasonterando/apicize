@@ -1,32 +1,24 @@
-import * as React from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { WorkbookState, updateRequest } from '../../../models/store'
+import { useSelector } from 'react-redux'
+import { WorkbookState } from '../../../models/store'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
-import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
+import { useContext } from 'react'
+import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
 
 export function RequestQueryStringEditor() {
-  const dispatch = useDispatch()
-  const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
-  const [requestQueryString, setRequestQueryString] = React.useState(castEntryAsRequest(requestEntry)?.queryStringParams)
+  const request = useContext(WorkbookStorageContext).request
+  const id = useSelector((state: WorkbookState) => state.request.id)
+  const queryStringParams = useSelector((state: WorkbookState) => state.request.queryStringParams)
 
-  React.useEffect(() => {
-    setRequestQueryString(castEntryAsRequest(requestEntry)?.queryStringParams)
-  }, [requestEntry])
-
-  if (!requestEntry) {
+  if (! id) {
     return null
   }
 
   const onUpdate = (data: EditableNameValuePair[]) => {
-    setRequestQueryString(data)
-    dispatch(updateRequest({
-      id: requestEntry.id,
-      queryString: data
-    }))
+    request.setQueryStringParams(id, data)
   }
 
   return (
-    <NameValueEditor values={requestQueryString} nameHeader='Parameter' valueHeader='Value' onUpdate={onUpdate} />
+    <NameValueEditor values={queryStringParams} nameHeader='Parameter' valueHeader='Value' onUpdate={onUpdate} />
   )
 }
