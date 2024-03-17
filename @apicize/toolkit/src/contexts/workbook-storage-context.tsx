@@ -517,7 +517,7 @@ const storageActions = () => {
             return id
                 ? {
                     request: stateStorageToRequestEntry(id, indexedWorkbook.requests),
-                    authorizaztion: activeAuthorizationId ? indexedWorkbook.authorizations.entities[activeAuthorizationId] : undefined,
+                    authorization: activeAuthorizationId ? indexedWorkbook.authorizations.entities[activeAuthorizationId] : undefined,
                     scenario: activeScenarioId ? indexedWorkbook.scenarios.entities[activeScenarioId] : undefined,
                 }
                 : undefined
@@ -698,7 +698,7 @@ const storageActions = () => {
             dispatch(navigationActions.setScenariosList(generateScenarioNavList()))
         },
         move: (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
-            moveInStorage<EditableWorkbookScenario>(id, destinationID, onLowerHalf, onLeft, indexedWorkbook.authorizations)
+            moveInStorage<EditableWorkbookScenario>(id, destinationID, onLowerHalf, onLeft, indexedWorkbook.scenarios)
             dispatch(workbookActions.setDirty(true))
             dispatch(navigationActions.setScenariosList(generateScenarioNavList()))
             if (activeScenarioId !== id) {

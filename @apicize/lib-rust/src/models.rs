@@ -445,11 +445,12 @@ mod model_tests {
         WorkbookAuthorization, WorkbookScenario, WorkbookRequestEntry,
     };
 
-    fn default_request() -> Vec<WorkbookRequestEntry> {
+    fn default_requests() -> Vec<WorkbookRequestEntry> {
         Vec::from([
             WorkbookRequestEntry::Group(WorkbookRequestGroup {
                 id: String::from("group-1"),
                 name: String::from("test-1"),
+                runs: 1,
                 children: Box::new(Vec::from([WorkbookRequestEntry::Info(WorkbookRequest {
                     id: String::from("XXX"),
                     name: String::from("test-1a"),
@@ -461,8 +462,7 @@ mod model_tests {
                     query_string_params: None,
                     body: None,
                     test: None,
-                })])),
-                runs: 1
+                })]))
             }),
             WorkbookRequestEntry::Info(WorkbookRequest {
                 id: String::from("YYY"),
@@ -479,11 +479,13 @@ mod model_tests {
         ])
     }
 
-    fn default_request_json() -> Value {
+    fn default_requests_json() -> Value {
         json!([
             {
+                "id": "group-1",
                 "name": "test-1",
-                "requests": [{
+                "runs": 1,
+                "children": [{
                     "id": "XXX",
                     "name": "test-1a",
                     "url": "https://foo"
@@ -939,11 +941,11 @@ mod model_tests {
     fn test_no_auths_or_scenarios() -> Result<(), serde_json::Error> {
         let data = json!({
             "version": 0.1,
-            "requests": default_request_json()
+            "requests": default_requests_json()
         });
         let expected = Workbook {
             version: 0.1,
-            requests: self::default_request(),
+            requests: self::default_requests(),
             authorizations: None,
             scenarios: None,
             settings: None,
@@ -963,7 +965,7 @@ mod model_tests {
     fn test_auth_basic_deserialize() -> Result<(), serde_json::Error> {
         let data = json!({
             "version": 0.1,
-            "requests": default_request_json(),
+            "requests": default_requests_json(),
             "authorizations": [
                 {
                     "type": "Basic",
@@ -975,7 +977,7 @@ mod model_tests {
         });
         let expected = Workbook {
             version: 0.1,
-            requests: self::default_request(),
+            requests: self::default_requests(),
             scenarios: None,
             authorizations: Some(vec![WorkbookAuthorization::Basic {
                 id: String::from("100"),
@@ -1000,7 +1002,7 @@ mod model_tests {
     fn test_auth_oauth2_no_opts_deserialize() -> Result<(), serde_json::Error> {
         let data = json!({
             "version": 0.1,
-            "requests": default_request_json(),
+            "requests": default_requests_json(),
             "authorizations": [
                 {
                     "type": "OAuth2Client",
@@ -1013,7 +1015,7 @@ mod model_tests {
         });
         let expected = Workbook {
             version: 0.1,
-            requests: self::default_request(),
+            requests: self::default_requests(),
             scenarios: None,
             authorizations: Some(vec![WorkbookAuthorization::OAuth2Client {
                 id: String::from("100"),
@@ -1041,7 +1043,7 @@ mod model_tests {
     fn test_auth_oauth2_with_opts_deserialize() -> Result<(), serde_json::Error> {
         let data = json!({
             "version": 0.1,
-            "requests": default_request_json(),
+            "requests": default_requests_json(),
             "authorizations": [
                 {
                     "type": "OAuth2Client",
@@ -1056,7 +1058,7 @@ mod model_tests {
         });
         let expected = Workbook {
             version: 0.1,
-            requests: self::default_request(),
+            requests: self::default_requests(),
             scenarios: None,
             authorizations: Some(vec![WorkbookAuthorization::OAuth2Client {
                 id: String::from("100"),
@@ -1084,10 +1086,11 @@ mod model_tests {
     fn test_auth_apikey_deserialize() -> Result<(), serde_json::Error> {
         let data = json!({
             "version": 0.1,
-            "requests": default_request_json(),
+            "requests": default_requests_json(),
             "authorizations": [
                 {
                     "type": "ApiKey",
+                    "id": "auth-1",
                     "name": "test-api-key",
                     "header": "foo",
                     "value": "bar"
@@ -1096,10 +1099,10 @@ mod model_tests {
         });
         let expected = Workbook {
             version: 0.1,
-            requests: self::default_request(),
+            requests: self::default_requests(),
             scenarios: None,
             authorizations: Some(vec![WorkbookAuthorization::ApiKey {
-                id: String::from("100"),
+                id: String::from("auth-1"),
                 name: String::from("test-api-key"),
                 header: String::from("foo"),
                 value: String::from("bar"),
@@ -1121,7 +1124,7 @@ mod model_tests {
     fn test_deserialize() -> Result<(), serde_json::Error> {
         let data = json!({
             "version": 0.1,
-            "requests": default_request_json(),
+            "requests": default_requests_json(),
             "scenarios": [
                 {
                     "name": "foo",
@@ -1134,7 +1137,7 @@ mod model_tests {
         });
         let expected = Workbook {
             version: 0.1,
-            requests: self::default_request(),
+            requests: self::default_requests(),
             authorizations: None,
             scenarios: Some(vec![WorkbookScenario {
                 id: String::from("100"),
@@ -1164,4 +1167,27 @@ mod model_tests {
             Err(err) => Err(err),
         }
     }
+
+    // #[test]
+    // fn test_deserialize_run_request -> Result<(), serde_json::Error> {
+
+    //     let json = "{\"request\":{\"id\":\"740c1e49-24b7-4c88-9e3a-9ad0a8fc1e79\",\"name\":\"Get original quote\",\"test\":\"const data = JSON.parse(response.body.text)\\nscenario.original_author = data.author\\n\\ndescribe('status', () => {\\n   it('equals 200', () => {\\n      console.log('Test!')\\n      expect(response.status).to.equal(200)\\n   })\\n})\",\"url\":\"http://localhost:8080/quote/1\",\"method\":\"GET\",\"timeout\":5000},\"authorizaztion\":{\"type\":\"ApiKey\",\"id\":\"cbcaa934-6fe6-47f7-b0fe-ef1db66f5baf\",\"name\":\"Sample API Key\",\"header\":\"x-api-key\",\"value\":\"12345\"},\"scenario\":{\"id\":\"1faeaabc-b348-4cd5-a8ee-78c8b0c838d8\",\"name\":\"Scenario #1\",\"variables\":[{\"name\":\"author\",\"value\":\"Samuel Clemmons\",\"id\":\"03e9bb03-dd98-42cc-bc28-8630c9761d7d\"}]}}";
+    //     let result = {
+    //         request: WorkbookRequest {
+    //                 id: String::from("YYY"),
+    //                 name: String::from("test-2"),
+    //                 url: String::from("https://bar"),
+    //                 method: None,
+    //                 timeout: None,
+    //                 keep_alive: None,
+    //                 headers: None,
+    //                 query_string_params: None,
+    //                 body: None,
+    //                 test: None,
+    //             }),
+    //         ])
+    
+    //     }
+    // }
+
 }

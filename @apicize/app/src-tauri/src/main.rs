@@ -9,8 +9,7 @@ use tokio_util::sync::CancellationToken;
 use apicize_lib::{
     models::{
         ApicizeResultRuns, Workbook, WorkbookAuthorization, WorkbookRequestEntry, WorkbookScenario 
-    },
-    FileSystem, Runnable, oauth2_client_tokens::{clear_oauth2_token, clear_all_oauth2_tokens},
+    }, oauth2_client_tokens::{clear_all_oauth2_tokens, clear_oauth2_token}, run, FileSystem
 };
 use tauri::{async_runtime::Mutex, Manager};
 
@@ -96,7 +95,8 @@ async fn run_request(
         let mut tokens = CANCELLATION_TOKENS.lock().await;
         tokens.insert(id.clone(), cancellation.clone());
     }
-    let result = match request.run(&authorization, &scenario, Some(cancellation)).await {
+
+    let result = match run(&request, &authorization, &scenario, Some(cancellation)).await {
         Ok(response) => Ok(response),
         Err(err) => Err(format!("{}", err))
     };

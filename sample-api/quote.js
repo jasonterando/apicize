@@ -18,7 +18,17 @@ const setupQuote = async () => {
             verify: (req, res, buf) => {
                 req.rawBody = buf.toString();
             },
-        })
+        }),
+        (req, res, next) => {
+            const key = req.header('x-api-key')
+            if (key === '12345') {
+                next()
+                return
+            }
+            res.statusCode = 401
+            res.send(JSON.stringify({message: 'Invalid or missing API key'}))
+
+        }
     );
 
     router.get('/quote', async (req, res) => {

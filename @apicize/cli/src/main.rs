@@ -3,8 +3,8 @@ use apicize_lib::cleanup_v8;
 use apicize_lib::models::Workbook;
 use apicize_lib::models::WorkbookAuthorization;
 use apicize_lib::models::WorkbookScenario;
+use apicize_lib::run;
 use apicize_lib::FileSystem;
-use apicize_lib::Runnable;
 use std::env;
 use std::process;
 
@@ -49,7 +49,7 @@ async fn main() {
 
     while let Some(r) = iter.next() {
         // println!("Request: {}", r);
-        let run_response = r.clone().run(&auth, &scene, None).await;
+        let run_response = run(&r.clone(), &auth, &scene, None).await;
         match run_response {
             Ok(runs) => {
                 let mut run_number = 0;

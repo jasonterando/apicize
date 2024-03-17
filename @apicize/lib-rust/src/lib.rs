@@ -10,7 +10,6 @@ pub mod models;
 pub mod oauth2_client_tokens;
 
 use async_recursion::async_recursion;
-use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
 use mime::Mime;
 use reqwest::{Body, Client};
@@ -57,17 +56,17 @@ pub trait Serializable<T> {
     fn serialize(&self) -> Result<String, serde_json::Error>;
 }
 
-/// Trait for running Apicize Requests (dispatch and test)
-#[async_trait]
-pub trait Runnable {
-    /// Dispatch the associated Apicize Request (dispatching the web call and executing defined  tests, if any)
-    async fn run<'a>(
-        &self,
-        authorization: &'a Option<WorkbookAuthorization>,
-        scenario: &'a Option<WorkbookScenario>,
-        cancellation: Option<CancellationToken>,
-    ) -> Result<ApicizeResultRuns, RunError>;
-}
+// /// Trait for running Apicize Requests (dispatch and test)
+// #[async_trait]
+// pub trait Runnable {
+//     /// Dispatch the associated Apicize Request (dispatching the web call and executing defined  tests, if any)
+//     async fn run<'a>(
+//         &self,
+//         authorization: &'a Option<WorkbookAuthorization>,
+//         scenario: &'a Option<WorkbookScenario>,
+//         cancellation: Option<CancellationToken>,
+//     ) -> Result<ApicizeResultRuns, RunError>;
+// }
 
 impl Serializable<Workbook> for Workbook {
     /// Deserialize workbook from text
@@ -579,131 +578,98 @@ async fn run_int<'a>(
     }
 }
 
-#[async_trait]
-impl Runnable for WorkbookRequestEntry {
-    /// Dispatch the request (info or group) and test results
-    async fn run<'a>(
-        self: &WorkbookRequestEntry,
-        authorization: &'a Option<WorkbookAuthorization>,
-        scenario: &'a Option<WorkbookScenario>,
-        cancellation: Option<CancellationToken>,
-    ) -> Result<ApicizeResultRuns, RunError> {
-        // Ensure V8 is initialized
-        V8_INIT.call_once(|| {
-            let platform = v8::new_unprotected_default_platform(0, false).make_shared();
-            v8::V8::initialize_platform(platform);
-            v8::V8::initialize();
-        });
+// #[async_trait]
+// impl Runnable for WorkbookRequestEntry {
+/// Dispatch the request (info or group) and test results
+pub async fn run<'a>(
+    request: &'a WorkbookRequestEntry,
+    authorization: &'a Option<WorkbookAuthorization>,
+    scenario: &'a Option<WorkbookScenario>,
+    cancellation: Option<CancellationToken>,
+) -> Result<ApicizeResultRuns, RunError> {
+    // Ensure V8 is initialized
+    V8_INIT.call_once(|| {
+        let platform = v8::new_unprotected_default_platform(0, false).make_shared();
+        v8::V8::initialize_platform(platform);
+        v8::V8::initialize();
+    });
 
-        let total_runs = match self {
-            WorkbookRequestEntry::Info(_) => 1,
-            WorkbookRequestEntry::Group(group) => group.runs,
-        };
+    let total_runs = match request {
+        WorkbookRequestEntry::Info(_) => 1,
+        WorkbookRequestEntry::Group(group) => group.runs,
+    };
 
-        let mut runs: JoinSet<Option<(Vec<ApicizeResult>, Option<WorkbookScenario>)>> =
-            JoinSet::new();
-        let token = match cancellation {
-            Some(cancellation_token) => cancellation_token,
-            None => CancellationToken::new(),
-        };
+    let mut runs: JoinSet<Option<(Vec<ApicizeResult>, Option<WorkbookScenario>)>> = JoinSet::new();
+    let token = match cancellation {
+        Some(cancellation_token) => cancellation_token,
+        None => CancellationToken::new(),
+    };
 
-        let mut results: Vec<ApicizeResult> = Vec::new();
-        for run in 0..total_runs {
-            // All of this cloning kind of sucks, but it's required to make spawn work
-            let cloned_token = token.clone();
-            let cloned_request = self.clone();
-            let cloned_auth = authorization.clone();
-            let cloned_scenario = scenario.clone();
+    let mut results: Vec<ApicizeResult> = Vec::new();
+    for run in 0..total_runs {
+        // All of this cloning kind of sucks, but it's required to make spawn work
+        let cloned_token = token.clone();
+        let cloned_request = request.clone();
+        let cloned_auth = authorization.clone();
+        let cloned_scenario = scenario.clone();
 
-            runs.spawn(async move {
-                select! {
-                    _ = cloned_token.cancelled() => None,
-                    result = run_int(
-                        SystemTime::now(),
-                        &None,
-                        &cloned_request,
-                        &cloned_auth,
-                        &cloned_scenario,
-                        &run,
-                        &total_runs,
-                    ) => Some(result)
-                }
-            });
-        }
-
-        let mut caught: Option<RunError> = None;
-
-        while let Some(result) = runs.join_next().await {
-            match result {
-                Ok(result_or_cancel) => match result_or_cancel {
-                    Some(mut result) => {
-                        results.append(&mut result.0);
-                    }
-                    None => {
-                        caught = Some(RunError::Cancelled);
-                    }
-                },
-                Err(err) => {
-                    Some(RunError::JoinError(err));
-                }
+        runs.spawn(async move {
+            select! {
+                _ = cloned_token.cancelled() => None,
+                result = run_int(
+                    SystemTime::now(),
+                    &None,
+                    &cloned_request,
+                    &cloned_auth,
+                    &cloned_scenario,
+                    &run,
+                    &total_runs,
+                ) => Some(result)
             }
-        }
+        });
+    }
 
-        match caught {
-            Some(caught_error) => Err(caught_error),
-            None => {
-                let mut results_by_run: ApicizeResultRuns =
-                    vec![vec![]; usize::try_from(total_runs).unwrap()];
+    let mut caught: Option<RunError> = None;
 
-                results.sort_by(|a, b| {
-                    let mut ord = a.run.cmp(&b.run);
-                    if ord.is_eq() {
-                        ord = a.executed_at.cmp(&b.executed_at);
-                    }
-                    ord
-                });
-
-                results.drain(..).for_each(|r| {
-                    results_by_run[usize::try_from(r.run).unwrap()].push(r);
-                });
-
-                Ok(results_by_run)
+    while let Some(result) = runs.join_next().await {
+        match result {
+            Ok(result_or_cancel) => match result_or_cancel {
+                Some(mut result) => {
+                    results.append(&mut result.0);
+                }
+                None => {
+                    caught = Some(RunError::Cancelled);
+                }
+            },
+            Err(err) => {
+                Some(RunError::JoinError(err));
             }
         }
     }
-    // for result in results {
-    //     match result {
-    //         Ok((run_results, _)) => results.extend(run_results),
-    //         Err(err) => {
-    //             if caught.is_none() {
-    //                 caught = Some(RunError::Other(format!("{:?}", err)))
-    //             }
-    //         }
-    //     }
-    // }
 
-    // match caught {
-    //     Some(caught_error) => Err(caught_error),
-    //     None => {
-    //         let mut results_by_run: ApicizeResultRuns =
-    //             vec![vec![]; usize::try_from(total_runs).unwrap()];
+    match caught {
+        Some(caught_error) => Err(caught_error),
+        None => {
+            let mut results_by_run: ApicizeResultRuns =
+                vec![vec![]; usize::try_from(total_runs).unwrap()];
 
-    //         results.sort_by(|a, b| {
-    //             let mut ord = a.run.cmp(&b.run);
-    //             if ord.is_eq() {
-    //                 ord = a.executed_at.cmp(&b.executed_at);
-    //             }
-    //             ord
-    //         });
+            results.sort_by(|a, b| {
+                let mut ord = a.run.cmp(&b.run);
+                if ord.is_eq() {
+                    ord = a.executed_at.cmp(&b.executed_at);
+                }
+                ord
+            });
 
-    //         results.drain(..).for_each(|r| {
-    //             results_by_run[usize::try_from(r.run).unwrap()].push(r);
-    //         });
+            results.drain(..).for_each(|r| {
+                results_by_run[usize::try_from(r.run).unwrap()].push(r);
+            });
 
-    //         Ok(results_by_run)
-    //     }
-    // }
+            Ok(results_by_run)
+        }
+    }
 }
+// }
 
 #[cfg(test)]
 mod lib_tests {

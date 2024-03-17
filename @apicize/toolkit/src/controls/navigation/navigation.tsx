@@ -13,13 +13,13 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import LanguageIcon from '@mui/icons-material/Language'
 import { TreeView } from '@mui/x-tree-view/TreeView'
 import { TreeItem } from '@mui/x-tree-view/TreeItem'
-import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, alpha } from '@mui/material'
-import {WorkbookState} from '../../models/store'
+import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack } from '@mui/material'
+import { WorkbookState } from '../../models/store'
 import { useSelector } from 'react-redux'
 import AddIcon from '@mui/icons-material/Add'
-import React, { MouseEvent, PointerEvent, ReactNode, SyntheticEvent, useContext, useState } from 'react'
+import React, { ReactNode, SyntheticEvent, useContext, useState } from 'react'
 import { useConfirmation } from '../../services/confirmation-service'
-import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensors, useSensor, PointerSensor } from '@dnd-kit/core'
+import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensors, useSensor, PointerSensor, DragCancelEvent, DragMoveEvent } from '@dnd-kit/core'
 import { GetTitle } from '@apicize/lib-typescript';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
 import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
@@ -56,6 +56,31 @@ export function Navigation(props: {
     const [reqMenu, setReqMenu] = useState<MenuPosition | undefined>(undefined)
     const [authMenu, setAuthMenu] = useState<MenuPosition | undefined>(undefined)
     const [scenarioMenu, setScenarioMenu] = useState<MenuPosition | undefined>(undefined)
+
+    enum DragPosition {
+        None = 'NONE',
+        Left = 'LEFT',
+        Upper = 'UPPER',
+        Lower = 'LOWER',
+        Invalid = 'INVALID'
+    }
+
+    const [dragPosition, setDragPosition] = useState(DragPosition.None)
+
+    const dragPositionToColor = (dragPosition: DragPosition) => {
+        switch (dragPosition) {
+            case DragPosition.Upper:
+                return "linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(128,128,128,1) 25%, rgba(64,64,64,1) 75%);"
+            case DragPosition.Lower:
+                return "linear-gradient(0deg, rgba(255,255,255,1) 0%, rgba(128,128,128,1) 25%, rgba(64,64,64,1) 75%);"
+            case DragPosition.Left:
+                return "linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(128,128,128,1) 13%, rgba(64,64,64,1) 44%);"
+            case DragPosition.Invalid:
+                return 'rgba(128, 0, 0, 0.5)'
+            default:
+                return 'default'
+        }
+    }
 
     const activeRequestEntityID = activeRequestID ?? activeGroupID
     const sensors = useSensors(
@@ -133,7 +158,7 @@ export function Navigation(props: {
                         // Prevent label from expanding/collapsing
                         handleSelectHeader(e)
                     }}
-                    sx={{ backgroundColor: isOver ? alpha('#0F0', 0.20) : 'default' }}
+                    sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
                 >
                     {
                         props.type === 'request' ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
@@ -208,12 +233,9 @@ export function Navigation(props: {
             (
                 <TreeItem
                     nodeId={props.item.id}
-                    key={props.item.id}
-                    id={props.item.id}
-                    ref={useCombinedRefs(setDragRef, setDropRef)}
-                    style={dragStyle}
                     {...listeners}
                     {...attributes}
+                    sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
                     onClick={(e) => {
                         // Prevent label from expanding/collapsing
                         e.preventDefault()
@@ -221,9 +243,12 @@ export function Navigation(props: {
                         if (props.onSelect) props.onSelect(props.item.id)
                     }}
                     onFocusCapture={e => e.stopPropagation()}
-                    sx={{ backgroundColor: isOver ? alpha('#0F0', 0.20) : 'default' }}
                     label={(
                         <Box
+                            key={props.item.id}
+                            id={props.item.id}
+                            ref={useCombinedRefs(setDragRef, setDropRef)}
+                            style={dragStyle}
                             component='span'
                             display='flex'
                             justifyContent='space-between'
@@ -251,10 +276,10 @@ export function Navigation(props: {
                         </Box>
                     )}>
                     {props.item.children.map(c => (
-                        <NavTreeItem 
+                        <NavTreeItem
                             type={props.type}
-                            depth={props.depth+1}
-                            item={c} 
+                            depth={props.depth + 1}
+                            item={c}
                             key={`nav-${c.id}`}
                             onSelect={props.onSelect}
                             onMenu={props.onMenu}
@@ -278,7 +303,7 @@ export function Navigation(props: {
                     if (props.onSelect) props.onSelect(props.item.id)
                 }}
                 onFocusCapture={e => e.stopPropagation()}
-                sx={{ backgroundColor: isOver ? 'green' : 'default' }}
+                sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
                 label={(
                     <Box
                         component='span'
@@ -429,7 +454,7 @@ export function Navigation(props: {
     const handleDeleteRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (! activeRequestEntityID) return
+        if (!activeRequestEntityID) return
         confirm({
             title: 'Delete Request',
             message: `Are you are you sure you want to delete ${GetTitle(requests.find(r => r.id === activeRequestEntityID))}?`,
@@ -648,6 +673,51 @@ export function Navigation(props: {
         )
     }
 
+    const onDragCancel = (e: DragCancelEvent) => {
+        setDragPosition(DragPosition.None)
+    }
+
+    const onDragMove = (e: DragMoveEvent) => {
+        const { activatorEvent, delta, active, over } = e
+        if (!over) return
+        const pointer = activatorEvent as unknown as any
+        const activeData = active.data.current as unknown as DraggableData
+        const overData = over.data.current as unknown as DroppableData
+        let evtDelta = delta as any
+
+        let x = pointer.x + evtDelta.x
+        let y = pointer.y + evtDelta.y
+
+        let r = e.over?.rect
+
+        let onLowerHalf = false
+        let onLeft = false
+
+        if (overData.isHeader) {
+            onLowerHalf = true
+        } else  if (r) {
+            if (y > r.top + (r.height / 2)) onLowerHalf = true
+            if (x < 72 + overData.depth * 16) onLeft = true
+        }
+
+        let position
+        if (active.id === over.id) {
+            position = DragPosition.None
+        } else if (activeData.type === overData.acceptsType) {
+            if (onLeft) {
+                position = DragPosition.Left
+            } else if (onLowerHalf) {
+                position = DragPosition.Lower
+            } else {
+                position = DragPosition.Upper
+            }
+        } else {
+            position = DragPosition.Invalid
+        }
+        setDragPosition(position)
+        // console.log(`Active ID: ${active.id}, Over ID: ${over.id}, Position: ${position}`)
+    }
+
     const onDragEnd = (e: DragEndEvent) => {
         const { activatorEvent, delta, active, over } = e
         if (!over) return
@@ -656,7 +726,7 @@ export function Navigation(props: {
         const overData = over.data.current as unknown as DroppableData
 
         let evtDelta = delta as any
-        
+
         let x = pointer.x + evtDelta.x
         let y = pointer.y + evtDelta.y
 
@@ -669,11 +739,12 @@ export function Navigation(props: {
             if (y > r.top + (r.height / 2)) onLowerHalf = true
             if (x < 72 + overData.depth * 16) onLeft = true
         }
-        
-        console.log('onDragEnd', e)
+
+        // console.log('onDragEnd', e)
         if (activeData.type === overData.acceptsType) {
             activeData.move(overData.isHeader ? null : over.id.toString(), onLowerHalf, onLeft)
         }
+        setDragPosition(DragPosition.None)
     }
 
     const defaultExpanded = ['hdr-request', 'hdr-auth', 'hdr-scenario']
@@ -702,7 +773,7 @@ export function Navigation(props: {
                     <SaveAsIcon />
                 </IconButton>
             </Box>
-            <DndContext onDragEnd={onDragEnd} sensors={sensors}>
+            <DndContext onDragMove={onDragMove} onDragCancel={onDragCancel} onDragEnd={onDragEnd} sensors={sensors}>
                 <TreeView
                     disableSelection
                     id='navigation'
