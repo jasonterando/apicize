@@ -16,6 +16,7 @@ import { EditableWorkbookRequestGroup } from "../models/workbook/editable-workbo
 import { ApicizeRunResultsToWorkbookExecutionResults, WorkbookExecution, WorkbookExecutionRequest, WorkbookExecutionResult, WorkbookExecutionSummary } from "../models/workbook/workbook-execution"
 import { NavigationListItem } from "../models/navigation-list-item"
 import { ExecutionSummaryInfo } from "../models/workbook/execution-summary-info"
+import { MAX_TEXT_RENDER_LENGTH } from "../controls/viewers/text-viewer"
 
 
 let indexedWorkbook = {
@@ -237,14 +238,14 @@ const storageActions = () => {
                     case 1:
                         result = execution.results[execution.runIndex][resultIndex]
                         resultType = result?.success ? ResultType.Single : ResultType.Failed
-                        longTextInResponse = (result?.response?.body?.text?.length ?? 0) > 16034
+                        longTextInResponse = (result?.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH
                         break
                     default:
                         let idx = execution.resultIndex ?? -1
                         if (idx >= 0) {
                             result = execution.results[execution.runIndex][resultIndex]
                             resultType = result?.success ? ResultType.Single : ResultType.Failed
-                            longTextInResponse = (result?.response?.body?.text?.length ?? 0) > 16034
+                            longTextInResponse = (result?.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH
                         } else {
                             resultType = ResultType.Group
                             longTextInResponse = false

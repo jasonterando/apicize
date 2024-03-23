@@ -1,7 +1,7 @@
 import { Typography } from "@mui/material";
 import { Grammar, highlight, languages } from 'prismjs'
 
-export const MAX_TEXT_RENDER_LENGTH = 2 * 1024 * 1024
+export const MAX_TEXT_RENDER_LENGTH = 64 * 1024 * 1024
 
 const FlexCodeViewer = (props: { text: string, grammar?: Grammar, language?: string }) => (
     <pre style={{

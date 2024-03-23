@@ -65,8 +65,8 @@
           "$CONFIG/**",
           "$APP_CONFIG",
           "$APP_CONFIG/**",
-          "$RESOURCCES/*",
-          "$RESOURCCES/**"
+          "$RESOURCES/*",
+          "$RESOURCES/**"
         ],
         "requireLiteralLeadingDot": false
       },

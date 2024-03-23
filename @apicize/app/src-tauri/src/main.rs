@@ -29,9 +29,11 @@ fn main() {
                 let ctrl_o_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyO);
                 let ctrl_s_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyS);
                 let ctrl_shift_s_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyS);
+
                 let handle = app.handle().clone();
+                let shortcut_builder = tauri_plugin_global_shortcut::Builder::new();
                 app.handle().plugin(
-                    tauri_plugin_global_shortcut::Builder::with_handler(move |_app, shortcut| {
+                    shortcut_builder.with_handler(move |_app, shortcut| {
                         if shortcut == &ctrl_n_shortcut {
                             handle.emit("action", "new").unwrap()
                         } else if shortcut == &ctrl_o_shortcut {
