@@ -8,15 +8,18 @@ import {
 import { useSelector } from 'react-redux'
 import { Settings, StoredWorkbook } from "@apicize/lib-typescript"
 import { listen, Event } from "@tauri-apps/api/event"
-import { join, resourceDir } from "@tauri-apps/api/path"
 import { copyFile, exists, readFile, writeTextFile } from "@tauri-apps/plugin-fs"
 import { ApicizeResult } from "@apicize/lib-typescript/dist/models/lib/apicize-result"
 import { writeText } from "@tauri-apps/plugin-clipboard-manager"
+import { join, resourceDir } from "@tauri-apps/api/path"
 // import { writeImage, writeText } from "tauri-plugin-clipboard-api"
+
+const EXT = 'apicize';
+const EXT_NOAUTH = 'apicize-noauth';
 
 export interface WorkbookServiceStore { }
 
-export const WorkbookProvider = (props: {
+export const ApicizeTauriProvider = (props: {
     children?: ReactNode
 }) => {
 
@@ -194,7 +197,7 @@ export const WorkbookProvider = (props: {
                 directory: false,
                 filters: [{
                     name: 'Apicize Files',
-                    extensions: ['apicize']
+                    extensions: [EXT, EXT_NOAUTH]
                 }]
             })) as any
             if (selected) fileName = selected['path']
@@ -206,7 +209,7 @@ export const WorkbookProvider = (props: {
         const core = await getTauriApiCore()
         try {
             const data: StoredWorkbook = await core.invoke('open_workbook', { path: fileName })
-            const displayName = await path.basename(fileName)
+            const displayName = await getDisplayName(fileName);
             context.openWorkbook(fileName, displayName, data)
             updateSettings({ lastWorkbookFileName: fileName })
             toast.open(`Opened ${fileName}`, ToastSeverity.Success)
@@ -221,16 +224,17 @@ export const WorkbookProvider = (props: {
                 return
             }
             const core = await getTauriApiCore()
-            const path = await getTauriPath()
-
-            const workbook = context.getWorkbookFromStore()
+            const workbook = context.getWorkbookFromStore(
+                workbookFullName.endsWith(`.${EXT_NOAUTH}`)
+            )
+            
             await core.invoke('save_workbook', { workbook, path: workbookFullName })
 
             await updateSettings({ lastWorkbookFileName: workbookFullName })
             toast.open(`Saved ${workbookFullName}`, ToastSeverity.Success)
             context.onSaveWorkbook(
                 workbookFullName,
-                await path.basename(workbookFullName, '.apicize')
+                await getDisplayName(workbookFullName)
             )
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
@@ -249,26 +253,47 @@ export const WorkbookProvider = (props: {
                 defaultPath: workbookFullName ?? settings.workbookDirectory,
                 filters: [{
                     name: 'Apicize Files',
-                    extensions: ['apicize']
+                    extensions: [EXT]
+                }, {
+                    name: 'Apicize Files (No Authorizations)',
+                    extensions: [EXT_NOAUTH]
                 }]
             })
 
+            debugger
             if ((typeof fileName !== 'string') || ((fileName?.length ?? 0) === 0)) {
                 return
             }
 
-            const workbook = context.getWorkbookFromStore()
+            const workbook = context.getWorkbookFromStore(
+                fileName.endsWith(`.${EXT_NOAUTH}`)
+            )
 
             await core.invoke('save_workbook', { workbook, path: fileName })
+
             await updateSettings({ lastWorkbookFileName: fileName })
             toast.open(`Saved ${fileName}`, ToastSeverity.Success)
             context.onSaveWorkbook(
                 fileName,
-                await path.basename(fileName, '.apicize')
+                await getDisplayName(fileName)
             )
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
         }
+    }
+
+    const getDisplayName = async (fileName: string) => {
+        const path = await getTauriPath()
+        let base = await path.basename(fileName);
+        const i = base.lastIndexOf('.');
+        if (i !== -1) {
+            const ext = base.substring(i+1);
+            base = base.substring(0, i);
+            if (ext === EXT_NOAUTH) {
+                return `${base} (No Auths)`;
+            }
+        }
+        return base;
     }
 
     const doRunRequest = async () => {
@@ -390,20 +415,21 @@ export const WorkbookProvider = (props: {
         }
 
         if (newInstallation) {
-            // const lastWorkbookFileName = await path.join(settings.workbookDirectory, 'demo.apicize')
-            // if (! await fs.exists(lastWorkbookFileName)) {
-                // const demoFile = await join(await resourceDir(), 'demo.apicize')
-                // if (await exists(demoFile)) {
-                //     const destDemoFile = await join(settings.workbookDirectory, 'demo.apicize')
-                //     try {
-                //         await copyFile(demoFile, destDemoFile);
-                //         settings.lastWorkbookFileName = destDemoFile
-                //     } catch(e) {
-                //         console.error(`Unable to copy ${demoFile} to ${destDemoFile}`)
-                //     }
-                // }
-            // }
-            // settings.lastWorkbookFileName = lastWorkbookFileName
+            const fname = `demo.${EXT}`;
+            const lastWorkbookFileName = await path.join(settings.workbookDirectory, fname)
+            if (! await fs.exists(lastWorkbookFileName)) {
+                const demoFile = await join(await resourceDir(), 'examples', fname)
+                if (await exists(demoFile)) {
+                    const destDemoFile = await join(settings.workbookDirectory, fname)
+                    try {
+                        await copyFile(demoFile, destDemoFile);
+                        settings.lastWorkbookFileName = destDemoFile
+                    } catch(e) {
+                        console.error(`Unable to copy ${demoFile} to ${destDemoFile}`)
+                    }
+                }
+            }
+            settings.lastWorkbookFileName = lastWorkbookFileName
         }
 
         _settings.current = settings

@@ -4,21 +4,25 @@
 
 ### Install sets for application
 
+### File Save Dialog filtering
+
+Implement fix from Tauri (hopefully) for filter changes not updating file names in save dialog, or implement something else (different save button?)
+
 ### Encrypt or remove privileged authentication configuration (GUI and CLI)
 
-Give the user the option to symmetrically encrypt or remove passwords, API keys, etc.
+Give the user an easy way to symmetrically encrypt or remove passwords, API keys, etc.
 
 ### Fix scrollbars and sizing (GUI)
 
 Improve positioning and sizing of nested panels, scrolling, input controls, etc. 
 
-### Reduce cloning in lib if possible (LIB)
-
-Figure out if lifecycles, Box, etc. can be used to reduce cloning when making move/async calls to web and V8.  
-
 ### Support Cookies, Multi-Part Forms, Certificates and Proxies (All)
 
 Support cookies, multi-part forms (uploads) and proxies for tests
+
+### Themes
+
+Leverage MUI to allow user-customizable themes
 
 ### Reporting Formats (CLI)
 

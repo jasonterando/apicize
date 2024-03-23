@@ -23,13 +23,21 @@
       "identifier": "fs:allow-exists",
       "allow": [
         { "path": "$CONFIG/apicize" },
-        { "path": "$DOCUMENT/apicize" }
+        { "path": "$DOCUMENT/apicize" },
+        { "path": "$RESOURCE/examples/*"}
       ]
     },
     {
       "identifier": "fs:allow-mkdir",
       "allow": [
         { "path": "$CONFIG/apicize" },
+        { "path": "$DOCUMENT/apicize" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-copy-file",
+      "allow": [
+        { "path": "$RESOURCE/examples/*"},
         { "path": "$DOCUMENT/apicize" }
       ]
     },
@@ -62,8 +70,6 @@
   "platforms": [
     "linux",
     "macOS",
-    "windows",
-    "android",
-    "iOS"
+    "windows"
   ]
 }

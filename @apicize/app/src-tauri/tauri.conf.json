@@ -46,7 +46,7 @@
       "signingIdentity": null
     },
     "resources": [
-      "samples/demo.apicize"
+      "examples/demo.apicize"
     ],
     "shortDescription": "",
     "targets": ["deb"],
@@ -64,12 +64,12 @@
           "$CONFIG",
           "$CONFIG/**",
           "$APP_CONFIG",
-          "$APP_CONFIG/**",
-          "$RESOURCES/*",
-          "$RESOURCES/**"
+          "$APP_CONFIG/**"
         ],
         "requireLiteralLeadingDot": false
       },
+      "fs:exist": true,
+      "fs:copyFile": true,
       "scope-appconfig": true,
       "scope-appconfig-index": true,
       "allow-appconfig-meta": true,
@@ -86,6 +86,6 @@
       "allow-document-write-recursive": true
     }
   },
-  "productName": "apicize",
+  "productName": "Apicize",
   "version": "0.1.0"
 }

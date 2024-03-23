@@ -107,7 +107,7 @@ const storageActions = () => {
         dispatch(executionActions.close())
     }
 
-    // Copy request or request group state for editing
+    // Activate request or request group state for editing
     const activateRequestOrGroup = (id: string | null) => {
         let requestEntry
         if (id) {
@@ -393,8 +393,8 @@ const storageActions = () => {
 
             let append = true
             if (indexedWorkbook.requests.childIDs) {
-                for (const childIDs of Object.entries(indexedWorkbook.requests.childIDs)) {
-                    let idxChild = childIDs.indexOf(entry.id)
+                for (const childIDs of Object.values(indexedWorkbook.requests.childIDs)) {
+                    let idxChild = childIDs.indexOf(id)
                     if (idxChild !== -1) {
                         childIDs.splice(idxChild + 1, 0, entry.id)
                         append = false
@@ -404,7 +404,7 @@ const storageActions = () => {
             }
 
             if (append) {
-                const idx = indexedWorkbook.requests.topLevelIDs.indexOf(source.id)
+                const idx = indexedWorkbook.requests.topLevelIDs.indexOf(id)
                 if (idx !== -1) {
                     indexedWorkbook.requests.topLevelIDs.splice(idx + 1, 0, entry.id)
                     append = false
@@ -920,13 +920,14 @@ const storageActions = () => {
                 scenarios: generateScenarioNavList()
             }))
         },
-        getWorkbookFromStore: () =>
+        getWorkbookFromStore: (removeCredentials: boolean) =>
             stateStorageToWorkbook(
                 indexedWorkbook.requests,
                 indexedWorkbook.authorizations,
                 indexedWorkbook.scenarios,
                 indexedWorkbook.selectedAuthorizationID,
-                indexedWorkbook.selectedScenarioID
+                indexedWorkbook.selectedScenarioID,
+                removeCredentials
             ),
         onSaveWorkbook: (fullName: string, displayName: string) => {
             (fullName: string, displayName: string) => {

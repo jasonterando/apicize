@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "apicize"
+name = "apicize-run"
 version = "0.1.0"
 dependencies = [
  "apicize_lib",

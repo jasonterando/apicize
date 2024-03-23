@@ -16,7 +16,7 @@ use tauri::{async_runtime::Mutex, Manager};
 fn main() {
     tauri::Builder::default()
         // .plugin(tauri_plugin_clipboard::init())
-        .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request, cancel_request, clear_cached_authorization])
+        .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request, cancel_request, clear_cached_authorization, get_environment_variables])
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -125,4 +125,9 @@ async fn clear_cached_authorization(
     authorization_id: String
 ) -> bool {
     clear_oauth2_token(authorization_id).await
+}
+
+#[tauri::command]
+fn get_environment_variables() -> Vec<(String,String)> {
+  std::env::vars().into_iter().map(|e| e).collect()
 }

@@ -7,7 +7,7 @@ import {
 import type { } from '@mui/x-tree-view/themeAugmentation';
 import { Stack, Box, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui/material'
 import { ToastProvider } from '@apicize/toolkit'
-import { WorkbookProvider } from './providers/workbook-provider';
+import { ApicizeTauriProvider } from './providers/apicize-tauri-provider';
 import { Provider } from 'react-redux';
 import React from 'react'
 import { emit } from '@tauri-apps/api/event'
@@ -141,7 +141,7 @@ export default function Home() {
             <CssBaseline />
             <ToastProvider>
               <ConfirmationServiceProvider>
-                <WorkbookProvider>
+                <ApicizeTauriProvider>
                   <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
                     <Navigation
                       triggerNew={() => emit('action', 'new')}
@@ -173,7 +173,7 @@ export default function Home() {
                       <ScenarioEditor />
                     </Box>
                   </Stack>
-                </WorkbookProvider>
+                </ApicizeTauriProvider>
               </ConfirmationServiceProvider>
             </ToastProvider>
           </ThemeProvider>

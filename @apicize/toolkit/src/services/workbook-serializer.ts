@@ -253,12 +253,13 @@ export function stateStorageToWorkbook(
     scenarios: StateStorage<EditableWorkbookScenario>,
     selectedAuthorizationID: string | null,
     selectedScenarioID: string | null,
+    removeAuthorizations: boolean,
 ): StoredWorkbook {
 
     return {
         version: 1.0,
         requests: requests.topLevelIDs.map(id => stateStorageToRequestEntry(id, requests)),
-        authorizations: authorizations.topLevelIDs.map(id => {
+        authorizations: removeAuthorizations ? [] : authorizations.topLevelIDs.map(id => {
             const result = structuredClone(authorizations.entities[id])
             return result as WorkbookAuthorization
         }),
