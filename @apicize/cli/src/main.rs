@@ -3,8 +3,8 @@ use apicize_lib::cleanup_v8;
 use apicize_lib::models::Workbook;
 use apicize_lib::models::WorkbookAuthorization;
 use apicize_lib::models::WorkbookScenario;
+use apicize_lib::run;
 use apicize_lib::FileSystem;
-use apicize_lib::Runnable;
 use std::env;
 use std::process;
 
@@ -26,22 +26,34 @@ async fn main() {
 
     let workbook = result.unwrap();
 
-    // initialize_v8();
-    let auth: Option<WorkbookAuthorization> = match workbook.authorizations {
-        Some(auths) => match auths.first() {
-            Some(auth) => Some(auth.clone()),
-            None => None,
-        },
-        None => None,
-    };
+    let mut selected_authorization: Option<WorkbookAuthorization> = None;
+    let mut selected_scenario: Option<WorkbookScenario> = None;
 
-    let scene: Option<WorkbookScenario> = match workbook.scenarios {
-        Some(ref scenes) => match scenes.first() {
-            Some(scene) => Some(scene.clone()),
-            None => None,
-        },
-        None => None,
-    };
+    if let Some(settings) = workbook.settings {
+        if let Some(selected_id) = settings.selected_authorization_id {
+            if let Some(auths) = workbook.authorizations {
+                if let Some(selected) = auths.iter().find(|x| 
+                    match x {
+                        WorkbookAuthorization::Basic { id, name: _, username: _, password: _ } => *id == selected_id,
+                        WorkbookAuthorization::ApiKey { id , name: _, header: _, value: _ } => *id == selected_id,
+                        WorkbookAuthorization::OAuth2Client { id, name: _, access_token_url: _, client_id: _, client_secret: _, scope: _ } => *id == selected_id,
+                    }
+                ) {
+                    selected_authorization = Some(selected.clone());
+                }
+            }
+        }
+
+        if let Some(selected_id) = settings.selected_scenario_id {
+            if let Some(scenarios) = workbook.scenarios {
+                if let Some(selected) = scenarios.iter().find(|x| x.id == selected_id) {
+                    selected_scenario = Some(selected.clone());
+                }
+            }
+        }
+    }
+
+    // initialize_v8();
 
     let mut pass_count = 0;
     let mut fail_count = 0;
@@ -49,7 +61,7 @@ async fn main() {
 
     while let Some(r) = iter.next() {
         // println!("Request: {}", r);
-        let run_response = r.clone().run(&auth, &scene, None).await;
+        let run_response = run(&r.clone(), &selected_authorization, &selected_scenario, None).await;
         match run_response {
             Ok(runs) => {
                 let mut run_number = 0;

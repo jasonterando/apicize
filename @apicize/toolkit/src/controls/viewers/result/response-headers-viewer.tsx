@@ -2,17 +2,22 @@ import { useSelector } from "react-redux"
 import { WorkbookState } from "../../../models/store"
 import { DataGrid } from "@mui/x-data-grid"
 import { GenerateIdentifier } from "../../../services/random-identifier-generator"
-import { Stack, Typography } from "@mui/material"
+import { Box, Stack, Typography } from "@mui/material"
+import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context"
+import { useContext } from "react"
 
 export function ResponseHeadersViewer() {
-    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
-    const response = result?.response
-    if (!response) {
+    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    if (!executionId) {
         return null
     }
 
+    const execution = useContext(WorkbookStorageContext).execution
+    useSelector((state: WorkbookState) => state.execution.resultIndex)
+    useSelector((state: WorkbookState) => state.execution.runIndex)
+
     const headers = []
-    for (const [name, value] of Object.entries(response.headers ?? {})) {
+    for (const [name, value] of Object.entries(execution.getResponseHeaders(executionId) ?? {})) {
         headers.push({
             id: GenerateIdentifier(),
             name,
@@ -22,7 +27,7 @@ export function ResponseHeadersViewer() {
 
     return (
         <Stack direction="column" sx={{ flexGrow: 1 }}>
-            <Typography variant='h2' sx={{marginTop: 0}}>Response Headers</Typography>
+            <Typography variant='h2' sx={{ marginTop: 0 }}>Response Headers</Typography>
             <DataGrid
                 rows={headers}
                 rowHeight={32}

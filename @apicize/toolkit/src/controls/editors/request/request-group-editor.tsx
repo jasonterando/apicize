@@ -1,41 +1,27 @@
-import { TextField, Box, Grid, Typography, Stack, SxProps, FormControl } from '@mui/material'
+import { TextField, Typography, Stack, SxProps } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder';
 import { useSelector } from "react-redux";
-import { useEffect, useState } from 'react'
-import { WorkbookState, updateRequestGroup } from '../../../models/store'
-import { useDispatch } from 'react-redux'
-import { castEntryAsGroup } from '../../../models/workbook/helpers/editable-workbook-request-helpers';
+import { useContext } from 'react'
+import { WorkbookState } from '../../../models/store'
+import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context';
 
 export function RequestGroupEditor(props: {
     sx?: SxProps
 }) {
-    const group = useSelector((state: WorkbookState) => state.activeRequestEntry)
-    const dispatch = useDispatch()
+    const group = useContext(WorkbookStorageContext).group
 
-    const [name, setName] = useState<string>('')
-    const [runs, setRuns] = useState(1)
+    const id = useSelector((state: WorkbookState) => state.group.id)
+    const name = useSelector((state: WorkbookState) => state.group.name)
+    const runs = useSelector((state: WorkbookState) => state.group.runs)
 
-    useEffect(() => {
-        setName(group?.name ?? '')
-        setRuns(castEntryAsGroup(group)?.runs ?? 1)
-    }, [group])
+    if (!id) return (<></>)
 
-    if (!group) return (<></>)
-
-    const updateName = (name: string | undefined) => {
-        setName(name ?? '')
-        dispatch(updateRequestGroup({
-            id: group.id,
-            name
-        }))
+    const updateName = (name: string) => {
+        group.setName(id, name)
     }
 
     const updateRuns = (runs: number | undefined) => {
-        setRuns(runs ?? 1)
-        dispatch(updateRequestGroup({
-            id: group.id,
-            runs
-        }))
+        group.setRuns(id, runs || 1)
     }
 
     return (
@@ -53,9 +39,9 @@ export function RequestGroupEditor(props: {
                     
                 />
                 <TextField
-                    aria-label='Numer of Run Attempts'
+                    aria-label='Nubmer of Run Attempts'
                     placeholder='Attempts'
-                    label='Numer of Run Attempts'
+                    label='# of Runs'
                     sx={{ marginLeft: '24px', width: '8em', flexGrow: 0 }}
                     type='number'
                     value={runs}

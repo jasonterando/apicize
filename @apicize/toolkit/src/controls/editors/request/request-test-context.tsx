@@ -1,58 +1,56 @@
 import { ButtonGroup, FormControl, Grid, InputLabel, MenuItem, Select, ToggleButton } from '@mui/material';
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
-import { useDispatch, useSelector } from 'react-redux';
-import { GetTitle, NO_AUTHORIZATION, NO_SCENARIO } from '@apicize/lib-typescript';
-import { WorkbookState, setSelectedAuthorization, setSelectedExecutionResult, setSelectedScenario } from '../../../models/store';
+import { useSelector } from 'react-redux';
+import { NO_AUTHORIZATION, NO_SCENARIO } from '@apicize/lib-typescript';
+import { WorkbookState } from '../../../models/store';
 import { Stack, SxProps } from '@mui/system';
-import { useEffect, useState } from 'react';
-import { castEntryAsGroup } from '../../../models/workbook/helpers/editable-workbook-request-helpers';
+import { useContext, useEffect, useState } from 'react';
+import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context';
 
 export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void }) {
-    const dispatch = useDispatch()
+    const context = useContext(WorkbookStorageContext)
 
-    const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
-    const execution = useSelector((state: WorkbookState) => state.activeExecution)
-    const selectedAuthorization = useSelector((state: WorkbookState) => state.selectedAuthorization)
-    const selectedScenario = useSelector((state: WorkbookState) => state.selectedScenario)
-    const authorizations = useSelector((state: WorkbookState) => state.authorizationList)
-    const scenarios = useSelector((state: WorkbookState) => state.scenarioList)
+    const requestId = useSelector((state: WorkbookState) => state.request.id)
+    const groupId = useSelector((state: WorkbookState) => state.group.id)
+    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    const selectedAuthorizationID = useSelector((state: WorkbookState) => state.execution.selectedAuthorizationID)
+    const selectedScenarioID = useSelector((state: WorkbookState) => state.execution.selectedScenarioID)
+    const authorizations = useSelector((state: WorkbookState) => state.navigation.authorizationList)
+    const scenarios = useSelector((state: WorkbookState) => state.navigation.scenarioList)
     const [disableRun, setDisableRun] = useState(false)
-    const [runList, setRunList] = useState(execution?.runList)
-    const [resultsLists, setResultsLists] = useState(execution?.resultLists)
+    const runIndex = useSelector((state: WorkbookState) => state.execution.runIndex)
+    const runList = useSelector((state: WorkbookState) => state.execution.runList)
+    const resultIndex = useSelector((state: WorkbookState) => state.execution.resultIndex)
+    const resultLists = useSelector((state: WorkbookState) => state.execution.resultLists)
 
-    useEffect(() => {
-        setDisableRun((execution?.requestID === requestEntry?.id && execution?.running) ?? false)
-    }, [requestEntry])
-
-    useEffect(() => {
-        setRunList(execution?.runList)
-        setResultsLists(execution?.resultLists)
-    }, [execution])
-
-    if (! requestEntry) {
+    if (!(requestId || groupId)) {
         return null
     }
 
     const updateAuthorization = (id: string) => {
-        dispatch(setSelectedAuthorization(id))
+        context.execution.setSelectedAuthorization(id)
     }
 
     const updateScenario = (id: string) => {
-        dispatch(setSelectedScenario(id))
+        context.execution.setSelectedScenario(id)
     }
 
     const updateSelectedRun = (index: number) => {
-        dispatch(setSelectedExecutionResult({
-            runIndex: index,
-            resultIndex: execution?.resultIndex
-        }))
+        if (executionId) {
+            context.execution.selectExecutionResult(
+                executionId,
+                index,
+                resultIndex)
+        }
     }
 
     const updateSelectedResult = (index: number) => {
-        dispatch(setSelectedExecutionResult({
-            runIndex: execution?.runIndex,
-            resultIndex: index
-        }))
+        if (executionId) {
+            context.execution.selectExecutionResult(
+                executionId,
+                runIndex,
+                index)
+        }
     }
 
     const handleRunClick = () => async () => {
@@ -62,7 +60,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
     return (
         <Stack direction={'row'} sx={props.sx}>
             <ButtonGroup
-                sx={{marginRight: '24px'}}
+                sx={{ marginRight: '24px' }}
                 orientation='vertical'
                 aria-label="request run context">
                 <ToggleButton value='Run' title='Run selected request' disabled={disableRun} onClick={handleRunClick()}>
@@ -77,7 +75,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                         <Select
                             labelId='auth-label-id'
                             id='authorization'
-                            value={selectedAuthorization.id}
+                            value={selectedAuthorizationID}
                             label='Authorization'
                             sx={{ minWidth: '10em' }}
                             onChange={e => updateAuthorization(e.target.value)}
@@ -99,7 +97,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                         <Select
                             labelId='scenario-label-id'
                             id='scenario'
-                            value={selectedScenario.id}
+                            value={selectedScenarioID}
                             label='Scenario'
                             sx={{ minWidth: '10em' }}
                             onChange={e => updateScenario(e.target.value)}
@@ -115,8 +113,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                     </FormControl>
                 </Grid>
                 {
-                    runList
-                    && runList.length > 1
+                    executionId && runList && runList.length > 1
                         ?
                         <Grid item>
                             <FormControl>
@@ -124,7 +121,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                                 <Select
                                     labelId='run-id'
                                     id='run'
-                                    value={execution?.runIndex?.toString() ?? ''}
+                                    value={runIndex?.toString() ?? ''}
                                     label='Run'
                                     sx={{ minWidth: '10em' }}
                                     onChange={e => updateSelectedRun(parseInt(e.target.value))}
@@ -141,25 +138,22 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
                         : <></>
                 }
                 {
-                    execution 
-                    && execution.runIndex !== undefined 
-                    && resultsLists
-                    && resultsLists[execution.runIndex]
-                    && resultsLists[execution.runIndex].length > 1
-                    ?
+                    executionId && runIndex !== undefined && resultLists && resultLists[runIndex] && resultLists[runIndex].length > 1
+                        ?
                         <Grid item>
                             <FormControl>
                                 <InputLabel id='result-id'>Results</InputLabel>
                                 <Select
                                     labelId='results-id'
                                     id='result'
-                                    value={execution.resultIndex?.toString() ?? ''}
+                                    value={resultIndex?.toString() ?? ''}
                                     label='Run'
                                     sx={{ minWidth: '10em' }}
                                     onChange={e => updateSelectedResult(parseInt(e.target.value))}
                                 >
+                                    <MenuItem key={`result-group`} value={-1}>Group Summary</MenuItem>
                                     {
-                                        resultsLists[execution.runIndex].map(r => {
+                                        resultLists[runIndex].map(r => {
                                             return (
                                                 <MenuItem key={`result-${r.index}`} value={r.index}>{r.text}</MenuItem>)
                                         })

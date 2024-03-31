@@ -8,6 +8,7 @@ import { Hierarchical } from "../models/hierarchical";
 import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request";
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair";
 import { EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request-entry";
+import { WorkbookStateStorage } from "../models/workbook/workbook-state-storage";
 
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -71,13 +72,7 @@ export function base64Decode(base64: string): number[] {
     return Array.from(bytes);
 }
 
-export function workbookToStateStorage(data: StoredWorkbook): {
-    requests: StateStorage<EditableWorkbookRequestEntry>,
-    authorizations: StateStorage<EditableWorkbookAuthorization>,
-    scenarios: StateStorage<EditableWorkbookScenario>,
-    selectedAuthorization: EditableWorkbookAuthorization | undefined,
-    selectedScenario: EditableWorkbookScenario | undefined,
-} {
+export function workbookToStateStorage(data: StoredWorkbook): WorkbookStateStorage {
     if (data.version !== 1) {
         throw new Error(`Invalid stored workbook version: ${data.version}`)
     }
@@ -152,10 +147,8 @@ export function workbookToStateStorage(data: StoredWorkbook): {
         }),
         authorizations: stateAuthorizations,
         scenarios: stateScenarios,
-        selectedAuthorization: data.settings?.selectedAuthorizationId
-            ? stateAuthorizations?.entities[data.settings?.selectedAuthorizationId] : undefined,
-        selectedScenario: data.settings?.selectedScenarioId
-            ? stateScenarios?.entities[data.settings?.selectedScenarioId] : undefined,
+        selectedAuthorizationID: data.settings?.selectedAuthorizationId ?? NO_AUTHORIZATION,
+        selectedScenarioID: data.settings?.selectedScenarioId ?? NO_SCENARIO,
     }
 }
 
@@ -258,14 +251,15 @@ export function stateStorageToWorkbook(
     requests: StateStorage<EditableWorkbookRequestEntry>,
     authorizations: StateStorage<EditableWorkbookAuthorization>,
     scenarios: StateStorage<EditableWorkbookScenario>,
-    selectedAuthorization: EditableWorkbookAuthorization | undefined,
-    selectedScenario: EditableWorkbookScenario | undefined,
+    selectedAuthorizationID: string | null,
+    selectedScenarioID: string | null,
+    removeAuthorizations: boolean,
 ): StoredWorkbook {
 
     return {
         version: 1.0,
         requests: requests.topLevelIDs.map(id => stateStorageToRequestEntry(id, requests)),
-        authorizations: authorizations.topLevelIDs.map(id => {
+        authorizations: removeAuthorizations ? [] : authorizations.topLevelIDs.map(id => {
             const result = structuredClone(authorizations.entities[id])
             return result as WorkbookAuthorization
         }),
@@ -275,10 +269,10 @@ export function stateStorageToWorkbook(
             return result
     }),
         settings: {
-            selectedAuthorizationId: (selectedAuthorization && selectedAuthorization.id !== NO_AUTHORIZATION)
-                ? selectedAuthorization.id : undefined,
-            selectedScenarioId: (selectedScenario && selectedScenario.id !== NO_SCENARIO)
-                ? selectedScenario.id : undefined,
+            selectedAuthorizationId: (selectedAuthorizationID && selectedAuthorizationID !== NO_AUTHORIZATION)
+                ? selectedAuthorizationID : undefined,
+            selectedScenarioId: (selectedScenarioID && selectedScenarioID !== NO_SCENARIO)
+                ? selectedScenarioID : undefined,
         }
     }
 }

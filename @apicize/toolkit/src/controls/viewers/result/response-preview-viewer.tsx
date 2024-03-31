@@ -6,16 +6,26 @@ import { IconButton, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
+import { useContext } from "react";
+import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context";
 
 export function ResultResponsePreview(props: {
     triggerCopyTextToClipboard: (text?: string) => void,
     triggerCopyImageToClipboard: (base64?: string) => void,
 }) {
-    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
-    if (!result) return null
+    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    useSelector((state: WorkbookState) => state.execution.resultIndex)
+    useSelector((state: WorkbookState) => state.execution.runIndex)
+    if (!executionId) {
+        return null
+    }
+
+    const execution = useContext(WorkbookStorageContext).execution
+    const headers = execution.getResponseHeaders(executionId)
+    const body = execution.getResponseBody(executionId)
 
     let extension = ''
-    for (const [name, value] of Object.entries(result.response?.headers ?? {})) {
+    for (const [name, value] of Object.entries(headers ?? {})) {
         if (name.toLowerCase() === 'content-type') {
             let i = value.indexOf('/')
             if (i !== -1) {
@@ -26,7 +36,7 @@ export function ResultResponsePreview(props: {
     }
 
     const isImage = KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1
-    let text = result.response?.body?.text ?? ''
+    let text = body?.text ?? ''
     if ((!isImage) && text.length > 0) {
         switch (extension) {
             case 'html':
@@ -46,7 +56,7 @@ export function ResultResponsePreview(props: {
         }
     }
 
-    const showImageCopy = isImage && ((result.response?.body?.data?.length ?? 0) > 0)
+    const showImageCopy = isImage && ((body?.data?.length ?? 0) > 0)
     const showTextCopy = (!isImage) && ((text.length ?? 0) > 0)
 
     return (
@@ -58,7 +68,7 @@ export function ResultResponsePreview(props: {
                         aria-label="Copy Image to Clipboard"
                         title="Copy Image to Clipboard"
                         sx={{ marginLeft: '16px' }}
-                        onClick={_ => props.triggerCopyImageToClipboard(result.response?.body?.data)}>
+                        onClick={_ => props.triggerCopyImageToClipboard(body?.text)}>
                         <ContentCopyIcon />
                     </IconButton>)
                     : showTextCopy
@@ -75,7 +85,7 @@ export function ResultResponsePreview(props: {
             </Typography>
             {
                 isImage && showImageCopy
-                    ? (<ImageViewer base64ToRender={result.response?.body?.data} extensionToRender={extension} />)
+                    ? (<ImageViewer base64ToRender={body?.data} extensionToRender={extension} />)
                     : (<TextViewer text={text} extension={extension} />)
             }
         </Box>

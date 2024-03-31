@@ -1,4 +1,4 @@
-import { ApicizeResult } from "@apicize/lib-typescript";
+import { ApicizeResult, ApicizeTestResult } from "@apicize/lib-typescript";
 import { EditableWorkbookRequestEntry } from "./editable-workbook-request-entry";
 import { MAX_TEXT_RENDER_LENGTH } from "../../controls/viewers/text-viewer";
 
@@ -7,7 +7,28 @@ export interface WorkbookExecutionResult extends ApicizeResult {
      longTextInResponse: boolean;
 }
 
-interface IndexedText {
+export interface WorkbookExecutionResponse {
+     status: number
+     statusText: string
+}
+
+export interface WorkbookExecutionRequest {
+     name: string,
+     response?: WorkbookExecutionResponse
+     tests?: ApicizeTestResult[]
+     executedAt: number
+     milliseconds: number
+     success: boolean
+     errorMessage?: string
+}
+
+export interface WorkbookExecutionSummary {
+     run: number;
+     totalRuns: number;
+     requests: WorkbookExecutionRequest[]
+}
+
+export interface IndexedText {
      index: number
      text: string
 }
@@ -16,8 +37,8 @@ export interface WorkbookExecution {
      requestID: string
      running: boolean
      runIndex?: number
-     resultIndex?: number
      runList?: IndexedText[]
+     resultIndex?: number
      resultLists?: IndexedText[][]
      results?: WorkbookExecutionResult[][]
 }

@@ -1,24 +1,25 @@
 import { useSelector } from "react-redux"
 import { WorkbookState } from "../../../models/store"
 import { Box, Button, Typography } from "@mui/material"
-import { EditableWorkbookRequestEntry } from "../../../models/workbook/editable-workbook-request-entry"
 
-export function RequestRunProgress(props: {cancelRequest: (request: EditableWorkbookRequestEntry) => void}) {
-    // const dispatch = useDispatch()
+export function RequestRunProgress(props: {cancelRequest: (requestId: string) => void}) {
+    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    const running = useSelector((state: WorkbookState) => state.execution.running)
+    useSelector((state: WorkbookState) => state.execution.resultIndex)
+    useSelector((state: WorkbookState) => state.execution.runIndex)
 
-    const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
-    if(! requestEntry) {
-        return null
+    if(! executionId || ! running) {
+        return <>Running: {running}</>
     }
 
-    const handleCancel = (item: EditableWorkbookRequestEntry) => {
-        props.cancelRequest(item)
+    const handleCancel = () => {
+        props.cancelRequest(executionId)
     }
 
     return (
         <Box>
             <Typography variant='h2' sx={{marginTop: 0}}>Execution In Progress...</Typography>
-            <Button variant='outlined' color='error' onClick={() => handleCancel(requestEntry)}>Cancel</Button>
+            <Button variant='outlined' color='error' onClick={() => handleCancel()}>Cancel</Button>
         </Box>
     )
 }

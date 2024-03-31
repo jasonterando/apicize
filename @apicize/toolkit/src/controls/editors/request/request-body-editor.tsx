@@ -1,8 +1,7 @@
 import * as React from 'react'
 import Box from '@mui/material/Box'
-import { useDispatch, useSelector } from 'react-redux'
-import { WorkbookState, updateRequest } from '../../../models/store'
-import Editor from 'react-simple-code-editor'
+import { useSelector } from 'react-redux'
+import { WorkbookState } from '../../../models/store'
 import { highlight, languages } from 'prismjs'
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-markup'
@@ -13,49 +12,41 @@ import { GenerateIdentifier } from '../../../services/random-identifier-generato
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
-import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
+import { useContext } from 'react'
+import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
 
 export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void }) {
-  const dispatch = useDispatch()
+  const request = useContext(WorkbookStorageContext).request
 
-  const requestEntry = useSelector((state: WorkbookState) => state.activeRequestEntry)
-  const [bodyType, setBodyType] = React.useState(castEntryAsRequest(requestEntry)?.body?.type ?? BodyType.Text)
-  const [bodyData, setBodyData] = React.useState(castEntryAsRequest(requestEntry)?.body?.data ?? '')
+  const id = useSelector((state: WorkbookState) => state.request.id)
+  const headers = useSelector((state: WorkbookState) => state.request.headers)
+  const bodyType = useSelector((state: WorkbookState) => state.request.bodyType)
+  const bodyData = useSelector((state: WorkbookState) => state.request.bodyData)
+
   const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(false)
 
-  React.useEffect(() => {
-    const useBodyType = castEntryAsRequest(requestEntry)?.body?.type ?? BodyType.Text
-    setBodyType(useBodyType)
-    setBodyData(castEntryAsRequest(requestEntry)?.body?.data ?? '')
-    checkTypeHeader(useBodyType)
-    // console.log(`Body type: ${useBodyType}`)
-  }, [requestEntry])
-
-  if (!requestEntry) {
+  if (!id) {
     return null
-  }
-
-  const updateBodyAsText = (val: string | undefined) => {
-    setBodyData(val ?? '')
-    dispatch(updateRequest({
-      id: requestEntry.id,
-      bodyData: val
-    }))
   }
 
   const updateBodyType = (val: BodyType | string) => {
     const newBodyType = (val == "" ? undefined : val as unknown as BodyType) ?? BodyType.Text
-    dispatch(updateRequest({
-      id: requestEntry.id,
-      bodyType: newBodyType
-    }))
+    request.setBodyType(id, newBodyType)
     checkTypeHeader(newBodyType)
+  }
+
+  const updateBodyAsText = (val: string | undefined) => {
+    request.setBodyData(id, val)
+  }
+
+  const updateBodyAsFormData = (data: EditableNameValuePair[]) => {
+    request.setBodyData(id, data)
   }
 
   const checkTypeHeader = (bodyType: BodyType | undefined | null) => {
     let needsContextHeaderUpdate = true
     let mimeType = getBodyTypeMimeType(bodyType)
-    const contentTypeHeader = castEntryAsRequest(requestEntry)?.headers?.find(h => h.name === 'Content-Type')
+    const contentTypeHeader = headers?.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
       needsContextHeaderUpdate = contentTypeHeader.value !== mimeType
     } else {
@@ -83,19 +74,18 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
 
   const updateTypeHeader = () => {
     const mimeType = getBodyTypeMimeType(bodyType)
-    const requestHeaders = castEntryAsRequest(requestEntry)?.headers
-    let headers = requestHeaders ? structuredClone(requestHeaders) : []
-    const contentTypeHeader = headers.find(h => h.name === 'Content-Type')
+    let newHeaders = headers ? structuredClone(headers) : []
+    const contentTypeHeader = newHeaders.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
       if (mimeType.length === 0) {
-        headers = headers.filter(h => h.name !== 'Content-Type')
+        newHeaders = newHeaders.filter(h => h.name !== 'Content-Type')
       } else {
         contentTypeHeader.value = mimeType
 
       }
     } else {
       if (mimeType.length > 0) {
-        headers.push({
+        newHeaders.push({
           id: GenerateIdentifier(),
           name: 'Content-Type',
           value: mimeType
@@ -103,10 +93,7 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
       }
     }
     setAllowUpdateHeader(false)
-    dispatch(updateRequest({
-      id: requestEntry.id,
-      headers
-    }))
+    request.setHeaders(id, headers)
   }
 
   const bodyTypeMenuItems = () => {
@@ -124,13 +111,6 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
       default:
         return highlight(code, {}, 'text')
     }
-  }
-
-  const onUpdateFormData = (data: EditableNameValuePair[]) => {
-    dispatch(updateRequest({
-      id: requestEntry.id,
-      bodyData: data
-    }))
   }
 
   return (
@@ -156,7 +136,7 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
       {bodyType == BodyType.None
         ? <></>
         : bodyType == BodyType.Form
-          ? <NameValueEditor values={bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={onUpdateFormData} />
+          ? <NameValueEditor values={bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={updateBodyAsFormData} />
           : bodyType == BodyType.Raw
             ? <Stack
               direction='row'

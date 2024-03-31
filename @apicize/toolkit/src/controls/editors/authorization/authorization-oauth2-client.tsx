@@ -1,62 +1,38 @@
-import { Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material'
-import { WorkbookState, updateAuthorization } from '../../../models/store'
-import { useEffect, useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+import { Button, Grid, TextField } from '@mui/material'
+import { WorkbookState } from '../../../models/store'
+import { useContext, useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
 import { EditableWorkbookOAuth2ClientAuthorization } from '../../../models/workbook/editable-workbook-authorization'
-import ClearIcon from '@mui/icons-material/Clear';
+import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
 
 export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {}}) {
-    const dispatch = useDispatch()
+    const auth = useContext(WorkbookStorageContext).authorization
 
-    const authorization = useSelector((state: WorkbookState) => state.activeAuthorization as EditableWorkbookOAuth2ClientAuthorization)
-    const [accessTokenUrl, setAccessTokenUrl] = useState<string>(authorization?.accessTokenUrl ?? '')
-    const [clientID, setClientID] = useState<string>(authorization?.clientId ?? '')
-    const [clientSecret, setClientSecret] = useState<string>(authorization?.clientSecret ?? '')
-    const [scope, setScope] = useState<string>(authorization?.scope ?? '')
+    const id = useSelector((state: WorkbookState) => state.authorization.id)
+    const accessTokenUrl = useSelector((state: WorkbookState) => state.authorization.accessTokenUrl)
+    const clientId = useSelector((state: WorkbookState) => state.authorization.clientId)
+    const clientSecret = useSelector((state: WorkbookState) => state.authorization.clientSecret)
+    const scope = useSelector((state: WorkbookState) => state.authorization.scope)
     // const [sendCredentialsInBody, setSendCredentialsInBody] = useState<string>((authorization?.sendCredentialsInBody ?? false) ? 'yes' : 'no')
 
-    useEffect(() => {
-        setAccessTokenUrl(authorization?.accessTokenUrl ?? '')
-        setClientID(authorization?.clientId ?? '')
-        setClientSecret(authorization?.clientSecret ?? '')
-        setScope(authorization?.scope ?? '')
-        // setSendCredentialsInBody(authorization?.sendCredentialsInBody ? 'yes' : 'no')
-    }, [authorization])
-
-    if (!authorization) {
+    if (!id) {
         return null
     }
 
     const updateAccessTokenUrl = (updatedAccessTokenUrl: string) => {
-        setAccessTokenUrl(updatedAccessTokenUrl)
-        dispatch(updateAuthorization({
-            id: authorization.id,
-            accessTokenUrl: updatedAccessTokenUrl,
-        }))
+        auth.setAccessTokenUrl(id, updatedAccessTokenUrl)
     }
 
     const updateClientID = (updatedClientID: string) => {
-        setClientID(updatedClientID)
-        dispatch(updateAuthorization({
-            id: authorization.id,
-            clientID: updatedClientID,
-        }))
+        auth.setClientId(id, updatedClientID)
     }
 
     const updateClientSecret = (updatedClientSecret: string) => {
-        setClientSecret(updatedClientSecret)
-        dispatch(updateAuthorization({
-            id: authorization.id,
-            clientSecret: updatedClientSecret ?? '',
-        }))
+        auth.setClientSecret(id, updatedClientSecret)
     }
 
     const updateScope = (updatedScope: string) => {
-        setScope(updatedScope)
-        dispatch(updateAuthorization({
-            id: authorization.id,
-            scope: updatedScope,
-        }))
+        auth.setScope(id, updatedScope)
     }
 
     // const updateSendCredentialsInBody = (updatedSendCredentialsInBody: string) => {
@@ -83,7 +59,7 @@ export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {
                 id='auth-oauth2-client-id'
                 label='Client ID'
                 aria-label='client id'
-                value={clientID}
+                value={clientId}
                 onChange={e => updateClientID(e.target.value)}
                 fullWidth
             />

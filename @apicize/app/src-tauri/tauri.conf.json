@@ -21,7 +21,7 @@
     "frontendDist": "../out"
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "category": "DeveloperTool",
     "copyright": "",
     "externalBin": [],
@@ -45,9 +45,11 @@
       "providerShortName": null,
       "signingIdentity": null
     },
-    "resources": [],
+    "resources": [
+      "examples/demo.apicize"
+    ],
     "shortDescription": "",
-    "targets": "all",
+    "targets": ["deb"],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
@@ -56,7 +58,6 @@
   },
   "identifier": "apicize",
   "plugins": {
-    "updater": {},
     "fs": {
       "scope": {
         "allow": [
@@ -67,6 +68,8 @@
         ],
         "requireLiteralLeadingDot": false
       },
+      "fs:exist": true,
+      "fs:copyFile": true,
       "scope-appconfig": true,
       "scope-appconfig-index": true,
       "allow-appconfig-meta": true,
@@ -83,6 +86,6 @@
       "allow-document-write-recursive": true
     }
   },
-  "productName": "apicize",
+  "productName": "Apicize",
   "version": "0.1.0"
 }

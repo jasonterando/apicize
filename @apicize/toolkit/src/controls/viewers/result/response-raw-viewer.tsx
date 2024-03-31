@@ -3,14 +3,24 @@ import { TextViewer } from "../../viewers/text-viewer";
 import { WorkbookState } from "../../../models/store";
 import { Box, IconButton, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { useContext } from "react";
+import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context";
 
 export function ResultRawPreview(props: {
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
-    const result = useSelector((state: WorkbookState) => state.selectedExecutionResult)
-    if (!result) return null
-    let has_text = result.response?.body?.text !== undefined
-    let preview = has_text ? result.response?.body?.text : result.response?.body?.data
+    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    useSelector((state: WorkbookState) => state.execution.resultIndex)
+    useSelector((state: WorkbookState) => state.execution.runIndex)
+    if (!executionId) {
+        return null
+    }
+
+    const execution = useContext(WorkbookStorageContext).execution
+    const body = execution.getResponseBody(executionId)
+        
+    let has_text = body?.text !== undefined
+    let preview = has_text ? body?.text : body?.data
     return (
         <Box sx={{ bottom: 0, overflow: 'auto' }}>
             <Typography variant='h2' sx={{ marginTop: 0 }}>Response Body (Raw)

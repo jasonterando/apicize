@@ -9,15 +9,14 @@ use tokio_util::sync::CancellationToken;
 use apicize_lib::{
     models::{
         ApicizeResultRuns, Workbook, WorkbookAuthorization, WorkbookRequestEntry, WorkbookScenario 
-    },
-    FileSystem, Runnable, oauth2_client_tokens::{clear_oauth2_token, clear_all_oauth2_tokens},
+    }, oauth2_client_tokens::{clear_all_oauth2_tokens, clear_oauth2_token}, run, FileSystem
 };
 use tauri::{async_runtime::Mutex, Manager};
 
 fn main() {
     tauri::Builder::default()
         // .plugin(tauri_plugin_clipboard::init())
-        .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request, cancel_request, clear_cached_authorization])
+        .invoke_handler(tauri::generate_handler![open_workbook, save_workbook, run_request, cancel_request, clear_cached_authorization, get_environment_variables])
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -30,9 +29,11 @@ fn main() {
                 let ctrl_o_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyO);
                 let ctrl_s_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyS);
                 let ctrl_shift_s_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyS);
+
                 let handle = app.handle().clone();
+                let shortcut_builder = tauri_plugin_global_shortcut::Builder::new();
                 app.handle().plugin(
-                    tauri_plugin_global_shortcut::Builder::with_handler(move |_app, shortcut| {
+                    shortcut_builder.with_handler(move |_app, shortcut| {
                         if shortcut == &ctrl_n_shortcut {
                             handle.emit("action", "new").unwrap()
                         } else if shortcut == &ctrl_o_shortcut {
@@ -96,7 +97,8 @@ async fn run_request(
         let mut tokens = CANCELLATION_TOKENS.lock().await;
         tokens.insert(id.clone(), cancellation.clone());
     }
-    let result = match request.run(&authorization, &scenario, Some(cancellation)).await {
+
+    let result = match run(&request, &authorization, &scenario, Some(cancellation)).await {
         Ok(response) => Ok(response),
         Err(err) => Err(format!("{}", err))
     };
@@ -120,11 +122,12 @@ async fn cancel_request(
 
 #[tauri::command]
 async fn clear_cached_authorization(
-    authorization: WorkbookAuthorization
-) -> Option<bool> {
-    match authorization {
-        WorkbookAuthorization::OAuth2Client { id, name: _, access_token_url: _, client_id: _, client_secret: _, scope: _ } => 
-            Some(clear_oauth2_token(id).await),
-        _ => None
-    }
+    authorization_id: String
+) -> bool {
+    clear_oauth2_token(authorization_id).await
+}
+
+#[tauri::command]
+fn get_environment_variables() -> Vec<(String,String)> {
+  std::env::vars().into_iter().map(|e| e).collect()
 }

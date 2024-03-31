@@ -2,7 +2,6 @@ import { ApicizeRequest } from "./apicize-request";
 import { ApicizeResponse } from "./apicize-response";
 import { ApicizeTestResult } from "./apicize-test-result";
 
-
 export interface ApicizeResult {
     requestId: string;
     run: number;

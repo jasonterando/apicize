@@ -1,7 +1,10 @@
+import { Editable } from "../../editable";
 import { StateStorage } from "../../state-storage";
+import { EditableWorkbookAuthorization } from "../editable-workbook-authorization";
 import { EditableWorkbookRequest } from "../editable-workbook-request";
 import { EditableWorkbookRequestEntry } from "../editable-workbook-request-entry";
 import { EditableWorkbookRequestGroup } from "../editable-workbook-request-group";
+import { EditableWorkbookScenario } from "../editable-workbook-scenario";
 
 /**
  * Detects the type of item (request or group)
@@ -23,10 +26,10 @@ export function xxxcastRequestEntry(entry: EditableWorkbookRequestEntry):
  * @param entry 
  * @returns EditableWorkbookRequest if a request, otherwise undefined
  */
-export function castEntryAsRequest(entry: EditableWorkbookRequestEntry | undefined): EditableWorkbookRequest | undefined {
-    if (! entry) return undefined
+export function castEntryAsRequest(entry: EditableWorkbookRequestEntry | null): EditableWorkbookRequest | null {
+    if (!entry) return null
     const cast = entry as EditableWorkbookRequest
-    return cast.url === undefined ? undefined : cast
+    return cast.url === undefined ? null : cast
 }
 
 /**
@@ -34,10 +37,10 @@ export function castEntryAsRequest(entry: EditableWorkbookRequestEntry | undefin
  * @param entry 
  * @returns EditableWorkbookRequestGroup if a group, otherwise undefined
  */
-export function castEntryAsGroup(entry: EditableWorkbookRequestEntry | undefined): EditableWorkbookRequestGroup | undefined {
-    if (! entry) return undefined
+export function castEntryAsGroup(entry: EditableWorkbookRequestEntry | null): EditableWorkbookRequestGroup | null {
+    if (!entry) return null
     const cast = entry as EditableWorkbookRequest
-    return cast.url ? undefined : entry as EditableWorkbookRequestGroup
+    return cast.url ? null : entry as EditableWorkbookRequestGroup
 }
 
 /**
@@ -50,13 +53,13 @@ export function castEntryAsGroup(entry: EditableWorkbookRequestEntry | undefined
  * @returns 
  */
 export function addRequestEntryToStore(requests: StateStorage<EditableWorkbookRequestEntry>,
-    entry: EditableWorkbookRequestEntry, asGroup: boolean, targetId?: string) {
+    entry: EditableWorkbookRequestEntry, asGroup: boolean, targetId?: string | null) {
 
     // Add the new item to the entity list
     requests.entities[entry.id] = entry
 
     if (asGroup) {
-        if (! requests.childIDs) requests.childIDs = {}
+        if (!requests.childIDs) requests.childIDs = {}
         requests.childIDs[entry.id] = []
     }
 
@@ -67,27 +70,62 @@ export function addRequestEntryToStore(requests: StateStorage<EditableWorkbookRe
             return
         }
 
-        // If the target ID is within a group, insert new entry before it
+        // If the target ID is within a group, insert new entry after it
         if (requests.childIDs) {
             for (const [parentID, childIDs] of Object.entries(requests.childIDs)) {
                 const idx = childIDs.indexOf(targetId)
                 if (idx !== -1) {
-                    childIDs.splice(idx, 0, entry.id)
+                    if (idx === childIDs.length - 1) {
+                        childIDs.push(entry.id)
+                    } else {
+                        childIDs.splice(idx + 1, 0, entry.id)
+                    }
                     return
                 }
             }
         }
 
-        // If the target ID is in the top level list, insert before it
+        // If the target ID is in the top level list, insert after  it
         const idx = requests.topLevelIDs.indexOf(targetId)
         if (idx !== -1) {
-            requests.topLevelIDs.splice(idx, 0, entry.id)
+            if (idx === requests.topLevelIDs.length - 1) {
+                requests.topLevelIDs.push(entry.id)
+            } else {
+                requests.topLevelIDs.splice(idx + 1, 0, entry.id)
+            }
             return
         }
     }
 
     // If no valid target ID, insert at top of topLevel list
     requests.topLevelIDs.splice(0, 0, entry.id)
+}
+
+/**
+ * Add entry to top-level (non-hierarchical) store
+ * @param store 
+ * @param entry 
+ * @param targetId 
+ */
+export function addTopLevelEntryToStore(store: StateStorage<Editable>,
+    entity: Editable, targetId?: string | null) {
+    store.entities[entity.id] = entity
+    let idx
+    if (targetId) {
+        idx = store.topLevelIDs.indexOf(targetId)
+        if (idx === store.topLevelIDs.length - 1) {
+            idx = -1
+        } else {
+            idx++
+        }
+    } else {
+        idx = -1
+    }
+    if (idx === -1) {
+        store.topLevelIDs.push(entity.id)
+    } else {
+        store.topLevelIDs.splice(idx, 0, entity.id)
+    }
 }
 
 /**
