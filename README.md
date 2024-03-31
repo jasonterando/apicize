@@ -20,6 +20,17 @@ to execute the testing, and Tauri, React and Redux for the UI.
 
 To get this thing running, you'll need yarn and Rust (1.6 or greater)
 
+On Linux, you will need to install the following dependencies to build:
+
+* libssl-dev
+* libglib2.0-dev 
+* libpango1.0-dev
+* libatk1.0-dev
+* libgdk-pixbuf-2.0-dev
+* libgtk-3-dev
+* libjavascriptcoregtk-4.1-dev
+* libwebkit2gtk-4.1-dev
+
 From the project directory, run `yarn` which will pull in all of the NodeJS dependencies.  Then run `yarn ui` which will build and launch the Tauri app.
 
 If you want to run the CLI, navigate to the `@apicize/@cli` directory and execute `cargo build` and then `cargo run (workbookFileName)`
