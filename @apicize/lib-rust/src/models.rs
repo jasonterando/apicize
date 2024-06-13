@@ -258,6 +258,7 @@ pub enum WorkbookAuthorization {
         /// Uniquely identifies authorization configuration
         #[serde(default = "generate_uuid")]
         id: String,
+        /// Indicates if/how authorization will be persisted
         /// Human-readable name of authorization configuration
         name: String,
         /// URL to retrieve access token from
@@ -278,6 +279,7 @@ pub enum WorkbookAuthorization {
         /// Uniquely identifies authorization configuration
         #[serde(default = "generate_uuid")]
         id: String,
+        /// Indicates if/how authorization will be persisted
         /// Human-readable name of authorization configuration
         name: String,
         /// Name of header (ex. "x-api-key")
@@ -302,12 +304,9 @@ pub struct WorkbookScenario {
 }
 
 /// Miscellaneous Workbook settings
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkbookSettings {
-    /// If set to True, credential passwords, API keys and client secrets will be cleared when saving
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub clear_credentials_on_save: Option<bool>,
     /// Optionally set to default authorization
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_authorization_id: Option<String>,
@@ -332,6 +331,24 @@ pub struct Workbook {
     /// Miscelaneous Workbook settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settings: Option<WorkbookSettings>,
+}
+
+/// Saved workbook authentications
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct SavedWorkbookAuth {
+    /// Version of workbook format (should not be changed manually)
+    pub version: f32,
+    /// List of authorizations
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorizations: Option<Vec<WorkbookAuthorization>>,
+}
+
+/// Persisted Apicize common storage of authorizations, certificates, etc.
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct CommonEnvironment {
+    /// Common authorizations
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorizations: Option<Vec<WorkbookAuthorization>>
 }
 
 /// Body information used when dispatching an Apicize Request
@@ -426,9 +443,12 @@ pub struct ApicizeResult {
     pub executed_at: u128,
     /// Duration of execution
     pub milliseconds: u128,
-    /// Set to true if HTTP call succeeded (regardless of status code), and
-    /// all tests succeeded (or not tests specified)
+    /// Set to true if HTTP call succeeded (regardless of status code)
     pub success: bool,
+    /// Number of executed tests
+    pub test_count: Option<usize>,
+    /// Number of failed tests
+    pub failed_test_count: Option<usize>,
     /// Any error message generated during HTTP call
     pub error_message: Option<String>,
 }
@@ -441,8 +461,7 @@ mod model_tests {
     use serde_json::{json, Value};
 
     use super::{
-        WorkbookRequestMethod, WorkbookNameValuePair, WorkbookRequestBody, WorkbookRequestGroup, WorkbookRequest, Workbook,
-        WorkbookAuthorization, WorkbookScenario, WorkbookRequestEntry,
+        Workbook, WorkbookAuthorization, WorkbookNameValuePair, WorkbookRequest, WorkbookRequestBody, WorkbookRequestEntry, WorkbookRequestGroup, WorkbookRequestMethod, WorkbookScenario
     };
 
     fn default_requests() -> Vec<WorkbookRequestEntry> {

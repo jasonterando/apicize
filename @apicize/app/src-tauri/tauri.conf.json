@@ -1,5 +1,7 @@
 {
   "$schema": "../../../node_modules/@tauri-apps/cli/schema.json",
+  "productName": "Apicize",
+  "version": "0.1.0",
   "app": {
     "security": {
       "csp": null
@@ -32,6 +34,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "description": "Apicize Workbooks",
+        "ext": [
+          "apicize"
+        ]
+      }
+    ],
     "linux": {
       "deb": {
         "depends": []
@@ -46,10 +56,13 @@
       "signingIdentity": null
     },
     "resources": [
-      "examples/demo.apicize"
+      "../examples/demo.apicize",
+      "./help/*"
     ],
     "shortDescription": "",
-    "targets": ["deb"],
+    "targets": [
+      "deb"
+    ],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
@@ -85,7 +98,5 @@
       "allow-document-read-recursive": true,
       "allow-document-write-recursive": true
     }
-  },
-  "productName": "Apicize",
-  "version": "0.1.0"
+  }
 }

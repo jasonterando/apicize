@@ -8,8 +8,8 @@ export function AuthorizationBasicPanel() {
     const auth = useContext(WorkbookStorageContext).authorization
 
     const id = useSelector((state: WorkbookState) => state.authorization.id)
-    const username = useSelector((state: WorkbookState) => state.authorization.username)
-    const password = useSelector((state: WorkbookState) => state.authorization.password)
+    const username = useSelector((state: WorkbookState) => state.authorization.username ?? '')
+    const password = useSelector((state: WorkbookState) => state.authorization.password ?? '')
 
     if(! id) {
         return null

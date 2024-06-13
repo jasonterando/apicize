@@ -2,11 +2,7 @@ import * as React from 'react'
 import Box from '@mui/material/Box'
 import { useSelector } from 'react-redux'
 import { WorkbookState } from '../../../models/store'
-import { highlight, languages } from 'prismjs'
-import 'prismjs/components/prism-json'
-import 'prismjs/components/prism-markup'
-import 'prismjs/themes/prism-tomorrow.css'
-import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextareaAutosize } from '@mui/material'
+import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
 import { BodyType, BodyTypes } from '@apicize/lib-typescript'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
@@ -15,35 +11,17 @@ import FileOpenIcon from '@mui/icons-material/FileOpen'
 import { useContext } from 'react'
 import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
 
+import AceEditor from "react-ace"
+import "ace-builds/src-noconflict/mode-json"
+import "ace-builds/src-noconflict/mode-xml"
+import "ace-builds/src-noconflict/theme-monokai"
+import "ace-builds/src-noconflict/ext-language_tools"
+
 export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void }) {
-  const request = useContext(WorkbookStorageContext).request
+  const context = useContext(WorkbookStorageContext)
+  const request = context.request
 
-  const id = useSelector((state: WorkbookState) => state.request.id)
-  const headers = useSelector((state: WorkbookState) => state.request.headers)
-  const bodyType = useSelector((state: WorkbookState) => state.request.bodyType)
-  const bodyData = useSelector((state: WorkbookState) => state.request.bodyData)
-
-  const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(false)
-
-  if (!id) {
-    return null
-  }
-
-  const updateBodyType = (val: BodyType | string) => {
-    const newBodyType = (val == "" ? undefined : val as unknown as BodyType) ?? BodyType.Text
-    request.setBodyType(id, newBodyType)
-    checkTypeHeader(newBodyType)
-  }
-
-  const updateBodyAsText = (val: string | undefined) => {
-    request.setBodyData(id, val)
-  }
-
-  const updateBodyAsFormData = (data: EditableNameValuePair[]) => {
-    request.setBodyData(id, data)
-  }
-
-  const checkTypeHeader = (bodyType: BodyType | undefined | null) => {
+  const headerDoesNotMatchType = (bodyType: BodyType | undefined | null) => {
     let needsContextHeaderUpdate = true
     let mimeType = getBodyTypeMimeType(bodyType)
     const contentTypeHeader = headers?.find(h => h.name === 'Content-Type')
@@ -52,7 +30,7 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
     } else {
       needsContextHeaderUpdate = mimeType.length !== 0
     }
-    setAllowUpdateHeader(needsContextHeaderUpdate)
+    return needsContextHeaderUpdate
   }
 
   const getBodyTypeMimeType = (bodyType: BodyType | undefined | null) => {
@@ -70,6 +48,31 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
       default:
         return 'application/octet-stream'
     }
+  }
+  
+  const id = useSelector((state: WorkbookState) => state.request.id)
+  const headers = useSelector((state: WorkbookState) => state.request.headers)
+  const bodyType = useSelector((state: WorkbookState) => state.request.bodyType)
+  const bodyData = useSelector((state: WorkbookState) => state.request.bodyData)
+
+  const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(headerDoesNotMatchType(bodyType))
+
+  if (!id) {
+    return null
+  }
+
+  const updateBodyType = (val: BodyType | string) => {
+    const newBodyType = (val == "" ? undefined : val as unknown as BodyType) ?? BodyType.Text
+    request.setBodyType(id, newBodyType)
+    setAllowUpdateHeader(headerDoesNotMatchType(newBodyType))
+  }
+
+  const updateBodyAsText = (val: string | undefined) => {
+    request.setBodyData(id, val)
+  }
+
+  const updateBodyAsFormData = (data: EditableNameValuePair[]) => {
+    request.setBodyData(id, data)
   }
 
   const updateTypeHeader = () => {
@@ -102,17 +105,17 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
     ))
   }
 
-  const processHighlight = (code: string) => {
-    switch (bodyType) {
-      case BodyType.JSON:
-        return highlight(code, languages.json, 'json')
-      case BodyType.XML:
-        return highlight(code, languages.markup, 'xml')
-      default:
-        return highlight(code, {}, 'text')
-    }
-  }
+  let mode
 
+  switch(bodyType) {
+    case BodyType.JSON:
+      mode = 'json'
+      break
+    case BodyType.XML:
+      mode = 'xml'
+      break
+  }
+  
   return (
     <Stack direction='column' spacing={3}>
       <Stack direction='row' sx={{ justifyContent: 'space-between' }}>
@@ -152,37 +155,28 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
               <Box padding='10px'>{bodyData.length.toLocaleString()} Bytes</Box>
             </Stack>
             :
-            <TextareaAutosize
-              autoFocus
-              maxRows={20}
-              style={{
-                borderStyle: 'solid',
-                borderWidth: '1px',
-                borderLeftColor: '#444',
-                borderRightColor: '#444',
-                borderTopColor: '#444',
-                borderBottomColor: '#444',
-                borderRadius: '4px',
-                  fontFamily: 'monospace',
-                fontSize: '12pt',
-                outline: 'none',
-                minHeight: '10vh',
-                padding: '10px',
-                width: '100%',
-                color: '#FFFFFF',
-                backgroundColor: '#202020',
-                overflow: 'auto'
-              }}
-              value={bodyData}
-              onChange={(e) => updateBodyAsText(e.target.value)} />
-        // <Editor
-        // autoFocus
-        // padding={10}
-        // style={{ fontFamily: 'monospace', minHeight: '140px' }}
-        // value={bodyData.toString()}
-        // highlight={code => processHighlight(code)}
-        // onValueChange={updateBodyAsText}
-        // />
+              <AceEditor
+                mode={mode}
+                theme='monokai'
+                fontSize='1rem'
+                lineHeight='1rem'
+                width='100%'
+                height='10rem'
+                showGutter={true}
+                showPrintMargin={false}
+                tabSize={3}
+                setOptions={{
+                  useWorker: false,
+                  foldStyle: "markbegin",
+                  displayIndentGuides: true,
+                  enableAutoIndent: true,
+                  fixedWidthGutter: true,
+                  showLineNumbers: true,
+                }}
+                onChange={updateBodyAsText}
+                name='code-editor'
+                value={bodyData}
+              />
       }
     </Stack>
   )

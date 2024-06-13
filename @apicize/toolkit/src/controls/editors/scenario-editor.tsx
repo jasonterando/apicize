@@ -1,52 +1,59 @@
 import { Typography, Stack, Container, TextField, Grid } from '@mui/material'
 import LanguageIcon from '@mui/icons-material/Language';
-import { useContext } from 'react'
+import React, { useContext } from 'react'
 import { useSelector } from "react-redux";
-import { WorkbookState } from '../../models/store'
+import { NavigationType, WorkbookState } from '../../models/store'
 import { EditableNameValuePair } from '../../models/workbook/editable-name-value-pair';
 import { NameValueEditor } from './name-value-editor';
 import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
+import { EditorTitle } from '../editor-title';
 
 export function ScenarioEditor() {
+    const help = useContext(WorkbookStorageContext).help
     const scenario = useContext(WorkbookStorageContext).scenario
 
-    const id = useSelector((state: WorkbookState) => state.scenario.id)
+    const activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
+    const activeID = useSelector((state: WorkbookState) => state.navigation.activeID)
     const name = useSelector((state: WorkbookState) => state.scenario.name)
     const variables = useSelector((state: WorkbookState) => state.scenario.variables)
 
-    if (!id) {
+    React.useEffect(() => {
+        if (activeType === NavigationType.Scenario) {
+            help.setNextHelpTopic('scenarios')
+        }
+    }, [activeType])
+
+    if (activeType !== NavigationType.Scenario || !activeID) {
         return null
     }
 
     const updateName = (name: string) => {
-        scenario.setName(id, name)
+        scenario.setName(activeID, name)
     }
 
     const updateVariables = (data: EditableNameValuePair[]) => {
-        scenario.setVariables(id, data)
+        scenario.setVariables(activeID, data)
     }
 
     return (
-        <Container sx={{ marginLeft: 0 }}>
-            <Stack direction={'column'} sx={{ display: 'block', flexGrow: 1 }}>
-                <Typography variant='h1'><LanguageIcon /> {name?.length ?? 0 > 0 ? name : '(Unnamed)'}</Typography>
-                <Grid container direction={'column'} spacing={3} maxWidth={1000}>
-                    <Grid item>
-                        <TextField
-                            id='scenario-name'
-                            label='Name'
-                            aria-label='name'
-                            // size='small'
-                            value={name}
-                            onChange={e => updateName(e.target.value)}
-                            fullWidth
-                        />
-                    </Grid>
-                    <Grid item>
-                        <NameValueEditor values={variables} nameHeader='Header' valueHeader='Value' onUpdate={updateVariables} />
-                    </Grid>
+        <Stack direction={'column'} className='editor-panel-no-toolbar'>
+            <EditorTitle icon={<LanguageIcon />} name={name?.length ?? 0 > 0 ? name : '(Unnamed)'} />
+            <Grid container direction={'column'} spacing={3} maxWidth={1000}>
+                <Grid item>
+                    <TextField
+                        id='scenario-name'
+                        label='Name'
+                        aria-label='name'
+                        // size='small'
+                        value={name}
+                        onChange={e => updateName(e.target.value)}
+                        fullWidth
+                    />
                 </Grid>
-            </Stack >
-        </Container>
+                <Grid item>
+                    <NameValueEditor values={variables} nameHeader='Variable Name' valueHeader='Value' onUpdate={updateVariables} />
+                </Grid>
+            </Grid>
+        </Stack >
     )
 }

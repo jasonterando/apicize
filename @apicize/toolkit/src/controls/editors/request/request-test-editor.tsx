@@ -1,15 +1,17 @@
-import * as React from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+import { useContext } from 'react'
+import { useSelector } from 'react-redux'
 import { WorkbookState } from '../../../models/store'
 import 'prismjs/components/prism-javascript'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
-import { castEntryAsRequest } from '../../../models/workbook/helpers/editable-workbook-request-helpers'
-import { TextareaAutosize } from '@mui/material'
+import AceEditor from "react-ace"
+import "ace-builds/src-noconflict/mode-javascript"
 import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
+// import { TextareaAutosize } from '@mui/material'
 
 export function RequestTestEditor() {
-  const request = React.useContext(WorkbookStorageContext).request
+  const context = useContext(WorkbookStorageContext)
+  const request = context.request
   const id = useSelector((state: WorkbookState) => state.request.id)
   const test = useSelector((state: WorkbookState) => state.request.test ?? '')
 
@@ -22,30 +24,51 @@ export function RequestTestEditor() {
   }
 
   return (
-    <TextareaAutosize
-      autoFocus
-      maxRows={20}
-      style={{
-        borderStyle: 'solid',
-        borderWidth: '1px',
-        borderLeftColor: '#444',
-        borderRightColor: '#444',
-        borderTopColor: '#444',
-        borderBottomColor: '#444',
-        borderRadius: '4px',
-        fontFamily: 'monospace',
-        fontSize: '12pt',
-        outline: 'none',
-        minHeight: '10vh',
-        padding: '10px',
-        minWidth: '100%',
-        width: '100%',
-        color: '#FFFFFF',
-        backgroundColor: '#202020',
-        overflow: 'auto'
+    <AceEditor
+      mode='javascript'
+      theme='monokai'
+      fontSize='1rem'
+      lineHeight='1rem'
+      height='20em'
+      width='100%'
+      name='test-editor'
+      showGutter={true}
+      showPrintMargin={false}
+      tabSize={3}
+      onChange={(v) => updateTest(v)}
+      setOptions={{
+        useWorker: false,
+        foldStyle: "markbegin",
+        displayIndentGuides: true,
+        enableAutoIndent: true,
+        fixedWidthGutter: true,
+        showLineNumbers: true,
       }}
-      value={test}
-      onChange={(e) => updateTest(e.target.value)} />
+      value={test} />
+
+    // <TextareaAutosize
+    //   autoFocus
+    //   maxRows={20}
+    //   style={{
+    //     borderStyle: 'solid',
+    //     borderWidth: '1px',
+    //     borderLeftColor: '#444',
+    //     borderRightColor: '#444',
+    //     borderTopColor: '#444',
+    //     borderBottomColor: '#444',
+    //     borderRadius: '4px',
+    //     fontFamily: 'monospace',
+    //     outline: 'none',
+    //     minHeight: '10vh',
+    //     padding: '10px',
+    //     minWidth: '100%',
+    //     width: '100%',
+    //     color: '#FFFFFF',
+    //     backgroundColor: '#202020',
+    //     overflow: 'auto'
+    //   }}
+    //   value={test}
+    //   onChange={(e) => updateTest(e.target.value)} />
     // <Editor
     //   autoFocus
     //   padding={10}

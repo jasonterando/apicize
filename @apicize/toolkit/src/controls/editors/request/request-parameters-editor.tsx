@@ -6,8 +6,9 @@ import { Method, Methods } from '@apicize/lib-typescript'
 import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
 
 export function RequestParametersEditor() {
-    const request = useContext(WorkbookStorageContext).request
-
+    const context = useContext(WorkbookStorageContext)
+    const request = context.request
+  
     const id = useSelector((state: WorkbookState) => state.request.id)
     const name = useSelector((state: WorkbookState) => state.request.name)
     const url = useSelector((state: WorkbookState) => state.request.url)

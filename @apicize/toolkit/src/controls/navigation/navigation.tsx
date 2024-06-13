@@ -4,6 +4,7 @@ import FileOpenIcon from '@mui/icons-material/FileOpen'
 import PostAddIcon from '@mui/icons-material/PostAdd'
 import SaveIcon from '@mui/icons-material/Save'
 import SaveAsIcon from '@mui/icons-material/SaveAs'
+import HelpIcon from '@mui/icons-material/Help'
 import SendIcon from '@mui/icons-material/Send'
 import LockIcon from '@mui/icons-material/Lock'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -14,7 +15,7 @@ import LanguageIcon from '@mui/icons-material/Language'
 import { TreeView } from '@mui/x-tree-view/TreeView'
 import { TreeItem } from '@mui/x-tree-view/TreeItem'
 import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack } from '@mui/material'
-import { WorkbookState } from '../../models/store'
+import { NavigationType, WorkbookState } from '../../models/store'
 import { useSelector } from 'react-redux'
 import AddIcon from '@mui/icons-material/Add'
 import React, { ReactNode, SyntheticEvent, useContext, useState } from 'react'
@@ -36,21 +37,20 @@ export function Navigation(props: {
     triggerOpen: () => void,
     triggerSave: () => void,
     triggerSaveAs: () => void,
+    triggerHelp: (topic?: string) => void
 }) {
 
     const context = useContext(WorkbookStorageContext)
     const confirm = useConfirmation()
 
-    let activeRequestID = useSelector((state: WorkbookState) => state.request.id)
-    let activeGroupID = useSelector((state: WorkbookState) => state.group.id)
-    let activeAuthorizationID = useSelector((state: WorkbookState) => state.authorization.id)
-    let activeScenarioID = useSelector((state: WorkbookState) => state.scenario.id)
+    let activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
+    let activeID = useSelector((state: WorkbookState) => state.navigation.activeID)
+    let showNavigation = useSelector((state: WorkbookState) => state.navigation.showNavigation)
 
     const requests = useSelector((state: WorkbookState) => state.navigation.requestList)
     const authorizations = useSelector((state: WorkbookState) => state.navigation.authorizationList)
     const scenarios = useSelector((state: WorkbookState) => state.navigation.scenarioList)
     const workbookFullName = useSelector((state: WorkbookState) => state.workbook.workbookFullName)
-    const [selected, setSelected] = React.useState<string>('')
 
     const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>(undefined)
     const [reqMenu, setReqMenu] = useState<MenuPosition | undefined>(undefined)
@@ -82,7 +82,6 @@ export function Navigation(props: {
         }
     }
 
-    const activeRequestEntityID = activeRequestID ?? activeGroupID
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -103,34 +102,27 @@ export function Navigation(props: {
     }
 
     React.useEffect(() => {
-        if (activeRequestID) {
-            selectRequest(activeRequestID)
+        if (activeID) {
+            switch (activeType) {
+                case NavigationType.Request:
+                    selectRequest(activeID)
+                    break
+                case NavigationType.Authorization:
+                    selectAuthorization(activeID)
+                    break
+                case NavigationType.Scenario:
+                    selectScenario(activeID)
+                    break
+            }
         }
-    }, [activeRequestID])
-
-    React.useEffect(() => {
-        if (activeGroupID) {
-            selectRequest(activeGroupID)
-        }
-    }, [activeGroupID])
-
-    React.useEffect(() => {
-        if (activeAuthorizationID) {
-            selectAuthorization(activeAuthorizationID)
-        }
-    }, [activeAuthorizationID])
-
-    React.useEffect(() => {
-        if (activeScenarioID) {
-            selectScenario(activeScenarioID)
-        }
-    }, [activeScenarioID])
+    }, [activeType, activeID])
 
 
     function NavTreeSection(props: {
         children?: ReactNode | undefined
         type: string
         title: string
+        helpTopic: string
         onAdd: () => void
     }) {
         const { isOver, setNodeRef: setDropRef } = useDroppable({
@@ -145,7 +137,7 @@ export function Navigation(props: {
             nodeId={`hdr-${props.type}`}
             key={`hdr-${props.type}`}
             id={`hdr-${props.type}`}
-            onClick={e => handleSelectHeader(e)}
+            onClick={e => handleSelectHeader(e, props.helpTopic)}
             onFocusCapture={e => e.stopPropagation()}
             label={(
                 <Box
@@ -156,7 +148,7 @@ export function Navigation(props: {
                     ref={setDropRef}
                     onClick={(e) => {
                         // Prevent label from expanding/collapsing
-                        handleSelectHeader(e)
+                        handleSelectHeader(e, props.helpTopic)
                     }}
                     sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
                 >
@@ -263,7 +255,7 @@ export function Navigation(props: {
                             <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetTitle(props.item)}</Box>
                             <IconButton
                                 sx={{
-                                    visibility: props.item.id === selected ? 'normal' : 'hidden'
+                                    visibility: props.item.id === activeID ? 'normal' : 'hidden'
                                 }}
                                 onClick={(e) => {
                                     e.preventDefault()
@@ -320,7 +312,7 @@ export function Navigation(props: {
                         <Box className='nav-node-text'>{GetTitle(props.item)}</Box>
                         <IconButton
                             sx={{
-                                visibility: props.item.id === selected ? 'normal' : 'hidden'
+                                visibility: props.item.id === activeID ? 'normal' : 'hidden'
                             }}
                             onClick={(e) => {
                                 e.preventDefault()
@@ -336,9 +328,7 @@ export function Navigation(props: {
 
     const clearAllSelections = () => {
         context.workbook.clearAllActivations()
-        setSelected('')
     }
-
 
     const closeRequestsMenu = () => {
         setRequestsMenu(undefined)
@@ -404,29 +394,38 @@ export function Navigation(props: {
         )
     }
 
-    const handleSelectHeader = (e: SyntheticEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        clearAllSelections()
+    const closeAllMenus = () => {
         closeRequestsMenu()
         closeRequestMenu()
         closeAuthMenu()
         closeScenarioMenu()
     }
 
+    const handleSelectHeader = (e: SyntheticEvent, helpTopic?: string) => {
+        e.preventDefault()
+        e.stopPropagation()
+        closeAllMenus()
+        if (helpTopic) {
+            props.triggerHelp(helpTopic)
+        }
+    }
+
+    const showHelp = () => {
+        closeAllMenus()
+        props.triggerHelp()
+
+    }
+
     const selectRequest = (id: string) => {
         context.workbook.activateRequestOrGroup(id)
-        setSelected(id)
     }
 
     const selectAuthorization = (id: string) => {
         context.workbook.activateAuthorization(id)
-        setSelected(id)
     }
 
     const selectScenario = (id: string) => {
         context.workbook.activateScenario(id)
-        setSelected(id)
     }
 
     const handleAddRequest = (targetRequestId?: string | null) => {
@@ -454,25 +453,26 @@ export function Navigation(props: {
     const handleDeleteRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (!activeRequestEntityID) return
+        if (!activeID || activeType !== NavigationType.Request) return
+        const id = activeID
         confirm({
             title: 'Delete Request',
-            message: `Are you are you sure you want to delete ${GetTitle(requests.find(r => r.id === activeRequestEntityID))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(requests.find(r => r.id === id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                context.request.delete(activeRequestEntityID)
+                context.request.delete(id)
             }
         })
     }
 
     const handleDeleteAuth = () => {
         closeAuthMenu()
-        const id = activeAuthorizationID
-        if (!id) return
+        if (!activeID || activeType !== NavigationType.Authorization) return
+        const id = activeID
         confirm({
             title: 'Delete Authorization',
             message: `Are you are you sure you want to delete ${GetTitle(authorizations.find(a => a.id === id))}?`,
@@ -489,9 +489,8 @@ export function Navigation(props: {
 
     const handleDeleteScenario = () => {
         closeScenarioMenu()
-        const id = activeScenarioID
-        if (!id) return
-
+        if (!activeID || activeType !== NavigationType.Scenario) return
+        const id = activeID
         confirm({
             title: 'Delete Scenario',
             message: `Are you are you sure you want to delete ${GetTitle(scenarios.find(s => s.id === id))}?`,
@@ -509,17 +508,17 @@ export function Navigation(props: {
     const handleDupeRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (activeRequestEntityID) context.request.copy(activeRequestEntityID)
+        if (activeType === NavigationType.Request && activeID) context.request.copy(activeID)
     }
 
     const handleDupeAuth = () => {
         closeAuthMenu()
-        if (activeAuthorizationID) context.authorization.copy(activeAuthorizationID)
+        if (activeType === NavigationType.Authorization && activeID) context.authorization.copy(activeID)
     }
 
     const handleDupeScenario = () => {
         closeScenarioMenu()
-        if (activeScenarioID) context.scenario.copy(activeScenarioID)
+        if (activeType === NavigationType.Scenario && activeID) context.scenario.copy(activeID)
     }
 
     const handleMoveRequest = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
@@ -549,13 +548,13 @@ export function Navigation(props: {
                     left: requestsMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddRequest(activeRequestEntityID)}>
+                <MenuItem onClick={(_) => handleAddRequest(activeID)}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(_) => handleAddRequestGroup(activeRequestEntityID)}>
+                <MenuItem onClick={(_) => handleAddRequestGroup(activeID)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
@@ -577,13 +576,13 @@ export function Navigation(props: {
                     left: reqMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(e) => handleAddRequest(activeRequestEntityID)}>
+                <MenuItem onClick={(e) => handleAddRequest(activeID)}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(e) => handleAddRequestGroup(activeRequestEntityID)}>
+                <MenuItem onClick={(e) => handleAddRequestGroup(activeID)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
@@ -617,7 +616,7 @@ export function Navigation(props: {
                     left: authMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddAuth(activeAuthorizationID)}>
+                <MenuItem onClick={(_) => handleAddAuth(activeID)}>
                     <ListItemIcon>
                         <LockIcon fontSize='small' />
                     </ListItemIcon>
@@ -651,7 +650,7 @@ export function Navigation(props: {
                     left: scenarioMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddScenario(activeScenarioID)}>
+                <MenuItem onClick={(_) => handleAddScenario(activeID)}>
                     <ListItemIcon>
                         <LanguageIcon fontSize='small' />
                     </ListItemIcon>
@@ -695,7 +694,7 @@ export function Navigation(props: {
 
         if (overData.isHeader) {
             onLowerHalf = true
-        } else  if (r) {
+        } else if (r) {
             if (y > r.top + (r.height / 2)) onLowerHalf = true
             if (x < 72 + overData.depth * 16) onLeft = true
         }
@@ -715,7 +714,6 @@ export function Navigation(props: {
             position = DragPosition.Invalid
         }
         setDragPosition(position)
-        // console.log(`Active ID: ${active.id}, Over ID: ${over.id}, Position: ${position}`)
     }
 
     const onDragEnd = (e: DragEndEvent) => {
@@ -740,7 +738,6 @@ export function Navigation(props: {
             if (x < 72 + overData.depth * 16) onLeft = true
         }
 
-        // console.log('onDragEnd', e)
         if (activeData.type === overData.acceptsType) {
             activeData.move(overData.isHeader ? null : over.id.toString(), onLowerHalf, onLeft)
         }
@@ -755,23 +752,27 @@ export function Navigation(props: {
         }
     }
     requests.forEach(expandRequestsWithChildren)
-    // console.log('Default expanded: ' + defaultExpanded.join(', '))
 
-    return (
-        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '8px', paddingRight: '40px', backgroundColor: '#202020' }}>
-            <Box sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px' }}>
-                <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
-                    <PostAddIcon />
-                </IconButton>
-                <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => props.triggerOpen()} sx={{ marginLeft: '4px' }}>
-                    <FileOpenIcon />
-                </IconButton>
-                <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={(workbookFullName?.length ?? 0) == 0} onClick={() => props.triggerSave()} sx={{ marginLeft: '4px' }}>
-                    <SaveIcon />
-                </IconButton>
-                <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => props.triggerSaveAs()} sx={{ marginLeft: '4px' }}>
-                    <SaveAsIcon />
-                </IconButton>
+    return showNavigation ? (
+        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '8px', paddingRight: '20px', backgroundColor: '#202020' }}>
+            <Box display='flex' flexDirection='row' sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px' }}>
+                <Box sx={{width: '100%', marginRight: '8px'}}>
+                    <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
+                        <PostAddIcon />
+                    </IconButton>
+                    <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => props.triggerOpen()} sx={{ marginLeft: '4px' }}>
+                        <FileOpenIcon />
+                    </IconButton>
+                    <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={(workbookFullName?.length ?? 0) == 0} onClick={() => props.triggerSave()} sx={{ marginLeft: '4px' }}>
+                        <SaveIcon />
+                    </IconButton>
+                    <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => props.triggerSaveAs()} sx={{ marginLeft: '4px' }}>
+                        <SaveAsIcon />
+                    </IconButton>
+                    <IconButton aria-label='help' title='Help' sx={{float: 'right'}} onClick={() => { showHelp(); }}>
+                        <HelpIcon />
+                    </IconButton>
+                </Box>
             </Box>
             <DndContext onDragMove={onDragMove} onDragCancel={onDragCancel} onDragEnd={onDragEnd} sensors={sensors}>
                 <TreeView
@@ -782,11 +783,11 @@ export function Navigation(props: {
                     defaultCollapseIcon={<ExpandMoreIcon />}
                     defaultExpandIcon={<ChevronRightIcon />}
                     defaultExpanded={defaultExpanded}
-                    selected={selected}
+                    selected={activeID}
                     multiSelect={false}
                     sx={{ height: '100vh', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
                 >
-                    <NavTreeSection key='nav-section-request' type='request' title='Requests' onAdd={() => { }}>
+                    <NavTreeSection key='nav-section-request' type='request' title='Requests' helpTopic='requests' onAdd={() => { }}>
                         {
                             requests.map(t => <NavTreeItem
                                 item={t}
@@ -799,7 +800,7 @@ export function Navigation(props: {
                             />)
                         }
                     </NavTreeSection>
-                    <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' onAdd={handleAddAuth}>
+                    <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' helpTopic='authorizations' onAdd={handleAddAuth}>
                         {
                             authorizations.map(t => <NavTreeItem
                                 item={t}
@@ -812,7 +813,7 @@ export function Navigation(props: {
                             />)
                         }
                     </NavTreeSection>
-                    <NavTreeSection key='nav-section-scenario' type='scenario' title='Scenarios' onAdd={handleAddScenario}>
+                    <NavTreeSection key='nav-section-scenario' type='scenario' title='Scenarios' helpTopic='scenarios' onAdd={handleAddScenario}>
                         {
                             scenarios.map(t => <NavTreeItem
                                 item={t}
@@ -832,5 +833,5 @@ export function Navigation(props: {
             <AuthMenu />
             <ScenarioMenu />
         </Stack>
-    )
+    ) : null
 }

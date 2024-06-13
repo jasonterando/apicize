@@ -1,13 +1,11 @@
 import { useSelector } from "react-redux"
 import { WorkbookState } from "../../../models/store"
-import { Box, Stack, textTransform } from "@mui/system"
+import { Box, Stack } from "@mui/system"
 import { IconButton, Typography } from "@mui/material"
 import CheckIcon from '@mui/icons-material/Check';
 import BlockIcon from '@mui/icons-material/Block';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { ApicizeResult } from "@apicize/lib-typescript";
-import { WorkbookExecutionRequest } from "../../../models/workbook/workbook-execution";
 import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context";
 import { useContext } from "react";
 import { ExecutionSummaryInfo } from "../../../models/workbook/execution-summary-info";
@@ -21,8 +19,8 @@ const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
     if (props.info.milliseconds && props.info.milliseconds > 0) {
         info.push(`${props.info.milliseconds.toLocaleString()} ms`)
     }
-    return (<Box key={`test-${idx++}`} sx={{marginBottom: '24px'}}>
-        <Typography variant='h3' sx={{ marginTop: 0, paddingTop: 0, color: '#80000' }}>
+    return (<Box key={`test-summary-${idx++}`} sx={{marginBottom: '1rem'}}>
+        <Typography sx={{ marginTop: 0, paddingTop: 0, color: '#80000' }}>
             {props.info.name} 
             <>
                 {info.length === 0 ? '' : ` (${info.join(', ')})`}
@@ -34,7 +32,7 @@ const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
         {
         props.info.tests
             ? (
-                <Box sx={{marginTop: '18px'}}>
+                <Box sx={{marginTop: '1rem'}}>
                     {
                     props.info.tests.map(test => (<TestResult 
                         key={`test-${idx++}`} 
@@ -52,8 +50,8 @@ const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
 
 const ResultDetail = (props: { info: ExecutionSummaryInfo }) => {
     let idx = 0
-    return (<Box key={`test-${idx++}`} sx={{marginBottom: '24px'}}>
-        <Box sx={{ marginBottom: '18px' }}>
+    return (<Box sx={{marginBottom: '2rem'}}>
+        <Box sx={{ marginBottom: '1rem' }}>
             {((props.info.errorMessage?.length ?? 0) == 0)
                 ? (<></>)
                 : (<TestInfo isError={true} text={`${props.info.errorMessage}`} />)}
@@ -86,14 +84,14 @@ const ResultDetail = (props: { info: ExecutionSummaryInfo }) => {
 const TestInfo = (props: { isError?: boolean, text: string }) =>
 (
     <Stack direction='row'>
-        <Stack direction='column' sx={{ marginLeft: '30px' }}>
-            <Typography variant='h3' sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, color: '#80000' }}>
+        <Stack direction='column' sx={{ marginLeft: '0rem' }}>
+            <Box sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, color: '#80000' }}>
                 {
                     props.isError === true
                         ? (<Box color='#FF0000' sx={{ ":first-letter": { textTransform: 'capitalize'}, whiteSpace: 'pre-wrap' }}>{props.text}</Box>)
                         : (<>{props.text}</>)
                 }
-            </Typography>
+            </Box>
         </Stack>
     </Stack>
 )
@@ -101,17 +99,17 @@ const TestInfo = (props: { isError?: boolean, text: string }) =>
 const TestResult = (props: { name: string[], success: boolean, logs?: string[], error?: string }) =>
 (
     <Stack direction='row'>
-        <Box sx={{ width: '22px', marginRight: '8px' }}>
+        <Box sx={{ width: '1.5rem', marginRight: '0.5rem' }}>
             {props.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
         </Box>
         <Stack direction='column'>
-            <Typography variant='h3' sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }}>
+            <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }}>
                 Test: {props.name.join(' ')}
             </Typography>
-            {(props.error?.length ?? 0) > 0 ? (<Typography variant='h3'
+            {(props.error?.length ?? 0) > 0 ? (<Typography 
                 sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, ":first-letter": { textTransform: 'capitalize'} }} color='error'>{props.error}</Typography>) : (<></>)}
             {(props.logs?.length ?? 0) > 0 ? (
-                <Box sx={{ overflow: 'auto', marginTop: '10px', marginBottom: 0 }}>
+                <Box sx={{ overflow: 'auto', marginTop: '0.25rem', marginBottom: 0 }}>
                     <pre style={{ paddingTop: 0, marginTop: 0, whiteSpace: 'pre-line' }}>{props.logs?.join('\n')}</pre>
                 </Box>
             ) : (<></>)}
@@ -122,10 +120,8 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
 export function ResultInfoViewer(props: {
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
-    const executionId = useSelector((state: WorkbookState) => state.execution.id)
-    useSelector((state: WorkbookState) => state.execution.resultIndex)
-    useSelector((state: WorkbookState) => state.execution.runIndex)
-    if (!executionId) {
+    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
+    if (! executionId) {
         return null
     }
 
@@ -140,6 +136,7 @@ export function ResultInfoViewer(props: {
     if (Array.isArray(summary)) {
         // let cached = executionResult.response?.authTokenCached === true
         const allSucceeded = summary.reduce((a, r) => a && r.success, true)
+        let idx = 0
         return (
             <Box>
                 <Typography variant='h2' sx={{ marginTop: 0 }}>
@@ -154,7 +151,7 @@ export function ResultInfoViewer(props: {
                 </Typography>
                 {
                     summary.map(request => (
-                        <Box>
+                        <Box key={`test-grp-${idx++}`}>
                             <ResultSummary info={request} />
                         </Box>
                     ))
@@ -169,7 +166,7 @@ export function ResultInfoViewer(props: {
                     <IconButton
                         aria-label="Copy Results to Clipboard"
                         title="Copy Results to Clipboard"
-                        sx={{ marginLeft: '16px' }}
+                        sx={{ marginLeft: '1rem' }}
                         onClick={_ => copyToClipboard(summary)}>
                         <ContentCopyIcon />
                     </IconButton>

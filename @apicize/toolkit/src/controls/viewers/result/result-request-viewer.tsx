@@ -11,10 +11,10 @@ import { useContext } from "react"
 export function ResultRequestViewer(props: {
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
-    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
     useSelector((state: WorkbookState) => state.execution.resultIndex)
     useSelector((state: WorkbookState) => state.execution.runIndex)
-    if (!executionId) {
+    if (! executionId) {
         return null
     }
 

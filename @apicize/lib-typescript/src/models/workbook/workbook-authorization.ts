@@ -11,11 +11,18 @@ export enum WorkbookAuthorizationType { None = 'none', Basic = 'Basic', OAuth2Cl
 //     type: WorkbookAuthorizationType
 // }
 
+export enum PersistenceOption { None = 'None', Workbook = 'Workbook', CommonEnvironment = 'Environment' }
+
+/**
+ * Specifies how to persist sensitive information
+ */
+
 export type WorkbookAuthorization = WorkbookBasicAuthorization | WorkbookOAuth2ClientAuthorization | WorkbookApiKeyAuthorization
 
 export interface WorkbookAuthorizationBase extends Identifiable {
     name: string
     type: WorkbookAuthorizationType
+    persistence: PersistenceOption
 }
 
 /**

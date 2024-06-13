@@ -10,22 +10,23 @@ pub mod models;
 pub mod oauth2_client_tokens;
 
 use async_recursion::async_recursion;
+use dirs::{config_dir, document_dir};
 use encoding_rs::{Encoding, UTF_8};
 use mime::Mime;
 use reqwest::{Body, Client};
-use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Once;
 use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, vec};
+use std::{env, fs, path};
 use tokio::select;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
 use models::{
-    ApicizeBody, ApicizeRequest, ApicizeResponse, ApicizeResult, ApicizeResultRuns,
-    ApicizeTestResponse, ExecutionError, RunError, SerializationError, Workbook,
-    WorkbookAuthorization, WorkbookRequest, WorkbookRequestBody, WorkbookRequestEntry,
-    WorkbookRequestMethod, WorkbookScenario,
+    ApicizeBody, ApicizeRequest, ApicizeResponse, ApicizeResult, ApicizeResultRuns, ApicizeTestResponse, CommonEnvironment, ExecutionError, RunError,
+    SavedWorkbookAuth, SerializationError, Workbook, WorkbookAuthorization, WorkbookRequest, WorkbookRequestBody, WorkbookRequestEntry,
+    WorkbookRequestMethod, WorkbookScenario
 };
 
 use oauth2_client_tokens::get_oauth2_client_credentials;
@@ -40,642 +41,721 @@ pub fn cleanup_v8() {
     v8::V8::dispose_platform();
 }
 
-/// Trait defining file system persistence for Apicize Workbooks
-pub trait FileSystem<T> {
-    /// Open an Apicize workbook from the specified path
-    fn open_from_path(path: &String) -> Result<T, SerializationError>;
-    /// Save an Apicize workbook to the specified path
-    fn save_to_path(&self, path: &String) -> Result<(), SerializationError>;
-}
-
-/// Trait for JSON serialization methods for Workbooks
-pub trait Serializable<T> {
-    /// Deserialize an Apicize Workbook from the specified JSON text
-    fn deserialize(text: String) -> Result<T, serde_json::Error>;
-    /// Serialize the specified Apicize Workbook to JSON text
-    fn serialize(&self) -> Result<String, serde_json::Error>;
-}
-
-// /// Trait for running Apicize Requests (dispatch and test)
-// #[async_trait]
-// pub trait Runnable {
-//     /// Dispatch the associated Apicize Request (dispatching the web call and executing defined  tests, if any)
-//     async fn run<'a>(
-//         &self,
-//         authorization: &'a Option<WorkbookAuthorization>,
-//         scenario: &'a Option<WorkbookScenario>,
-//         cancellation: Option<CancellationToken>,
-//     ) -> Result<ApicizeResultRuns, RunError>;
-// }
-
-impl Serializable<Workbook> for Workbook {
-    /// Deserialize workbook from text
-    fn deserialize(text: String) -> Result<Workbook, serde_json::Error> {
-        serde_json::from_str(text.as_str())
+/// Workbook functions
+impl Workbook {
+    /// Return default workbooks directory
+    pub fn get_workbooks_directory() -> path::PathBuf {
+        match document_dir() {
+            Some(directory) => directory.join("apicize"),
+            None => env::current_dir().unwrap().join("apicize"),
+        }
     }
 
-    /// Serialize workbook to text
-    fn serialize(self: &Workbook) -> Result<String, serde_json::Error> {
-        serde_json::to_string(self)
-    }
-}
-
-impl FileSystem<Workbook> for Workbook {
-    // Open from specified path
-    fn open_from_path(path: &String) -> Result<Workbook, SerializationError> {
-        Ok(Workbook::deserialize(fs::read_to_string(path)?)?)
+    /// Open from specified path
+    pub fn open(path: &String) -> Result<Workbook, SerializationError> {
+        let mut auth_path = PathBuf::from(path);
+        auth_path.set_extension("apicize-auth");
+        
+        let mut workbook = serde_json::from_str::<Workbook>(fs::read_to_string(path)?.as_str())?;
+        if Path::new(&auth_path).is_file() {
+            let auth = serde_json::from_str::<SavedWorkbookAuth>(fs::read_to_string(auth_path)?.as_str())?;
+            workbook.authorizations = auth.authorizations;
+        }
+        Ok(workbook)
     }
 
     /// Save to specified path
-    fn save_to_path(&self, path: &String) -> Result<(), SerializationError> {
-        Ok(fs::write(path, self.serialize()?)?)
-    }
-}
+    pub fn save(mut self, path: &String) -> Result<(), SerializationError> {
+        let mut auth_path = PathBuf::from(path);
+        auth_path.set_extension("apicize-auth");
 
-/// Utility function to perform string substitution based upon search/replace values in "subs"
-fn clone_and_sub(text: &str, subs: &Vec<(String, String)>) -> String {
-    if subs.is_empty() {
-        text.to_string()
-    } else {
-        let mut clone = text.to_string();
-        let mut i = subs.iter();
-        while let Some(pair) = i.next() {
-            clone = str::replace(&clone, &pair.0, &pair.1)
-        }
-        clone
-    }
-}
+        let save_auths = self.authorizations.clone();
+        let has_auths = match &save_auths {
+            Some(auths) => auths.len() > 0,
+            None => false
+        };
 
-/// Dispatch the specified request (via reqwest), returning either the repsonse or error
-async fn dispatch<'a>(
-    request: &WorkbookRequest,
-    authorization: &'a Option<WorkbookAuthorization>,
-    scenario: &'a Option<WorkbookScenario>,
-) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError> {
-    let method: reqwest::Method;
-    match request.method {
-        Some(WorkbookRequestMethod::Get) => method = reqwest::Method::GET,
-        Some(WorkbookRequestMethod::Post) => method = reqwest::Method::POST,
-        Some(WorkbookRequestMethod::Put) => method = reqwest::Method::PUT,
-        Some(WorkbookRequestMethod::Delete) => method = reqwest::Method::DELETE,
-        Some(WorkbookRequestMethod::Head) => method = reqwest::Method::HEAD,
-        Some(WorkbookRequestMethod::Options) => method = reqwest::Method::OPTIONS,
-        None => method = reqwest::Method::GET,
-        _ => panic!("Invalid method \"{:?}\"", request.method),
-    }
+        if has_auths {
+            // Clear authorizations from workbook before saving
+            self.authorizations = None;
 
-    let timeout: Duration;
-    if let Some(t) = request.timeout {
-        timeout = Duration::from_millis(t as u64);
-    } else {
-        timeout = Duration::from_secs(30);
-    }
+            // Save authorizations to their own file
+            let auth_to_save = { SavedWorkbookAuth {
+                version: self.version,
+                authorizations: save_auths
+            }};
+            fs::write(auth_path, serde_json::to_string(&auth_to_save)?)?;
 
-    // let keep_alive: bool;
-    // if let Some(b) = request.keep_alive {
-    //     keep_alive = b;
-    // } else {
-    //     keep_alive = true;
-    // }
-
-    let subs: Vec<(String, String)>;
-
-    match scenario {
-        Some(active_scenario) => {
-            match &active_scenario.variables {
-                Some(pairs) => {
-                    subs = pairs
-                        .iter()
-                        .filter(|pair| pair.disabled != Some(true))
-                        .map(|pair| {
-                            // (pair.name.as_str(), pair.value.as_str())
-                            (format!("{{{{{}}}}}", pair.name), pair.value.clone())
-                        })
-                        .collect::<Vec<(String, String)>>()
-                }
-                None => subs = vec![],
+        } else {
+            // If there are no authorizations in workbook, delete auth file if it exists
+            if Path::new(&auth_path).is_file() {
+                fs::remove_file(auth_path)?;
             }
         }
-        None => subs = vec![],
+        Ok(fs::write(path, serde_json::to_string(&self)?)?)
+
+
     }
 
-    // Build the reqwest client and request
-    let client = Client::builder()
-        // .http2_keep_alive_while_idle(keep_alive)
-        .timeout(timeout)
-        .build()?;
+}
 
-    let mut request_builder =
-        client.request(method.clone(), clone_and_sub(request.url.as_str(), &subs));
+impl CommonEnvironment {
+    /// Retrieve common environment file name
+    fn get_file_name() -> String {
+        match config_dir() {
+            Some(directory) => String::from(
+                directory
+                    .join("apicize")
+                    .join("environments.json")
+                    .as_os_str()
+                    .to_string_lossy(),
+            ),
+            None => String::from(
+                env::current_dir()
+                    .unwrap()
+                    .join("apicize")
+                    .join("environment.json")
+                    .as_os_str()
+                    .to_string_lossy(),
+            ),
+        }
+    }
 
-    // Add headers, including authorization if applicable
-    let mut headers = reqwest::header::HeaderMap::new();
-    if let Some(h) = &request.headers {
-        for nvp in h {
-            if nvp.disabled != Some(true) {
-                headers.insert(
-                    reqwest::header::HeaderName::try_from(clone_and_sub(&nvp.name, &subs)).unwrap(),
-                    reqwest::header::HeaderValue::try_from(clone_and_sub(&nvp.value, &subs))
+    /// Open Apicize common environment from the specified name in the default path
+    pub fn open() -> Result<CommonEnvironment, SerializationError> {
+        let file_name = CommonEnvironment::get_file_name();
+        Ok(serde_json::from_str(
+            fs::read_to_string(file_name)?.as_str(),
+        )?)
+    }
+
+    /// Save Apicize common environment to the specified name in the default path
+    pub fn save(&self) -> Result<(), SerializationError> {
+        let file_name = CommonEnvironment::get_file_name();
+        Ok(fs::write(file_name, serde_json::to_string(self)?)?)
+    }
+}
+
+impl WorkbookRequestEntry {
+    /// Utility function to perform string substitution based upon search/replace values in "subs"
+    fn clone_and_sub(text: &str, subs: &Vec<(String, String)>) -> String {
+        if subs.is_empty() {
+            text.to_string()
+        } else {
+            let mut clone = text.to_string();
+            let mut i = subs.iter();
+            while let Some(pair) = i.next() {
+                clone = str::replace(&clone, &pair.0, &pair.1)
+            }
+            clone
+        }
+    }
+
+    /// Dispatch the specified request (via reqwest), returning either the repsonse or error
+    async fn dispatch<'a>(
+        request: &WorkbookRequest,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
+    ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError> {
+        let method: reqwest::Method;
+        match request.method {
+            Some(WorkbookRequestMethod::Get) => method = reqwest::Method::GET,
+            Some(WorkbookRequestMethod::Post) => method = reqwest::Method::POST,
+            Some(WorkbookRequestMethod::Put) => method = reqwest::Method::PUT,
+            Some(WorkbookRequestMethod::Delete) => method = reqwest::Method::DELETE,
+            Some(WorkbookRequestMethod::Head) => method = reqwest::Method::HEAD,
+            Some(WorkbookRequestMethod::Options) => method = reqwest::Method::OPTIONS,
+            None => method = reqwest::Method::GET,
+            _ => panic!("Invalid method \"{:?}\"", request.method),
+        }
+
+        let timeout: Duration;
+        if let Some(t) = request.timeout {
+            timeout = Duration::from_millis(t as u64);
+        } else {
+            timeout = Duration::from_secs(30);
+        }
+
+        // let keep_alive: bool;
+        // if let Some(b) = request.keep_alive {
+        //     keep_alive = b;
+        // } else {
+        //     keep_alive = true;
+        // }
+
+        let subs: Vec<(String, String)>;
+
+        match scenario {
+            Some(active_scenario) => {
+                match &active_scenario.variables {
+                    Some(pairs) => {
+                        subs = pairs
+                            .iter()
+                            .filter(|pair| pair.disabled != Some(true))
+                            .map(|pair| {
+                                // (pair.name.as_str(), pair.value.as_str())
+                                (format!("{{{{{}}}}}", pair.name), pair.value.clone())
+                            })
+                            .collect::<Vec<(String, String)>>()
+                    }
+                    None => subs = vec![],
+                }
+            }
+            None => subs = vec![],
+        }
+
+        // Build the reqwest client and request
+        let client = Client::builder()
+            // .http2_keep_alive_while_idle(keep_alive)
+            .timeout(timeout)
+            .build()?;
+
+        let mut request_builder = client.request(
+            method.clone(),
+            WorkbookRequestEntry::clone_and_sub(request.url.as_str(), &subs),
+        );
+
+        // Add headers, including authorization if applicable
+        let mut headers = reqwest::header::HeaderMap::new();
+        if let Some(h) = &request.headers {
+            for nvp in h {
+                if nvp.disabled != Some(true) {
+                    headers.insert(
+                        reqwest::header::HeaderName::try_from(WorkbookRequestEntry::clone_and_sub(
+                            &nvp.name, &subs,
+                        ))
                         .unwrap(),
+                        reqwest::header::HeaderValue::try_from(
+                            WorkbookRequestEntry::clone_and_sub(&nvp.value, &subs),
+                        )
+                        .unwrap(),
+                    );
+                }
+            }
+        }
+
+        let mut auth_token_cached: Option<bool> = None;
+        match authorization {
+            Some(WorkbookAuthorization::Basic {
+                id: _,
+                name: _,
+                username,
+                password,
+            }) => {
+                request_builder = request_builder.basic_auth(username, Some(password));
+            }
+            Some(WorkbookAuthorization::ApiKey {
+                id: _,
+                name: _,
+                header,
+                value,
+            }) => {
+                headers.append(
+                    reqwest::header::HeaderName::try_from(header).unwrap(),
+                    reqwest::header::HeaderValue::try_from(value).unwrap(),
                 );
             }
-        }
-    }
-
-    let mut auth_token_cached: Option<bool> = None;
-    match authorization {
-        Some(WorkbookAuthorization::Basic {
-            id: _,
-            name: _,
-            username,
-            password,
-        }) => {
-            request_builder = request_builder.basic_auth(username, Some(password));
-        }
-        Some(WorkbookAuthorization::ApiKey {
-            id: _,
-            name: _,
-            header,
-            value,
-        }) => {
-            headers.append(
-                reqwest::header::HeaderName::try_from(header).unwrap(),
-                reqwest::header::HeaderValue::try_from(value).unwrap(),
-            );
-        }
-        Some(WorkbookAuthorization::OAuth2Client {
-            id,
-            name: _,
-            access_token_url,
-            client_id,
-            client_secret,
-            scope, // send_credentials_in_body: _,
-        }) => {
-            match get_oauth2_client_credentials(
+            Some(WorkbookAuthorization::OAuth2Client {
                 id,
+                name: _,
                 access_token_url,
                 client_id,
                 client_secret,
-                scope,
-            )
-            .await
-            {
-                Ok((token, cached)) => {
-                    auth_token_cached = Some(cached);
-                    request_builder = request_builder.bearer_auth(token);
+                scope, // send_credentials_in_body: _,
+            }) => {
+                match get_oauth2_client_credentials(
+                    id,
+                    access_token_url,
+                    client_id,
+                    client_secret,
+                    scope,
+                )
+                .await
+                {
+                    Ok((token, cached)) => {
+                        auth_token_cached = Some(cached);
+                        request_builder = request_builder.bearer_auth(token);
+                    }
+                    Err(err) => return Err(err),
                 }
-                Err(err) => return Err(err),
             }
+            None => {}
         }
-        None => {}
-    }
 
-    if !headers.is_empty() {
-        request_builder = request_builder.headers(headers);
-    }
+        if !headers.is_empty() {
+            request_builder = request_builder.headers(headers);
+        }
 
-    // Add query string parameters, if applicable
-    if let Some(q) = &request.query_string_params {
-        let mut query: Vec<(String, String)> = vec![];
-        for nvp in q {
-            if nvp.disabled != Some(true) {
-                query.push((
-                    clone_and_sub(&nvp.name, &subs),
-                    clone_and_sub(&nvp.value, &subs),
-                ));
+        // Add query string parameters, if applicable
+        if let Some(q) = &request.query_string_params {
+            let mut query: Vec<(String, String)> = vec![];
+            for nvp in q {
+                if nvp.disabled != Some(true) {
+                    query.push((
+                        WorkbookRequestEntry::clone_and_sub(&nvp.name, &subs),
+                        WorkbookRequestEntry::clone_and_sub(&nvp.value, &subs),
+                    ));
+                }
             }
+            request_builder = request_builder.query(&query);
         }
-        request_builder = request_builder.query(&query);
-    }
 
-    // Add body, if applicable
-    match &request.body {
-        Some(WorkbookRequestBody::Text { data }) => {
-            let s = clone_and_sub(&data, &subs);
-            request_builder = request_builder.body(Body::from(s.clone()));
+        // Add body, if applicable
+        match &request.body {
+            Some(WorkbookRequestBody::Text { data }) => {
+                let s = WorkbookRequestEntry::clone_and_sub(&data, &subs);
+                request_builder = request_builder.body(Body::from(s.clone()));
+            }
+            Some(WorkbookRequestBody::JSON { data }) => {
+                let s = WorkbookRequestEntry::clone_and_sub(
+                    serde_json::to_string(&data).unwrap().as_str(),
+                    &subs,
+                );
+                request_builder = request_builder.body(Body::from(s.clone()));
+            }
+            Some(WorkbookRequestBody::XML { data }) => {
+                let s = WorkbookRequestEntry::clone_and_sub(&data, &subs);
+                request_builder = request_builder.body(Body::from(s.clone()));
+            }
+            Some(WorkbookRequestBody::Form { data }) => {
+                let form_data = data
+                    .iter()
+                    .map(|pair| {
+                        (
+                            String::from(pair.name.as_str()),
+                            String::from(pair.value.as_str()),
+                        )
+                    })
+                    .collect::<HashMap<String, String>>();
+                request_builder = request_builder.form(&form_data);
+            }
+            Some(WorkbookRequestBody::Raw { data }) => {
+                request_builder = request_builder.body(Body::from(data.clone()));
+            }
+            None => {}
         }
-        Some(WorkbookRequestBody::JSON { data }) => {
-            let s = clone_and_sub(serde_json::to_string(&data).unwrap().as_str(), &subs);
-            request_builder = request_builder.body(Body::from(s.clone()));
-        }
-        Some(WorkbookRequestBody::XML { data }) => {
-            let s = clone_and_sub(&data, &subs);
-            request_builder = request_builder.body(Body::from(s.clone()));
-        }
-        Some(WorkbookRequestBody::Form { data }) => {
-            let form_data = data
-                .iter()
-                .map(|pair| {
-                    (
-                        String::from(pair.name.as_str()),
-                        String::from(pair.value.as_str()),
-                    )
-                })
-                .collect::<HashMap<String, String>>();
-            request_builder = request_builder.form(&form_data);
-        }
-        Some(WorkbookRequestBody::Raw { data }) => {
-            request_builder = request_builder.body(Body::from(data.clone()));
-        }
-        None => {}
-    }
 
-    let mut web_request = request_builder.build()?;
+        let mut web_request = request_builder.build()?;
 
-    // Copy value generated for the request so that we can include in the function results
-    let request_url = web_request.url().to_string();
-    let request_headers = web_request
-        .headers()
-        .iter()
-        .map(|(h, v)| {
-            (
-                String::from(h.as_str()),
-                String::from(v.to_str().unwrap_or("(Header Contains Non-ASCII Data)")),
-            )
-        })
-        .collect::<HashMap<String, String>>();
-    let request_body: Option<ApicizeBody>;
-    let ref_body = web_request.body_mut();
-    match ref_body {
-        Some(data) => {
-            let bytes = data.as_bytes().unwrap();
-            if bytes.len() > 0 {
-                let request_encoding = UTF_8;
+        // Copy value generated for the request so that we can include in the function results
+        let request_url = web_request.url().to_string();
+        let request_headers = web_request
+            .headers()
+            .iter()
+            .map(|(h, v)| {
+                (
+                    String::from(h.as_str()),
+                    String::from(v.to_str().unwrap_or("(Header Contains Non-ASCII Data)")),
+                )
+            })
+            .collect::<HashMap<String, String>>();
+        let request_body: Option<ApicizeBody>;
+        let ref_body = web_request.body_mut();
+        match ref_body {
+            Some(data) => {
+                let bytes = data.as_bytes().unwrap();
+                if bytes.len() > 0 {
+                    let request_encoding = UTF_8;
 
-                let data = bytes.to_vec();
-                let (decoded, _, malformed) = request_encoding.decode(&data);
-                request_body = Some(ApicizeBody {
-                    data: Some(data.clone()),
-                    text: if malformed {
-                        None
-                    } else {
-                        Some(decoded.to_string())
-                    },
-                })
-            } else {
+                    let data = bytes.to_vec();
+                    let (decoded, _, malformed) = request_encoding.decode(&data);
+                    request_body = Some(ApicizeBody {
+                        data: Some(data.clone()),
+                        text: if malformed {
+                            None
+                        } else {
+                            Some(decoded.to_string())
+                        },
+                    })
+                } else {
+                    request_body = None;
+                }
+            }
+            None => {
                 request_body = None;
             }
         }
-        None => {
-            request_body = None;
-        }
-    }
 
-    // Execute the request
-    let client_response = client.execute(web_request).await;
-    match client_response {
-        Err(error) => return Err(ExecutionError::Reqwest(error)),
-        Ok(response) => {
-            // Collect headers for response
-            let response_headers = response.headers();
-            let headers: Option<HashMap<String, String>>;
-            if response_headers.is_empty() {
-                headers = None;
-            } else {
-                headers = Some(HashMap::from_iter(
-                    response_headers
-                        .iter()
-                        .map(|(h, v)| {
-                            (
-                                String::from(h.as_str()),
-                                String::from(
-                                    v.to_str().unwrap_or("(Header Contains Non-ASCII Data)"),
-                                ),
-                            )
-                        })
-                        .collect::<HashMap<String, String>>(),
+        // Execute the request
+        let client_response = client.execute(web_request).await;
+        match client_response {
+            Err(error) => return Err(ExecutionError::Reqwest(error)),
+            Ok(response) => {
+                // Collect headers for response
+                let response_headers = response.headers();
+                let headers: Option<HashMap<String, String>>;
+                if response_headers.is_empty() {
+                    headers = None;
+                } else {
+                    headers = Some(HashMap::from_iter(
+                        response_headers
+                            .iter()
+                            .map(|(h, v)| {
+                                (
+                                    String::from(h.as_str()),
+                                    String::from(
+                                        v.to_str().unwrap_or("(Header Contains Non-ASCII Data)"),
+                                    ),
+                                )
+                            })
+                            .collect::<HashMap<String, String>>(),
+                    ));
+                }
+
+                // Determine the default text encoding
+                let response_content_type = response_headers
+                    .get(reqwest::header::CONTENT_TYPE)
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|value| value.parse::<Mime>().ok());
+
+                let response_encoding_name = response_content_type
+                    .as_ref()
+                    .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
+                    .unwrap_or("utf-8");
+
+                let response_encoding =
+                    Encoding::for_label(response_encoding_name.as_bytes()).unwrap_or(UTF_8);
+
+                // Collect status for response
+                let status = response.status();
+                let status_text = String::from(status.canonical_reason().unwrap_or("Unknown"));
+
+                // Retrieve response bytes and convert raw data to string
+                let bytes = response.bytes().await?;
+
+                let response_body: Option<ApicizeBody>;
+                if bytes.len() > 0 {
+                    let data = Vec::from(bytes.as_ref());
+                    let (decoded, _, malformed) = response_encoding.decode(&data);
+
+                    response_body = Some(ApicizeBody {
+                        data: Some(data.clone()),
+                        text: if malformed {
+                            None
+                        } else {
+                            Some(decoded.to_string())
+                        },
+                    });
+                } else {
+                    response_body = None;
+                }
+
+                return Ok((
+                    ApicizeRequest {
+                        url: request_url,
+                        method: request.method.as_ref().unwrap().as_str().to_string(),
+                        headers: request_headers,
+                        body: request_body,
+                    },
+                    ApicizeResponse {
+                        status: status.as_u16(),
+                        status_text,
+                        headers,
+                        body: response_body,
+                        auth_token_cached,
+                    },
                 ));
             }
-
-            // Determine the default text encoding
-            let response_content_type = response_headers
-                .get(reqwest::header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| value.parse::<Mime>().ok());
-
-            let response_encoding_name = response_content_type
-                .as_ref()
-                .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
-                .unwrap_or("utf-8");
-
-            let response_encoding =
-                Encoding::for_label(response_encoding_name.as_bytes()).unwrap_or(UTF_8);
-
-            // Collect status for response
-            let status = response.status();
-            let status_text = String::from(status.canonical_reason().unwrap_or("Unknown"));
-
-            // Retrieve response bytes and convert raw data to string
-            let bytes = response.bytes().await?;
-
-            let response_body: Option<ApicizeBody>;
-            if bytes.len() > 0 {
-                let data = Vec::from(bytes.as_ref());
-                let (decoded, _, malformed) = response_encoding.decode(&data);
-
-                response_body = Some(ApicizeBody {
-                    data: Some(data.clone()),
-                    text: if malformed {
-                        None
-                    } else {
-                        Some(decoded.to_string())
-                    },
-                });
-            } else {
-                response_body = None;
-            }
-
-            return Ok((
-                ApicizeRequest {
-                    url: request_url,
-                    method: request.method.as_ref().unwrap().as_str().to_string(),
-                    headers: request_headers,
-                    body: request_body,
-                },
-                ApicizeResponse {
-                    status: status.as_u16(),
-                    status_text,
-                    headers,
-                    body: response_body,
-                    auth_token_cached,
-                },
-            ));
         }
     }
-}
 
-fn execute_test<'a>(
-    request: &'a WorkbookRequest,
-    response: &'a ApicizeResponse,
-    scenario: &'a Option<WorkbookScenario>,
-) -> Result<Option<ApicizeTestResponse>, ExecutionError> {
-    // Create a new Isolate and make it the current one.
-    let isolate = &mut v8::Isolate::new(v8::CreateParams::default());
+    fn execute_test<'a>(
+        request: &'a WorkbookRequest,
+        response: &'a ApicizeResponse,
+        scenario: &'a Option<WorkbookScenario>,
+    ) -> Result<Option<ApicizeTestResponse>, ExecutionError> {
+        // Create a new Isolate and make it the current one.
+        let isolate = &mut v8::Isolate::new(v8::CreateParams::default());
 
-    // Create a stack-allocated handle scope.
-    let scope = &mut v8::HandleScope::new(isolate);
-    let context = v8::Context::new(scope);
-    let scope = &mut v8::ContextScope::new(scope, context);
+        // Create a stack-allocated handle scope.
+        let scope = &mut v8::HandleScope::new(isolate);
+        let context = v8::Context::new(scope);
+        let scope = &mut v8::ContextScope::new(scope, context);
 
-    let mut init_code = String::new();
-    init_code.push_str(include_str!("./static/framework.min.js"));
-    init_code.push_str(include_str!("./static/routines.js"));
+        let mut init_code = String::new();
+        init_code.push_str(include_str!("./static/framework.min.js"));
+        init_code.push_str(include_str!("./static/routines.js"));
 
-    // Compile the source code
-    let v8_code = v8::String::new(scope, &init_code).unwrap();
-    let script = v8::Script::compile(scope, v8_code, None).unwrap();
-    script.run(scope).unwrap();
+        // Compile the source code
+        let v8_code = v8::String::new(scope, &init_code).unwrap();
+        let script = v8::Script::compile(scope, v8_code, None).unwrap();
+        script.run(scope).unwrap();
 
-    let tc = &mut v8::TryCatch::new(scope);
+        let tc = &mut v8::TryCatch::new(scope);
 
-    // Return empty test results if no test
-    if let None = request.test {
-        return Ok(None);
+        // Return empty test results if no test
+        if let None = request.test {
+            return Ok(None);
+        }
+
+        let mut init_code = String::new();
+        init_code.push_str(&format!(
+            "runTestSuite({}, {}, {}, () => {{{}}})",
+            serde_json::to_string(request).unwrap(),
+            serde_json::to_string(response).unwrap(),
+            serde_json::to_string(scenario).unwrap(),
+            request.test.as_ref().unwrap()
+        ));
+
+        let v8_code = v8::String::new(tc, &init_code).unwrap();
+
+        let Some(script) = v8::Script::compile(tc, v8_code, None) else {
+            let message = tc.message().unwrap();
+            let message = message.get(tc).to_rust_string_lossy(tc);
+            return Err(ExecutionError::FailedTest(message));
+        };
+
+        let Some(value) = script.run(tc) else {
+            let message = tc.message().unwrap();
+            let message = message.get(tc).to_rust_string_lossy(tc);
+            return Err(ExecutionError::FailedTest(message));
+        };
+
+        let result = value.to_string(tc);
+        let s = result.unwrap().to_rust_string_lossy(tc);
+        let test_response: ApicizeTestResponse = serde_json::from_str(&s).unwrap();
+
+        Ok(Some(test_response))
     }
 
-    let mut init_code = String::new();
-    init_code.push_str(&format!(
-        "runTestSuite({}, {}, {}, () => {{{}}})",
-        serde_json::to_string(request).unwrap(),
-        serde_json::to_string(response).unwrap(),
-        serde_json::to_string(scenario).unwrap(),
-        request.test.as_ref().unwrap()
-    ));
-
-    let v8_code = v8::String::new(tc, &init_code).unwrap();
-
-    let Some(script) = v8::Script::compile(tc, v8_code, None) else {
-        let message = tc.message().unwrap();
-        let message = message.get(tc).to_rust_string_lossy(tc);
-        return Err(ExecutionError::FailedTest(message));
-    };
-
-    let Some(value) = script.run(tc) else {
-        let message = tc.message().unwrap();
-        let message = message.get(tc).to_rust_string_lossy(tc);
-        return Err(ExecutionError::FailedTest(message));
-    };
-
-    let result = value.to_string(tc);
-    let s = result.unwrap().to_rust_string_lossy(tc);
-    let test_response: ApicizeTestResponse = serde_json::from_str(&s).unwrap();
-
-    Ok(Some(test_response))
-}
-
-/// Run the specified request entry recursively
-#[async_recursion]
-async fn run_int<'a>(
-    tests_started: SystemTime,
-    parent_request_name: &'a Option<Vec<String>>,
-    request: &'a WorkbookRequestEntry,
-    authorization: &'a Option<WorkbookAuthorization>,
-    scenario: &'a Option<WorkbookScenario>,
-    run: &u32,
-    total_runs: &u32,
-) -> (Vec<ApicizeResult>, Option<WorkbookScenario>) {
-    match request {
-        WorkbookRequestEntry::Info(info) => {
-            let now = SystemTime::now();
-            let mut request_name = match parent_request_name {
-                Some(existing_name) => existing_name.clone(),
-                None => vec![],
-            };
-            request_name.push(info.name.clone());
-            let dispatch_response = dispatch(info, authorization, scenario).await;
-            match &dispatch_response {
-                Ok((request, response)) => {
-                    let test_response = execute_test(info, response, scenario);
-                    match test_response {
-                        Ok(test_results) => {
-                            let (reported_test_results, reported_test_scenario) = match test_results
-                            {
-                                Some(results) => (results.results, results.scenario),
-                                None => (None, None),
-                            };
-                            (
+    /// Run the specified request entry recursively
+    #[async_recursion]
+    async fn run_int<'a>(
+        tests_started: SystemTime,
+        parent_request_name: &'a Option<Vec<String>>,
+        request: &'a WorkbookRequestEntry,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
+        run: &u32,
+        total_runs: &u32,
+    ) -> (Vec<ApicizeResult>, Option<WorkbookScenario>) {
+        match request {
+            WorkbookRequestEntry::Info(info) => {
+                let now = SystemTime::now();
+                let mut request_name = match parent_request_name {
+                    Some(existing_name) => existing_name.clone(),
+                    None => vec![],
+                };
+                request_name.push(info.name.clone());
+                let dispatch_response =
+                    WorkbookRequestEntry::dispatch(info, authorization, scenario).await;
+                match &dispatch_response {
+                    Ok((request, response)) => {
+                        let test_response =
+                            WorkbookRequestEntry::execute_test(info, response, scenario);
+                        match test_response {
+                            Ok(test_results) => {
+                                let mut test_count = 0;
+                                let mut failed_test_count = 0;
+                                let (reported_test_results, reported_test_scenario) =
+                                    match test_results {
+                                        Some(results) => {
+                                            if let Some(test_results) = &results.results {
+                                                test_count = test_results.len();
+                                                failed_test_count = failed_test_count
+                                                    + test_results
+                                                        .iter()
+                                                        .filter(|r| !r.success)
+                                                        .count();
+                                            }
+                                            (results.results, results.scenario)
+                                        }
+                                        None => (None, None),
+                                    };
+                                (
+                                    vec![ApicizeResult {
+                                        request_id: info.id.clone(),
+                                        run: run.clone(),
+                                        total_runs: total_runs.clone(),
+                                        request: Some(request.clone()),
+                                        response: Some(response.clone()),
+                                        tests: reported_test_results,
+                                        executed_at: now
+                                            .duration_since(tests_started)
+                                            .unwrap()
+                                            .as_millis(),
+                                        milliseconds: now.elapsed().unwrap().as_millis(),
+                                        success: true,
+                                        test_count: Some(test_count),
+                                        failed_test_count: Some(failed_test_count),
+                                        error_message: None,
+                                    }],
+                                    reported_test_scenario,
+                                )
+                            }
+                            Err(err) => (
                                 vec![ApicizeResult {
                                     request_id: info.id.clone(),
                                     run: run.clone(),
                                     total_runs: total_runs.clone(),
                                     request: Some(request.clone()),
                                     response: Some(response.clone()),
-                                    tests: reported_test_results,
+                                    tests: None,
                                     executed_at: now
                                         .duration_since(tests_started)
                                         .unwrap()
                                         .as_millis(),
                                     milliseconds: now.elapsed().unwrap().as_millis(),
-                                    success: true,
-                                    error_message: None,
+                                    success: false,
+                                    test_count: None,
+                                    failed_test_count: None,
+                                    error_message: Some(format!("{}", err)),
                                 }],
-                                reported_test_scenario,
-                            )
+                                None,
+                            ),
                         }
-                        Err(err) => (
-                            vec![ApicizeResult {
-                                request_id: info.id.clone(),
-                                run: run.clone(),
-                                total_runs: total_runs.clone(),
-                                request: Some(request.clone()),
-                                response: Some(response.clone()),
-                                tests: None,
-                                executed_at: now.duration_since(tests_started).unwrap().as_millis(),
-                                milliseconds: now.elapsed().unwrap().as_millis(),
-                                success: false,
-                                error_message: Some(format!("{}", err)),
-                            }],
-                            None,
-                        ),
                     }
+                    Err(err) => (
+                        vec![ApicizeResult {
+                            request_id: info.id.clone(),
+                            run: run.clone(),
+                            total_runs: total_runs.clone(),
+                            request: None,
+                            response: None,
+                            tests: None,
+                            executed_at: now.duration_since(tests_started).unwrap().as_millis(),
+                            milliseconds: now.elapsed().unwrap().as_millis(),
+                            success: false,
+                            test_count: None,
+                            failed_test_count: None,
+                    error_message: Some(format!("{}", err)),
+                        }],
+                        None,
+                    ),
                 }
-                Err(err) => (
-                    vec![ApicizeResult {
-                        request_id: info.id.clone(),
-                        run: run.clone(),
-                        total_runs: total_runs.clone(),
-                        request: None,
-                        response: None,
-                        tests: None,
-                        executed_at: now.duration_since(tests_started).unwrap().as_millis(),
-                        milliseconds: now.elapsed().unwrap().as_millis(),
-                        success: false,
-                        error_message: Some(format!("{}", err)),
-                    }],
-                    None,
-                ),
             }
-        }
-        WorkbookRequestEntry::Group(group) => {
-            // Recursively run requests located in groups...
-            let mut results: Vec<ApicizeResult> = Vec::new();
-            let mut request_name = match parent_request_name {
-                Some(existing_name) => existing_name.clone(),
-                None => vec![],
-            };
-            request_name.push(group.name.clone());
+            WorkbookRequestEntry::Group(group) => {
+                // Recursively run requests located in groups...
+                let mut results: Vec<ApicizeResult> = Vec::new();
+                let mut request_name = match parent_request_name {
+                    Some(existing_name) => existing_name.clone(),
+                    None => vec![],
+                };
+                request_name.push(group.name.clone());
 
-            let mut items = group.children.iter();
-            let mut active_scenario = scenario.clone();
+                let mut items = group.children.iter();
+                let mut active_scenario = scenario.clone();
 
-            while let Some(item) = items.next() {
-                let (group_test_results, group_scenario) = run_int(
-                    tests_started,
-                    &Some(request_name.clone()),
-                    item,
-                    authorization,
-                    &active_scenario,
-                    run,
-                    total_runs,
-                )
-                .await;
-                results.extend(group_test_results);
-                active_scenario = group_scenario;
+                while let Some(item) = items.next() {
+                    let (group_test_results, group_scenario) = WorkbookRequestEntry::run_int(
+                        tests_started,
+                        &Some(request_name.clone()),
+                        item,
+                        authorization,
+                        &active_scenario,
+                        run,
+                        total_runs,
+                    )
+                    .await;
+                    results.extend(group_test_results);
+                    active_scenario = group_scenario;
+                }
+
+                return (results, active_scenario);
             }
-
-            return (results, active_scenario);
         }
     }
-}
 
-// #[async_trait]
-// impl Runnable for WorkbookRequestEntry {
-/// Dispatch the request (info or group) and test results
-pub async fn run<'a>(
-    request: &'a WorkbookRequestEntry,
-    authorization: &'a Option<WorkbookAuthorization>,
-    scenario: &'a Option<WorkbookScenario>,
-    cancellation: Option<CancellationToken>,
-) -> Result<ApicizeResultRuns, RunError> {
-    // Ensure V8 is initialized
-    V8_INIT.call_once(|| {
-        let platform = v8::new_unprotected_default_platform(0, false).make_shared();
-        v8::V8::initialize_platform(platform);
-        v8::V8::initialize();
-    });
-
-    let total_runs = match request {
-        WorkbookRequestEntry::Info(_) => 1,
-        WorkbookRequestEntry::Group(group) => group.runs,
-    };
-
-    let mut runs: JoinSet<Option<(Vec<ApicizeResult>, Option<WorkbookScenario>)>> = JoinSet::new();
-    let token = match cancellation {
-        Some(cancellation_token) => cancellation_token,
-        None => CancellationToken::new(),
-    };
-
-    let mut results: Vec<ApicizeResult> = Vec::new();
-    for run in 0..total_runs {
-        // All of this cloning kind of sucks, but it's required to make spawn work
-        let cloned_token = token.clone();
-        let cloned_request = request.clone();
-        let cloned_auth = authorization.clone();
-        let cloned_scenario = scenario.clone();
-
-        runs.spawn(async move {
-            select! {
-                _ = cloned_token.cancelled() => None,
-                result = run_int(
-                    SystemTime::now(),
-                    &None,
-                    &cloned_request,
-                    &cloned_auth,
-                    &cloned_scenario,
-                    &run,
-                    &total_runs,
-                ) => Some(result)
-            }
+    // #[async_trait]
+    // impl Runnable for WorkbookRequestEntry {
+    /// Dispatch the request (info or group) and test results
+    pub async fn run<'a>(
+        &self,
+        authorization: &'a Option<WorkbookAuthorization>,
+        scenario: &'a Option<WorkbookScenario>,
+        cancellation: Option<CancellationToken>,
+    ) -> Result<ApicizeResultRuns, RunError> {
+        // Ensure V8 is initialized
+        V8_INIT.call_once(|| {
+            let platform = v8::new_unprotected_default_platform(0, false).make_shared();
+            v8::V8::initialize_platform(platform);
+            v8::V8::initialize();
         });
-    }
 
-    let mut caught: Option<RunError> = None;
+        let total_runs = match self {
+            WorkbookRequestEntry::Info(_) => 1,
+            WorkbookRequestEntry::Group(group) => group.runs,
+        };
 
-    while let Some(result) = runs.join_next().await {
-        match result {
-            Ok(result_or_cancel) => match result_or_cancel {
-                Some(mut result) => {
-                    results.append(&mut result.0);
+        let mut runs: JoinSet<Option<(Vec<ApicizeResult>, Option<WorkbookScenario>)>> =
+            JoinSet::new();
+        let token = match cancellation {
+            Some(cancellation_token) => cancellation_token,
+            None => CancellationToken::new(),
+        };
+
+        let mut results: Vec<ApicizeResult> = Vec::new();
+        for run in 0..total_runs {
+            // All of this cloning kind of sucks, but it's required to make spawn work
+            let cloned_token = token.clone();
+            let cloned_request = self.clone();
+            let cloned_auth = authorization.clone();
+            let cloned_scenario = scenario.clone();
+
+            runs.spawn(async move {
+                select! {
+                    _ = cloned_token.cancelled() => None,
+                    result = WorkbookRequestEntry::run_int(
+                        SystemTime::now(),
+                        &None,
+                        &cloned_request,
+                        &cloned_auth,
+                        &cloned_scenario,
+                        &run,
+                        &total_runs,
+                    ) => Some(result)
                 }
-                None => {
-                    caught = Some(RunError::Cancelled);
+            });
+        }
+
+        let mut caught: Option<RunError> = None;
+
+        while let Some(result) = runs.join_next().await {
+            match result {
+                Ok(result_or_cancel) => match result_or_cancel {
+                    Some(mut result) => {
+                        results.append(&mut result.0);
+                    }
+                    None => {
+                        caught = Some(RunError::Cancelled);
+                    }
+                },
+                Err(err) => {
+                    Some(RunError::JoinError(err));
                 }
-            },
-            Err(err) => {
-                Some(RunError::JoinError(err));
+            }
+        }
+
+        match caught {
+            Some(caught_error) => Err(caught_error),
+            None => {
+                let mut results_by_run: ApicizeResultRuns =
+                    vec![vec![]; usize::try_from(total_runs).unwrap()];
+
+                results.sort_by(|a, b| {
+                    let mut ord = a.run.cmp(&b.run);
+                    if ord.is_eq() {
+                        ord = a.executed_at.cmp(&b.executed_at);
+                    }
+                    ord
+                });
+
+                results.drain(..).for_each(|r| {
+                    results_by_run[usize::try_from(r.run).unwrap()].push(r);
+                });
+
+                Ok(results_by_run)
             }
         }
     }
-
-    match caught {
-        Some(caught_error) => Err(caught_error),
-        None => {
-            let mut results_by_run: ApicizeResultRuns =
-                vec![vec![]; usize::try_from(total_runs).unwrap()];
-
-            results.sort_by(|a, b| {
-                let mut ord = a.run.cmp(&b.run);
-                if ord.is_eq() {
-                    ord = a.executed_at.cmp(&b.executed_at);
-                }
-                ord
-            });
-
-            results.drain(..).for_each(|r| {
-                results_by_run[usize::try_from(r.run).unwrap()].push(r);
-            });
-
-            Ok(results_by_run)
-        }
-    }
+    // }
 }
-// }
 
 #[cfg(test)]
 mod lib_tests {
 
     use super::models::{WorkbookRequest, WorkbookRequestMethod};
-    use crate::{dispatch, ExecutionError};
+    use crate::{ExecutionError, WorkbookRequestEntry};
 
     #[tokio::test]
     async fn test_dispatch_success() -> Result<(), ExecutionError> {
@@ -706,7 +786,7 @@ mod lib_tests {
             test: None,
         };
 
-        let result = dispatch(&request, &None, &None).await;
+        let result = WorkbookRequestEntry::dispatch(&request, &None, &None).await;
         mock.assert();
 
         match result {

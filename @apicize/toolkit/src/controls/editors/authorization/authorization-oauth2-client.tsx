@@ -9,10 +9,10 @@ export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {
     const auth = useContext(WorkbookStorageContext).authorization
 
     const id = useSelector((state: WorkbookState) => state.authorization.id)
-    const accessTokenUrl = useSelector((state: WorkbookState) => state.authorization.accessTokenUrl)
-    const clientId = useSelector((state: WorkbookState) => state.authorization.clientId)
-    const clientSecret = useSelector((state: WorkbookState) => state.authorization.clientSecret)
-    const scope = useSelector((state: WorkbookState) => state.authorization.scope)
+    const accessTokenUrl = useSelector((state: WorkbookState) => state.authorization.accessTokenUrl ?? '')
+    const clientId = useSelector((state: WorkbookState) => state.authorization.clientId ?? '')
+    const clientSecret = useSelector((state: WorkbookState) => state.authorization.clientSecret ?? '')
+    const scope = useSelector((state: WorkbookState) => state.authorization.scope ?? '')
     // const [sendCredentialsInBody, setSendCredentialsInBody] = useState<string>((authorization?.sendCredentialsInBody ?? false) ? 'yes' : 'no')
 
     if (!id) {

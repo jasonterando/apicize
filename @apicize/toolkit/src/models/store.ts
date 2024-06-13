@@ -1,20 +1,16 @@
 import { createSlice, PayloadAction, configureStore } from '@reduxjs/toolkit'
 import {
-  ApicizeRequest,
   BodyType,
   Method,
   NO_AUTHORIZATION,
   NO_SCENARIO,
   WorkbookAuthorizationType,
 } from '@apicize/lib-typescript'
-import { EditableWorkbookAuthorization } from './workbook/editable-workbook-authorization'
-import { EditableWorkbookScenario } from './workbook/editable-workbook-scenario'
-import { IndexedText, WorkbookExecution, WorkbookExecutionResult, WorkbookExecutionSummary } from './workbook/workbook-execution'
-import { EditableWorkbookRequestEntry } from './workbook/editable-workbook-request-entry'
-import { RequestTestContext } from '../controls/editors/request/request-test-context'
+import { IndexedText } from './workbook/workbook-execution'
 import { EditableNameValuePair } from './workbook/editable-name-value-pair'
 import { WorkbookBodyData, WorkbookBodyType } from '@apicize/lib-typescript/dist/models/workbook/workbook-request'
 import { NavigationListItem } from './navigation-list-item'
+import { PersistenceOption } from '@apicize/lib-typescript/dist/models/workbook/workbook-authorization'
 
 export const noAuthorization = {
   id: NO_AUTHORIZATION,
@@ -27,75 +23,47 @@ export const noScenario = {
   name: '(None)'
 }
 
-interface ApicizeWorkbookState {
-
-
-  // activeExecution: WorkbookExecution | null
-  // selectedExecutionResult: WorkbookExecutionResult | null
-  // groupExecutionResults: WorkbookExecutionSummary | null
-
-  // Active authorization/scenario ID to use for running tests
+export enum NavigationType {
+  None,
+  Request,
+  Group,
+  Authorization,
+  Scenario,
 }
-
-
-
-// const updateSelectedExecutionResult = (
-//   state: ApicizeWorkbookState,
-//   runIndex: number | undefined,
-//   resultIndex: number | undefined
-// ) => {
-//   if (state.activeExecution?.results
-//     && runIndex !== undefined
-//     && resultIndex !== undefined
-//     && resultIndex <= (state.activeExecution.results[runIndex]?.length ?? -1)
-//     ) {
-//     state.activeExecution.runIndex = runIndex
-//     state.activeExecution.resultIndex = resultIndex
-//     const runResults = state.activeExecution.results[runIndex]
-//     if (resultIndex === -1 && runResults.length > 1) {
-//       state.selectedExecutionResult = undefined
-//       state.groupExecutionResults = {
-//         run: runIndex + 1,
-//         totalRuns: runResults[0].totalRuns,
-//         requests: runResults.map(r => ({
-//           name: state.requests.entities[r.requestId]?.name ?? '(Unnamed)',
-//           response: r.response ? { status: r.response.status, statusText: r.response.statusText } : undefined,
-//           tests: r.tests?.map(t => ({
-//             testName: t.testName,
-//             success: t.success,
-//             error: t.error,
-//             logs: t.logs
-//           })),
-//           executedAt: r.executedAt,
-//           milliseconds: r.milliseconds,
-//           success: r.success,
-//           errorMessage: r.errorMessage
-//         }))
-//       }
-//     } else {
-//       state.selectedExecutionResult = runResults[0]
-//       state.groupExecutionResults = undefined
-//     }
-//     const matchingExecution = state.executions[state.activeExecution.requestID]
-//     if (matchingExecution) {
-//       matchingExecution.runIndex = runIndex
-//       matchingExecution.resultIndex = resultIndex
-//     }
-//   } else {
-//     state.selectedExecutionResult = undefined
-//     state.groupExecutionResults = undefined
-//   }
-// }
-
 
 const navigationSlice = createSlice({
   name: 'navigation',
   initialState: {
+    activeType: NavigationType.None,
+    activeID: null as string | null,
+    activeExecutionID: null as string | null,
     requestList: [] as NavigationListItem[],
     authorizationList: [] as NavigationListItem[],
     scenarioList: [] as NavigationListItem[],
+    showNavigation: false,
+    appName: '',
+    appVersion: ''
   },
   reducers: {
+    openEditor: (state, action: PayloadAction<{
+      type: NavigationType,
+      id: string
+    }>) => {
+      // state.showHelp = false
+      state.activeType = action.payload.type
+      state.activeID = action.payload.id
+    },
+    closeEditor: (state) => {
+      state.activeType = NavigationType.None
+      state.activeID = null
+      state.activeExecutionID = null
+    },
+    openExecution: (state, action: PayloadAction<string>) => {
+      state.activeExecutionID = action.payload
+    },
+    closeExecution: (state) => {
+      state.activeExecutionID = null
+    },
     setLists: (state, action: PayloadAction<{
       requests: NavigationListItem[],
       authorizations: NavigationListItem[],
@@ -113,7 +81,44 @@ const navigationSlice = createSlice({
     },
     setScenariosList: (state, action: PayloadAction<NavigationListItem[]>) => {
       state.scenarioList = action.payload
-    }
+    },
+    setShowNavigation: (state, action: PayloadAction<boolean>) => {
+      state.showNavigation = action.payload
+    },
+    setApplicationInfo: (state, action: PayloadAction<{
+      name: string, version: string
+    }>) => {
+      state.appName = action.payload.name
+      state.appVersion = action.payload.version
+    },
+  }
+})
+
+const helpSlice = createSlice({
+  name: 'help',
+  initialState: {
+    showHelp: false,
+    helpTopic: null as string | null,
+    nextHelpTopic: '',
+    helpAnchor: '',
+    helpText: '',
+    helpTopicHistory: [] as string[]
+  },
+  reducers: {
+    showHelp: (state, action: PayloadAction<{ topic: string, anchor?: string, text: string, history: string[] }>) => {
+      const histLen = state.helpTopicHistory.length
+      state.helpTopic = action.payload.topic
+      state.helpAnchor = action.payload.anchor ?? ''
+      state.helpText = action.payload.text
+      state.helpTopicHistory = action.payload.history
+      state.showHelp = true
+    },
+    hideHelp: (state) => {
+      state.showHelp = false
+    },
+    setNextHelpTopic: (state, action: PayloadAction<string>) => {
+      state.nextHelpTopic = action.payload
+    },
   }
 })
 
@@ -155,9 +160,6 @@ const requestSlice = createSlice({
         state.bodyData = action.payload.bodyData,
         state.test = action.payload.test
     },
-    close: (state) => {
-      state.id = null
-    },
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
     },
@@ -182,7 +184,7 @@ const requestSlice = createSlice({
     },
     setTest: (state, action: PayloadAction<string | undefined>) => {
       state.test = action.payload
-    }
+    },
   }
 })
 
@@ -203,9 +205,6 @@ const groupSlice = createSlice({
       state.name = action.payload.name
       state.runs = action.payload.runs
     },
-    close: (state) => {
-      state.id = null
-    },
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
     },
@@ -220,6 +219,7 @@ const authorizationSlice = createSlice({
   initialState: {
     id: '' as string | null,
     name: '',
+    persistence: PersistenceOption.Workbook,
     type: WorkbookAuthorizationType.None,
     username: undefined as string | undefined,
     password: undefined as string | undefined,
@@ -234,6 +234,7 @@ const authorizationSlice = createSlice({
     initialize: (state, action: PayloadAction<{
       id: string,
       name: string,
+      persistence: PersistenceOption,
       type: WorkbookAuthorizationType,
       username: string | undefined,
       password: string | undefined,
@@ -246,7 +247,8 @@ const authorizationSlice = createSlice({
     }>) => {
       state.id = action.payload.id
       state.name = action.payload.name
-      state.type = action.payload.type
+      state.persistence = action.payload.persistence,
+        state.type = action.payload.type
       state.username = action.payload.username
       state.password = action.payload.password
       state.accessTokenUrl = action.payload.accessTokenUrl
@@ -256,11 +258,11 @@ const authorizationSlice = createSlice({
       state.header = action.payload.header
       state.value = action.payload.value
     },
-    close: (state) => {
-      state.id = null
-    },
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
+    },
+    setPersistence: (state, action: PayloadAction<PersistenceOption>) => {
+      state.persistence = action.payload
     },
     setType: (state, action: PayloadAction<WorkbookAuthorizationType>) => {
       state.type = action.payload
@@ -308,9 +310,6 @@ const scenarioSlice = createSlice({
       state.id = action.payload.id
       state.name = action.payload.name
       state.variables = action.payload.variables
-    },
-    close: (state) => {
-      state.id = null
     },
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
@@ -368,38 +367,41 @@ const executionSlice = createSlice({
     selectedScenarioID: NO_SCENARIO,
     running: false,
     resultType: ResultType.None,
+    failedTestCount: undefined as number | undefined,
     longTextInResponse: false,
     runIndex: undefined as number | undefined,
     runList: undefined as IndexedText[] | undefined,
     resultIndex: undefined as number | undefined,
     resultLists: undefined as IndexedText[][] | undefined,
+    currentResultSuccess: null as boolean | null,
+    panel: ''
   },
   reducers: {
-    close: (state) => {
-      state.id = undefined
-    },
     setExecution: (state, action: PayloadAction<{
       id: string,
       resultType: ResultType,
+      failedTestCount: number | undefined,
       runIndex: number | undefined,
       runList: IndexedText[] | undefined,
       resultIndex: number | undefined,
       resultLists: IndexedText[][] | undefined,
-      longTextInResponse: boolean,
+      longTextInResponse: boolean
     }>) => {
       state.id = action.payload.id
       state.running = false
       state.resultType = action.payload.resultType,
-      state.runIndex = action.payload.runIndex
+        state.failedTestCount = action.payload.failedTestCount,
+        state.runIndex = action.payload.runIndex
       state.runList = action.payload.runList
       state.resultIndex = action.payload.resultIndex
       state.resultLists = action.payload.resultLists
       state.longTextInResponse = action.payload.longTextInResponse
+      if (state.panel === 'Info' && action.payload.resultType !== ResultType.Single && action.payload.resultType !== ResultType.Group) {
+        state.panel = 'Info'
+      }
     },
-    runStart: (state, action: PayloadAction<{
-      id: string
-    }>) => {
-      state.id = action.payload.id
+    runStart: (state, action: PayloadAction<string>) => {
+      state.id = action.payload
       state.running = true
       state.resultType = ResultType.None
     },
@@ -413,7 +415,6 @@ const executionSlice = createSlice({
     setResult: (state, action: PayloadAction<{
       resultIndex: number | undefined,
       resultLists: IndexedText[][] | undefined,
-
     }>) => {
       state.resultIndex = action.payload.resultIndex
       state.resultLists = action.payload.resultLists
@@ -425,11 +426,15 @@ const executionSlice = createSlice({
       state.selectedAuthorizationID = action.payload.selectedAuthorizationID
       state.selectedScenarioID = action.payload.selectedScenarioID
     },
+    setPanel: (state, action: PayloadAction<string>) => {
+      state.panel = action.payload
+    }
   }
 })
 
 export const workbookActions = workbookSlice.actions
 export const navigationActions = navigationSlice.actions
+export const helpActions = helpSlice.actions
 export const requestActions = requestSlice.actions
 export const groupActions = groupSlice.actions
 export const authorizationActions = authorizationSlice.actions
@@ -440,6 +445,7 @@ export const workbookStore = configureStore({
   reducer: {
     workbook: workbookSlice.reducer,
     navigation: navigationSlice.reducer,
+    help: helpSlice.reducer,
     request: requestSlice.reducer,
     group: groupSlice.reducer,
     authorization: authorizationSlice.reducer,

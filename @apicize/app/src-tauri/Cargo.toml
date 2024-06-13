@@ -17,15 +17,16 @@ tauri-build = { version = "2.0.0-beta", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-apicize_lib = { version = "0.1.0", path = "../../lib-rust" }
-tauri = { version = "2.0.0-beta", features = [] }
+apicize_lib = { version = "0.1.1", path = "../../lib-rust" }
+tauri = { version = "2.0.0-beta", features = ["image-png", "unstable"] }
 lazy_static = "1.4.0"
 tokio-util = "0.7.10"
 tauri-plugin-fs = "2.0.0-beta"
-tauri-plugin-clipboard-manager = "2.0.0-beta"
+# tauri-plugin-clipboard-manager = "2.1.0-beta"
 tauri-plugin-global-shortcut = "2.0.0-beta"
 tauri-plugin-dialog = "2.0.0-beta"
-# tauri-plugin-clipboard = "0.5.5"
+tauri-plugin-window-state = "2.0.0-beta"
+tauri-plugin-clipboard = { git = "https://github.com/CrossCopy/tauri-plugin-clipboard", branch = "v2" }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
@@ -39,3 +40,5 @@ codegen-units = 1 # Compile crates one after another so the compiler can optimiz
 lto = true # Enables link to optimizations
 opt-level = "s" # Optimize for binary size
 strip = true # Remove debug symbols
+
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]

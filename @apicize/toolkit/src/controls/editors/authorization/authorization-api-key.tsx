@@ -8,8 +8,8 @@ export function AuthorizationApiKeyPanel() {
     const auth = useContext(WorkbookStorageContext).authorization
 
     const id = useSelector((state: WorkbookState) => state.authorization.id)
-    const header = useSelector((state: WorkbookState) => state.authorization.header)
-    const value = useSelector((state: WorkbookState) => state.authorization.value)
+    const header = useSelector((state: WorkbookState) => state.authorization.header ?? '')
+    const value = useSelector((state: WorkbookState) => state.authorization.value ?? '')
 
     if (!id) {
         return null

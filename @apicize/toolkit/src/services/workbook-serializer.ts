@@ -9,6 +9,7 @@ import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-re
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair";
 import { EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request-entry";
 import { WorkbookStateStorage } from "../models/workbook/workbook-state-storage";
+import { PersistenceOption } from "@apicize/lib-typescript/dist/models/workbook/workbook-authorization";
 
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -110,7 +111,9 @@ export function workbookToStateStorage(data: StoredWorkbook): WorkbookStateStora
         return { entities, topLevelIDs, childIDs: Object.keys(childIDs).length > 0 ? childIDs : undefined }
     }
 
-    const stateAuthorizations = toStateStorage<WorkbookAuthorization, EditableWorkbookAuthorization>(data.authorizations)
+    const stateAuthorizations = toStateStorage<WorkbookAuthorization, EditableWorkbookAuthorization>(data.authorizations, (auth) => {
+        auth.persistence = PersistenceOption.Workbook
+    })
     const stateScenarios = toStateStorage<WorkbookScenario, EditableWorkbookScenario>(data.scenarios, (e) => {
         e.variables?.forEach(v => {
             if (! v.id) v.id = GenerateIdentifier()
@@ -253,25 +256,26 @@ export function stateStorageToWorkbook(
     scenarios: StateStorage<EditableWorkbookScenario>,
     selectedAuthorizationID: string | null,
     selectedScenarioID: string | null,
-    removeAuthorizations: boolean,
 ): StoredWorkbook {
 
     return {
         version: 1.0,
         requests: requests.topLevelIDs.map(id => stateStorageToRequestEntry(id, requests)),
-        authorizations: removeAuthorizations ? [] : authorizations.topLevelIDs.map(id => {
-            const result = structuredClone(authorizations.entities[id])
-            return result as WorkbookAuthorization
-        }),
+        authorizations: Object.values(authorizations.entities)
+            .filter(a => a.persistence === PersistenceOption.Workbook) as WorkbookAuthorization[],
+        // authorizations: authorizations.topLevelIDs.map(id => {
+        //     const result = structuredClone(authorizations.entities[id])
+        //     return result as WorkbookAuthorization
+        // }),
         scenarios: scenarios.topLevelIDs.map(id => {
             const result = structuredClone(scenarios.entities[id])
             result.variables?.forEach(v => delete (v as unknown as any).id)
             return result
     }),
         settings: {
-            selectedAuthorizationId: (selectedAuthorizationID && selectedAuthorizationID !== NO_AUTHORIZATION)
+            selectedAuthorizationId: selectedAuthorizationID && selectedAuthorizationID !== NO_AUTHORIZATION
                 ? selectedAuthorizationID : undefined,
-            selectedScenarioId: (selectedScenarioID && selectedScenarioID !== NO_SCENARIO)
+            selectedScenarioId: selectedScenarioID && selectedScenarioID !== NO_SCENARIO
                 ? selectedScenarioID : undefined,
         }
     }

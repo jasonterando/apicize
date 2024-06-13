@@ -7,7 +7,7 @@ import { WorkbookStorageContext } from "../../../contexts/workbook-storage-conte
 import { useContext } from "react"
 
 export function ResponseHeadersViewer() {
-    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
     if (!executionId) {
         return null
     }

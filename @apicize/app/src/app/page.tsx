@@ -3,40 +3,32 @@
 import {
   ConfirmationServiceProvider, Navigation, workbookStore,
   AuthorizationEditor, ScenarioEditor, RequestEditor,
+  HelpPanel,
+  WorkbookState
 } from '@apicize/toolkit'
 import type { } from '@mui/x-tree-view/themeAugmentation';
 import { Stack, Box, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui/material'
 import { ToastProvider } from '@apicize/toolkit'
 import { ApicizeTauriProvider } from './providers/apicize-tauri-provider';
+import { WorkbookStorageProvider } from '@apicize/toolkit';
 import { Provider } from 'react-redux';
 import React from 'react'
+import { useSelector } from 'react-redux'
 import { emit } from '@tauri-apps/api/event'
 import "typeface-open-sans"
-import { WorkbookStorageProvider } from '@apicize/toolkit/dist/contexts/workbook-storage-context';
+import Pane from './pane';
 
 export default function Home() {
+
   const darkTheme = createTheme({
     typography: {
+      fontSize: 12,
       fontFamily: [
         'Open Sans',
         'sans',
-      ].join(','),
+      ].join(',')
     },
     components: {
-      // MuiOutlinedInput: {
-      //   styleOverrides: {
-      //     root: {
-      //       "& .MuiOutlinedInput-notchedOutline": {
-      //         border: `5px solid green`,
-      //       },
-      //       "&.Mui-focused": {
-      //         "& .MuiOutlinedInput-notchedOutline": {
-      //           border: `5px dotted red`,
-      //         },
-      //       }
-      //     },
-      //   }
-      // },
       MuiTreeItem: {
         styleOverrides: {
           root: {
@@ -63,67 +55,28 @@ export default function Home() {
           }
         }
       },
-      // MuiListItemButton: {
-      //   defaultProps: {
-      //     sx: {
-      //       paddingTop: '2px',
-      //       paddingBottom: '2px'
-      //     }
-      //   },
-      //   styleOverrides: {
-      //     root: {
-      //       sx: {
-      //         paddingTop: '2px',
-      //         paddingBottom: '2px'
-      //         }
-      //     }
-      //   }
-      // },
-      // MuiFormControlLabel: {
-      //   defaultProps: {
-      //     sx: {paddingLeft: '0', marginLeft: '0' }
-      //   },
-      //   styleOverrides: {
-      //     label: {
-      //       minWidth: '120px'
-      //     }
-      //   }
-      // },
-      // MuiOutlinedInput: {
-      //   styleOverrides: {
-      //     input: {
-      //       padding: '4px 8px'
-      //     }
-      //   }
-      // },
-      // MuiTextField: {
-      //   defaultProps: {
-
-      //     sx: {marginLeft: '14px'}
-      //   }
-      // },
-
       MuiTypography: {
         styleOverrides: {
           h1: {
-            fontSize: '26px',
+            fontSize: '1.5rem',
             fontWeight: 'normal',
-            marginTop: '8px',
-            marginBottom: '26px'
+            marginTop: '0.1rem',
+            marginBottom: '1.5rem'
           },
           h2: {
-            fontSize: '22px',
+            fontSize: '1.3rem',
             fontWeight: 'normal',
-            marginTop: '8px',
-            marginBottom: '22px',
-            paddingTop: '4px',
+            marginTop: '1.5rem',
+            marginBottom: '1.0rem',
           },
           h3: {
-            fontSize: '18px',
+            fontSize: '1.1rem',
             fontWeight: 'normal',
-            marginTop: '8px',
-            marginBottom: '18px',
-            paddingTop: '4px',
+            marginTop: '1.5rem',
+            marginBottom: '1.0rem',
+          },
+          body1: {
+            marginBottom: '1.0rem'
           }
         }
       }
@@ -148,30 +101,9 @@ export default function Home() {
                       triggerOpen={() => emit('action', 'open')}
                       triggerSave={() => emit('action', 'save')}
                       triggerSaveAs={() => emit('action', 'saveAs')}
+                      triggerHelp={(topic?: string) => emit('help', topic ?? '')}
                     />
-                    <Box sx={{
-                      // height: '100vh',
-                      display: 'flex',
-                      flexDirection: 'row',
-                      flexGrow: 1,
-                    }}>
-                      <RequestEditor
-                        triggerRun={() => emit('action', 'run')}
-                        triggerCancel={() => emit('action', 'cancel')}
-                        triggerCopyTextToClipboard={(text?: string) => {
-                          emit('copyText', text)
-                        }}
-                        triggerCopyImageToClipboard={(base64?: string) => {
-                          emit('copyImage', base64)
-                        }}
-                        triggerSetBodyFromFile={() => emit('action', 'bodyFromFile')}
-                      />
-                      <AuthorizationEditor triggerClearToken={() => {
-                        emit('action', 'clearToken')
-                      }
-                      } />
-                      <ScenarioEditor />
-                    </Box>
+                    <Pane />
                   </Stack>
                 </ApicizeTauriProvider>
               </ConfirmationServiceProvider>

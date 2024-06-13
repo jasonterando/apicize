@@ -6,7 +6,8 @@ import { useContext } from 'react'
 import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
 
 export function RequestQueryStringEditor() {
-  const request = useContext(WorkbookStorageContext).request
+  const context = useContext(WorkbookStorageContext)
+  const request = context.request
   const id = useSelector((state: WorkbookState) => state.request.id)
   const queryStringParams = useSelector((state: WorkbookState) => state.request.queryStringParams)
 

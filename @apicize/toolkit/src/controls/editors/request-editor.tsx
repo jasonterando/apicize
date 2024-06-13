@@ -14,10 +14,11 @@ import { RequestBodyEditor } from './request/request-body-editor'
 import { RequestTestEditor } from './request/request-test-editor'
 import { RequestTestContext } from './request/request-test-context'
 import { ResultsViewer } from '../viewers/results-viewer'
-import { WorkbookState } from '../../models/store'
-import { useContext } from 'react';
-import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
+import { NavigationType, WorkbookState } from '../../models/store'
 import { RequestGroupEditor } from './request/request-group-editor';
+import { EditorTitle } from '../editor-title';
+import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
+import { useContext } from 'react';
 
 export function RequestEditor(props: {
     triggerRun: () => {},
@@ -26,10 +27,9 @@ export function RequestEditor(props: {
     triggerCopyImageToClipboard: (base64?: string) => void,
     triggerSetBodyFromFile: () => void,
 }) {
-    const request = useContext(WorkbookStorageContext).request
-
-    const requestId = useSelector((state: WorkbookState) => state.request.id)
-    const groupId = useSelector((state: WorkbookState) => state.group.id)
+    const help = useContext(WorkbookStorageContext).help
+    const activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
+    const activeID = useSelector((state: WorkbookState) => state.navigation.activeID)
     const requestName = useSelector((state: WorkbookState) => state.request.name)
 
     const [panel, setPanel] = React.useState<string>('Parameters')
@@ -42,17 +42,45 @@ export function RequestEditor(props: {
         if (panel === null) {
             setPanel('Parameters')
         }
-    }, [requestId, groupId])
+    }, [activeID])
 
-    if (!(requestId || groupId)) {
+    React.useEffect(() => {
+        if (activeType === NavigationType.Request) {
+            let helpTopic
+            switch (panel) {
+                case 'Parameters':
+                    helpTopic = 'requests#info-pane'
+                    break
+                case 'Query String':
+                    helpTopic = 'requests#query-string-pane'
+                    break
+                case 'Headers':
+                    helpTopic = 'requests#headers-pane'
+                    break
+                case 'Body':
+                    helpTopic = 'requests#body-pane'
+                    break
+                case 'Test':
+                    helpTopic = 'requests#test-pane'
+                    break
+            }
+            if (helpTopic) {
+                help.setNextHelpTopic(helpTopic)
+            }
+        }
+    }, [panel, activeType])
+
+    if ((activeType !== NavigationType.Request && activeType !== NavigationType.Group) || !activeID) {
         return null
     }
 
+    const isRequest = activeType === NavigationType.Request
+
     return (
-        <Stack direction='column' sx={{ flex: 1, paddingLeft: '8px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', height: '100vh' }}>
+        <Stack direction='column' className={isRequest ? 'editor-panel' : 'editor-panel-no-toolbar'}>
             <Stack sx={{ height: '55vh', paddingBottom: '48px', flexBasis: 2 }}>
                 {
-                    requestId
+                    isRequest
                         ? (
                             <Box sx={{ display: "flex", bottom: 0 }}>
                                 <ToggleButtonGroup
@@ -70,7 +98,7 @@ export function RequestEditor(props: {
                                     <ToggleButton value="Test" title="Show Request Test" aria-label='show test'><ScienceIcon /></ToggleButton>
                                 </ToggleButtonGroup>
                                 <Box className='panels' sx={{ flexGrow: 1 }}>
-                                    <Typography variant='h1'><SendIcon /> {requestName?.length ?? 0 > 0 ? requestName : '(Unnamed)'} - {panel}</Typography>
+                                    <EditorTitle icon={<SendIcon />} name={(requestName?.length ?? 0 > 0) ? `${requestName} - ${panel}` : `(Unnamed) - ${panel}`} />
                                     {panel === 'Parameters' ? <RequestParametersEditor />
                                         : panel === 'Headers' ? <RequestHeadersEditor />
                                             : panel === 'Query String' ? <RequestQueryStringEditor />

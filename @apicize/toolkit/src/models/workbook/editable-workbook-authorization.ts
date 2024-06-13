@@ -21,7 +21,7 @@ export interface EditableWorkbookOAuth2ClientAuthorization extends Editable, Wor
  */
 export function EditableWorkbookAuthorizationToAuthorization(authorization: EditableWorkbookAuthorization): WorkbookAuthorizationBase {
     const cloned = structuredClone(authorization)
-    cloned.dirty = undefined
-    cloned.invalid = undefined
+    delete cloned.dirty
+    delete cloned.invalid
     return cloned
 }

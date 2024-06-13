@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { useSelector } from 'react-redux'
 import { WorkbookState } from '../../../models/store'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
@@ -7,7 +6,8 @@ import { useContext } from 'react'
 import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
 
 export function RequestHeadersEditor() {
-  const request = useContext(WorkbookStorageContext).request
+  const context = useContext(WorkbookStorageContext)
+  const request = context.request
 
   const id = useSelector((state: WorkbookState) => state.request.id)
   const headers = useSelector((state: WorkbookState) => state.request.headers)

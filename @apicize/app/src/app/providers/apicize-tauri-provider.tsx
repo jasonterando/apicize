@@ -2,27 +2,26 @@
 
 import { ReactNode, useContext, useEffect, useRef } from "react"
 import {
-    ToastContext, ToastStore, ToastSeverity, WorkbookState, 
-    useConfirmation, WorkbookStorageContext
+    ToastContext, ToastStore, ToastSeverity, WorkbookState,
+    useConfirmation, WorkbookStorageContext, workbookStore
 } from "@apicize/toolkit"
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { Settings, StoredWorkbook } from "@apicize/lib-typescript"
 import { listen, Event } from "@tauri-apps/api/event"
-import { copyFile, exists, readFile, writeTextFile } from "@tauri-apps/plugin-fs"
+import { copyFile, exists, readFile, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs"
 import { ApicizeResult } from "@apicize/lib-typescript/dist/models/lib/apicize-result"
-import { writeText } from "@tauri-apps/plugin-clipboard-manager"
+import clipboard from "tauri-plugin-clipboard-api"
 import { join, resourceDir } from "@tauri-apps/api/path"
-// import { writeImage, writeText } from "tauri-plugin-clipboard-api"
+import { navigationActions } from "@apicize/toolkit/src/models/store"
+import { Image } from "@tauri-apps/api/image";
+import { NavigationType, helpActions } from "@apicize/toolkit/dist/models/store"
 
 const EXT = 'apicize';
-const EXT_NOAUTH = 'apicize-noauth';
-
-export interface WorkbookServiceStore { }
 
 export const ApicizeTauriProvider = (props: {
     children?: ReactNode
 }) => {
-
+    const dispatch = useDispatch()
     const context = useContext(WorkbookStorageContext)
     const confirm = useConfirmation()
     const toast = useContext<ToastStore>(ToastContext)
@@ -33,15 +32,24 @@ export const ApicizeTauriProvider = (props: {
     const workbookDisplayName = useSelector((state: WorkbookState) => state.workbook.workbookDisplayName)
 
     const requestId = useSelector((state: WorkbookState) => state.request.id)
+    const groupId = useSelector((state: WorkbookState) => state.group.id)
     const authorizationId = useSelector((state: WorkbookState) => state.authorization.id)
 
-    const selectedAuthorizationID = useSelector((state: WorkbookState) => state.execution.selectedAuthorizationID)
-    const selectedScenarioID = useSelector((state: WorkbookState) => state.execution.selectedScenarioID)
+    const activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
 
+    const nextHelpTopic = useSelector((state: WorkbookState) => state.help.nextHelpTopic)
+    const helpTopicHistory = useSelector((state: WorkbookState) => state.help.helpTopicHistory)
 
     let _settingsFileName = useRef('')
     let _settings = useRef<Settings | undefined>()
     let _loaded = useRef(false)
+
+    let _app: typeof import('@tauri-apps/api/app') | undefined
+    const getTauriApiApp = async () => {
+        if (_app) return _app
+        _app = await import('@tauri-apps/api/app')
+        return _app
+    }
 
     let _core: typeof import('@tauri-apps/api/core') | undefined
     const getTauriApiCore = async () => {
@@ -75,6 +83,14 @@ export const ApicizeTauriProvider = (props: {
         if (!_loaded.current) {
             _loaded.current = true;
             (async () => {
+                const app = await getTauriApiApp()
+                const info = await Promise.all([
+                    app.getName(),
+                    app.getVersion()
+                ])
+                workbookStore.dispatch(navigationActions.setApplicationInfo({
+                    name: info[0], version: info[1]
+                }))
                 try {
                     let settings = await loadSettings()
                     if ((settings?.lastWorkbookFileName?.length ?? 0) > 0) {
@@ -82,11 +98,56 @@ export const ApicizeTauriProvider = (props: {
                     }
                 } catch (e) {
                     toast.open(`${e}`, ToastSeverity.Error)
+                } finally {
+                    workbookStore.dispatch(navigationActions.setShowNavigation(true))
+                    // workbookStore.dispatch(navigationActions.setShowLanding(true))
                 }
             })()
         }
 
-        const unlistenAction = listen('action', async (payload: Event<string>) => { await doRouteAction(payload) })
+        const processHelp = (topic: string) => {
+            (async () => {
+                let showTopic: string
+                let updateHistory = [...helpTopicHistory]
+                switch(topic) {
+                    case '\nclose':
+                        workbookStore.dispatch(helpActions.hideHelp())
+                        return
+                    case '\nback':
+                        updateHistory.pop()
+                        showTopic = updateHistory.pop() ?? ''
+                        if (showTopic.length === 0) return
+                        break
+                    case '':
+                        showTopic = nextHelpTopic.length > 0 ? nextHelpTopic : 'home'
+                        break
+                    default:
+                        showTopic = topic
+                }
+
+                const [helpTopic, helpAnchor] = showTopic.split('#')
+                const historyLength = updateHistory.length
+                if (historyLength < 25 && (historyLength === 0 || updateHistory[historyLength - 1] !== showTopic)) {
+                    updateHistory.push(showTopic)
+                }
+
+                const helpFile = await join(await resourceDir(), 'help', `${helpTopic}.md`)
+                if (await exists(helpFile)) {
+                    const text = await readTextFile(helpFile)
+                    workbookStore.dispatch(helpActions.showHelp({ topic: helpTopic, anchor: helpAnchor, text, history: updateHistory }))
+                } else {
+                    throw new Error(`Help topic "${helpTopic}" not found`)
+                }
+            })().catch((e) => {
+                toast.open(`${e}`, ToastSeverity.Error)
+            })
+        }
+
+
+        const unlistenAction = listen('action', async (event: Event<string>) => { await doRouteAction(event.payload) })
+        const unlistenHelp = listen('help', async (event: Event<string>) => {
+            processHelp(event.payload)
+        })
         const unlistenCopyTextToClipboard = listen<string | undefined>('copyText', async (event) => {
             await doCopyTextToClipboard(event.payload)
         })
@@ -96,6 +157,7 @@ export const ApicizeTauriProvider = (props: {
 
         return () => {
             unlistenAction.then(f => f())
+            unlistenHelp.then(f => f())
             unlistenCopyTextToClipboard.then(f => f())
             unlistenCopyImageToClipboard.then(f => f())
         }
@@ -121,8 +183,8 @@ export const ApicizeTauriProvider = (props: {
     }, [workbookDisplayName])
 
 
-    const doRouteAction = async (event: Event<string>) => {
-        switch (event.payload) {
+    const doRouteAction = async (action: string) => {
+        switch (action) {
             case 'new':
                 await doNewWorkbook()
                 break
@@ -148,9 +210,10 @@ export const ApicizeTauriProvider = (props: {
                 await doSetBodyFromFile()
                 break
             default:
-                console.warn(`Invalid action: ${event.payload}`)
+                console.warn(`Invalid action: ${action}`)
         }
     }
+
 
     // Triggers the start of a new workbook
     const doNewWorkbook = async () => {
@@ -197,7 +260,7 @@ export const ApicizeTauriProvider = (props: {
                 directory: false,
                 filters: [{
                     name: 'Apicize Files',
-                    extensions: [EXT, EXT_NOAUTH]
+                    extensions: [EXT]
                 }]
             })) as any
             if (selected) fileName = selected['path']
@@ -224,10 +287,8 @@ export const ApicizeTauriProvider = (props: {
                 return
             }
             const core = await getTauriApiCore()
-            const workbook = context.getWorkbookFromStore(
-                workbookFullName.endsWith(`.${EXT_NOAUTH}`)
-            )
-            
+            const workbook = context.getWorkbookFromStore()
+
             await core.invoke('save_workbook', { workbook, path: workbookFullName })
 
             await updateSettings({ lastWorkbookFileName: workbookFullName })
@@ -254,21 +315,14 @@ export const ApicizeTauriProvider = (props: {
                 filters: [{
                     name: 'Apicize Files',
                     extensions: [EXT]
-                }, {
-                    name: 'Apicize Files (No Authorizations)',
-                    extensions: [EXT_NOAUTH]
                 }]
             })
 
-            debugger
             if ((typeof fileName !== 'string') || ((fileName?.length ?? 0) === 0)) {
                 return
             }
 
-            const workbook = context.getWorkbookFromStore(
-                fileName.endsWith(`.${EXT_NOAUTH}`)
-            )
-
+            const workbook = context.getWorkbookFromStore()
             await core.invoke('save_workbook', { workbook, path: fileName })
 
             await updateSettings({ lastWorkbookFileName: fileName })
@@ -287,19 +341,18 @@ export const ApicizeTauriProvider = (props: {
         let base = await path.basename(fileName);
         const i = base.lastIndexOf('.');
         if (i !== -1) {
-            const ext = base.substring(i+1);
             base = base.substring(0, i);
-            if (ext === EXT_NOAUTH) {
-                return `${base} (No Auths)`;
-            }
         }
         return base;
     }
 
     const doRunRequest = async () => {
         // toast.open(`Executing id ${entry.name}`, ToastSeverity.Info)
-        const runInfo = context.request.getRunInformation()
-        if (! runInfo) return
+        const runInfo = activeType === NavigationType.Request
+             ? context.request.getRunInformation()
+             : context.group.getRunInformation()
+        
+        if (!runInfo) return
 
         try {
             const core = await getTauriApiCore()
@@ -344,22 +397,21 @@ export const ApicizeTauriProvider = (props: {
         }
     }
 
-    const doCopyImageToClipboard = async (_base64?: string) => {
-        toast.open('Copy image to clipboard not yet supported', ToastSeverity.Warning)
-        // try {
-        //     if(base64 && (base64.length > 0)) {
-        //         await writeImage(base64)
-        //         toast.open('Image copied to clipboard', ToastSeverity.Success)
-        //     }
-        // } catch(e) {
-        //     toast.open(`${e}`, ToastSeverity.Error)
-        // }
+    const doCopyImageToClipboard = async (base64?: string) => {
+        try {
+            if (base64 && (base64.length > 0)) {
+                await clipboard.writeImageBase64(base64)
+                toast.open('Image copied to clipboard', ToastSeverity.Success)
+            }
+        } catch (e) {
+            toast.open(`${e}`, ToastSeverity.Error)
+        }
     }
 
     const doCopyTextToClipboard = async (text?: string) => {
         try {
             if (text && (text.length ?? 0) > 0) {
-                await writeText(text)
+                await clipboard.writeText(text)
                 toast.open('Text copied to clipboard', ToastSeverity.Success)
             }
         } catch (e) {
@@ -424,7 +476,7 @@ export const ApicizeTauriProvider = (props: {
                     try {
                         await copyFile(demoFile, destDemoFile);
                         settings.lastWorkbookFileName = destDemoFile
-                    } catch(e) {
+                    } catch (e) {
                         console.error(`Unable to copy ${demoFile} to ${destDemoFile}`)
                     }
                 }

@@ -4,11 +4,13 @@ import { useSelector } from "react-redux";
 import { useContext } from 'react'
 import { WorkbookState } from '../../../models/store'
 import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context';
+import { EditorTitle } from '../../editor-title';
 
 export function RequestGroupEditor(props: {
     sx?: SxProps
 }) {
-    const group = useContext(WorkbookStorageContext).group
+    const context = useContext(WorkbookStorageContext)
+    const group = context.group
 
     const id = useSelector((state: WorkbookState) => state.group.id)
     const name = useSelector((state: WorkbookState) => state.group.name)
@@ -25,8 +27,8 @@ export function RequestGroupEditor(props: {
     }
 
     return (
-        <Stack direction='column' className='no-button-column' sx={props.sx}>
-            <Typography variant='h1'><FolderIcon /> {name?.length ?? 0 > 0 ? name : '(Unnamed)'}</Typography>
+        <Stack direction='column' sx={props.sx}>
+            <EditorTitle icon={<FolderIcon />} name={name?.length ?? 0 > 0 ? name : '(Unnamed)'} />
             <Stack direction='row' display='flex' spacing={3} maxWidth={1000}>
                 <TextField
                     id='group-name'

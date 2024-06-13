@@ -5,7 +5,7 @@ import { EditableWorkbookRequestEntry } from "../models/workbook/editable-workbo
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario"
 import { BodyType, WorkbookBodyData, Method, GetTitle, WorkbookAuthorizationType, NO_AUTHORIZATION, NO_SCENARIO, StoredWorkbook, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization, WorkbookApiKeyAuthorization, ApicizeResult } from "@apicize/lib-typescript"
 import { stateStorageToRequestEntry, stateStorageToWorkbook, workbookToStateStorage } from "../services/workbook-serializer"
-import { WorkbookState, requestActions, navigationActions, authorizationActions, scenarioActions, groupActions, workbookActions, executionActions, ResultType } from "../models/store"
+import { WorkbookState, requestActions, navigationActions, authorizationActions, scenarioActions, groupActions, workbookActions, executionActions, ResultType, NavigationType, helpActions } from "../models/store"
 import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request"
 import { GenerateIdentifier } from "../services/random-identifier-generator"
 import { WorkbookStateStorage } from "../models/workbook/workbook-state-storage"
@@ -17,7 +17,7 @@ import { ApicizeRunResultsToWorkbookExecutionResults, WorkbookExecution, Workboo
 import { NavigationListItem } from "../models/navigation-list-item"
 import { ExecutionSummaryInfo } from "../models/workbook/execution-summary-info"
 import { MAX_TEXT_RENDER_LENGTH } from "../controls/viewers/text-viewer"
-
+import { PersistenceOption } from "@apicize/lib-typescript/dist/models/workbook/workbook-authorization"
 
 let indexedWorkbook = {
     requests: { entities: {}, topLevelIDs: [] },
@@ -33,11 +33,10 @@ const storageActions = () => {
 
     const dispatch = useDispatch()
 
-    let activeRequestId = useSelector((state: WorkbookState) => state.request.id)
-    let activeGroupId = useSelector((state: WorkbookState) => state.group.id)
+    let activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
+    let activeID = useSelector((state: WorkbookState) => state.navigation.activeID)
     let activeAuthorizationId = useSelector((state: WorkbookState) => state.execution.selectedAuthorizationID)
     let activeScenarioId = useSelector((state: WorkbookState) => state.execution.selectedScenarioID)
-    let activeExecutionId = useSelector((state: WorkbookState) => state.execution.id)
 
     const encodeFormData = (data: EditableNameValuePair[]) =>
         (data.length === 0)
@@ -100,12 +99,14 @@ const storageActions = () => {
 
     // Clear all selected records
     const clearAllActivations = () => {
-        dispatch(requestActions.close())
-        dispatch(groupActions.close())
-        dispatch(authorizationActions.close())
-        dispatch(scenarioActions.close())
-        dispatch(executionActions.close())
+        dispatch(navigationActions.closeEditor());
     }
+
+    const helpContextActions = {
+        setNextHelpTopic: (topic: string) => {
+            dispatch(helpActions.setNextHelpTopic(topic))
+        }
+    };
 
     // Activate request or request group state for editing
     const activateRequestOrGroup = (id: string | null) => {
@@ -117,12 +118,11 @@ const storageActions = () => {
             requestEntry = null
         }
 
-        dispatch(authorizationActions.close())
-        dispatch(scenarioActions.close())
-
         const request = castEntryAsRequest(requestEntry)
         if (request) {
-            dispatch(groupActions.close())
+            dispatch(helpActions.hideHelp())
+            dispatch(helpActions.setNextHelpTopic('requests'))
+
             dispatch(requestActions.initialize({
                 id: request.id,
                 name: request.name ?? '',
@@ -136,18 +136,27 @@ const storageActions = () => {
                 bodyData: request.body?.data
 
             }))
+            dispatch(navigationActions.openEditor({
+                type: NavigationType.Request,
+                id: request.id
+            }))
         } else {
+            dispatch(helpActions.hideHelp())
+            dispatch(helpActions.setNextHelpTopic('requests'))
+
             const group = castEntryAsGroup(requestEntry)
             if (group) {
-                dispatch(requestActions.close())
                 dispatch(groupActions.initialize({
                     id: group.id,
                     name: group.name ?? '',
                     runs: group.runs
                 }))
+                dispatch(navigationActions.openEditor({
+                    type: NavigationType.Group,
+                    id: group.id
+                }))
             } else {
-                dispatch(requestActions.close())
-                dispatch(groupActions.close())
+                dispatch(navigationActions.closeEditor())
             }
         }
 
@@ -169,15 +178,14 @@ const storageActions = () => {
             authorization = null
         }
 
-        dispatch(requestActions.close())
-        dispatch(groupActions.close())
-        dispatch(scenarioActions.close())
-
         if (authorization) {
+            dispatch(helpActions.hideHelp())
+            dispatch(helpActions.setNextHelpTopic('authorizations'))
             dispatch(authorizationActions.initialize({
                 id: authorization.id,
                 name: authorization.name ?? '',
                 type: authorization.type,
+                persistence: authorization.persistence,
                 username: (authorization as EditableWorkbookBasicAuthorization)?.username,
                 password: (authorization as EditableWorkbookBasicAuthorization)?.password,
                 accessTokenUrl: (authorization as EditableWorkbookOAuth2ClientAuthorization)?.accessTokenUrl,
@@ -187,8 +195,12 @@ const storageActions = () => {
                 header: (authorization as EditableWorkbookApiKeyAuthorization).header,
                 value: (authorization as EditableWorkbookApiKeyAuthorization).value
             }))
+            dispatch(navigationActions.openEditor({
+                type: NavigationType.Authorization,
+                id: authorization.id
+            }))
         } else {
-            dispatch(authorizationActions.close())
+            dispatch(navigationActions.closeEditor())
         }
     }
 
@@ -202,18 +214,21 @@ const storageActions = () => {
             scenario = null
         }
 
-        dispatch(requestActions.close())
-        dispatch(groupActions.close())
-        dispatch(authorizationActions.close())
-
         if (scenario) {
+            dispatch(helpActions.hideHelp())
+            dispatch(helpActions.setNextHelpTopic('scenarios'))
             dispatch(scenarioActions.initialize({
                 id: scenario.id,
                 name: scenario.name ?? '',
                 variables: scenario.variables
             }))
+            dispatch(navigationActions.openEditor({
+                type: NavigationType.Scenario,
+                id: scenario.id
+            }))
+
         } else {
-            dispatch(scenarioActions.close())
+            dispatch(navigationActions.closeEditor())
         }
     }
 
@@ -258,13 +273,15 @@ const storageActions = () => {
                 id,
                 resultType,
                 longTextInResponse,
+                failedTestCount: result ? result.failedTestCount : 0,
                 runIndex: execution.runIndex,
                 runList: execution.runList,
                 resultIndex: execution.resultIndex,
                 resultLists: execution.resultLists,
             }))
+            dispatch(navigationActions.openExecution(id))
         } else {
-            dispatch(executionActions.close())
+            dispatch(navigationActions.closeExecution())
         }
     }
 
@@ -334,7 +351,7 @@ const storageActions = () => {
         },
         delete: (id: string) => {
             deleteRequestEntryFromStore(indexedWorkbook.requests, id)
-            if (activeRequestId === id || activeGroupId === id) {
+            if (activeID === id) {
                 activateRequestOrGroup(null)
             }
             dispatch(workbookActions.setDirty(true))
@@ -344,7 +361,7 @@ const storageActions = () => {
             moveInStorage<EditableWorkbookRequestEntry>(id, destinationID, onLowerHalf, onLeft, indexedWorkbook.requests)
             dispatch(workbookActions.setDirty(true))
             dispatch(navigationActions.setRequestList(generateRequestNavList()))
-            if (activeRequestId !== id && activeGroupId !== id) {
+            if (activeID !== id) {
                 activateRequestOrGroup(id)
             }
         },
@@ -514,10 +531,9 @@ const storageActions = () => {
             dispatch(requestActions.setTest(value))
         },
         getRunInformation: () => {
-            const id = activeRequestId ?? activeGroupId
-            return id
+            return (activeType === NavigationType.Request && activeID)
                 ? {
-                    request: stateStorageToRequestEntry(id, indexedWorkbook.requests),
+                    request: stateStorageToRequestEntry(activeID, indexedWorkbook.requests),
                     authorization: activeAuthorizationId ? indexedWorkbook.authorizations.entities[activeAuthorizationId] : undefined,
                     scenario: activeScenarioId ? indexedWorkbook.scenarios.entities[activeScenarioId] : undefined,
                 }
@@ -560,6 +576,15 @@ const storageActions = () => {
             entry.runs = value
             dispatch(workbookActions.setDirty(true))
             dispatch(groupActions.setRuns(value))
+        },
+        getRunInformation: () => {
+            return (activeType === NavigationType.Group && activeID)
+                ? {
+                    request: stateStorageToRequestEntry(activeID, indexedWorkbook.requests),
+                    authorization: activeAuthorizationId ? indexedWorkbook.authorizations.entities[activeAuthorizationId] : undefined,
+                    scenario: activeScenarioId ? indexedWorkbook.scenarios.entities[activeScenarioId] : undefined,
+                }
+                : undefined
         }
     }
 
@@ -570,6 +595,7 @@ const storageActions = () => {
             const authorization = {
                 id,
                 name: '',
+                persistence: PersistenceOption.Workbook,
                 type: WorkbookAuthorizationType.Basic,
                 data: {
                     username: '',
@@ -628,6 +654,11 @@ const storageActions = () => {
             dispatch(authorizationActions.setName(value))
             dispatch(navigationActions.setAuthorizationList(generateAuthorizationNavList()))
         },
+        setPersistence: (id: string, value: PersistenceOption) => {
+            let entry = indexedWorkbook.authorizations.entities[id]
+            entry.persistence = value
+            dispatch(authorizationActions.setPersistence(value))
+        },
         setType: (id: string, value: WorkbookAuthorizationType) => {
             let entry = indexedWorkbook.authorizations.entities[id]
             entry.type = value
@@ -640,8 +671,8 @@ const storageActions = () => {
         },
         setPassword: (id: string, value: string) => {
             let entry = indexedWorkbook.authorizations.entities[id] as WorkbookBasicAuthorization
-            entry.username = value
-            dispatch(authorizationActions.setUsername(value))
+            entry.password = value
+            dispatch(authorizationActions.setPassword(value))
         },
         setAccessTokenUrl: (id: string, value: string) => {
             let entry = indexedWorkbook.authorizations.entities[id] as WorkbookOAuth2ClientAuthorization
@@ -761,6 +792,9 @@ const storageActions = () => {
             }))
             dispatch(workbookActions.setDirty(true))
         },
+        setPanel: (panel: string) => {
+            dispatch(executionActions.setPanel(panel))
+        },
         runStart: (id: string) => {
             const match = requestExecutions.get(id)
             if (match) {
@@ -772,9 +806,8 @@ const storageActions = () => {
                     running: true,
                 })
             }
-            dispatch(executionActions.runStart({
-                id,
-            }))
+            dispatch(navigationActions.openExecution(id))
+            dispatch(executionActions.runStart(id))
         },
         runCancel: (id: string) => {
             const match = requestExecutions.get(id)
@@ -793,7 +826,6 @@ const storageActions = () => {
             execution.running = false
             execution.runList = []
             execution.resultLists = []
-
             if (results) {
                 // Stop the executions
                 const workbookResults = ApicizeRunResultsToWorkbookExecutionResults(results, indexedWorkbook.requests.entities)
@@ -885,6 +917,7 @@ const storageActions = () => {
         scenario: scenarioContextActions,
         workbook: workbookContextActions,
         execution: executionContextActions,
+        help: helpContextActions,
 
         newWorkbook: () => {
             dispatch(navigationActions.setLists({
@@ -909,25 +942,27 @@ const storageActions = () => {
                 displayName,
             }))
 
-            dispatch(executionActions.setSelected({
-                selectedAuthorizationID: indexedWorkbook.selectedAuthorizationID,
-                selectedScenarioID: indexedWorkbook.selectedScenarioID,
-            }))
+            dispatch(navigationActions.closeEditor())
 
             dispatch(navigationActions.setLists({
                 requests: generateRequestNavList(),
                 authorizations: generateAuthorizationNavList(),
                 scenarios: generateScenarioNavList()
             }))
+
+            dispatch(executionActions.setSelected({
+                selectedAuthorizationID: indexedWorkbook.selectedAuthorizationID,
+                selectedScenarioID: indexedWorkbook.selectedScenarioID,
+            }))
+
         },
-        getWorkbookFromStore: (removeCredentials: boolean) =>
+        getWorkbookFromStore: () =>
             stateStorageToWorkbook(
                 indexedWorkbook.requests,
                 indexedWorkbook.authorizations,
                 indexedWorkbook.scenarios,
                 indexedWorkbook.selectedAuthorizationID,
-                indexedWorkbook.selectedScenarioID,
-                removeCredentials
+                indexedWorkbook.selectedScenarioID
             ),
         onSaveWorkbook: (fullName: string, displayName: string) => {
             (fullName: string, displayName: string) => {

@@ -8,5 +8,5 @@ export interface WorkbookStateStorage {
     authorizations: StateStorage<EditableWorkbookAuthorization>,
     scenarios: StateStorage<EditableWorkbookScenario>,
     selectedAuthorizationID: string,
-    selectedScenarioID: string,
+    selectedScenarioID: string
 }

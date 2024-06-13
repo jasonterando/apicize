@@ -3,8 +3,6 @@ use apicize_lib::cleanup_v8;
 use apicize_lib::models::Workbook;
 use apicize_lib::models::WorkbookAuthorization;
 use apicize_lib::models::WorkbookScenario;
-use apicize_lib::run;
-use apicize_lib::FileSystem;
 use std::env;
 use std::process;
 
@@ -17,7 +15,7 @@ async fn main() {
     }
 
     let file_name = &args[1];
-    let result = Workbook::open_from_path(file_name);
+    let result = Workbook::open(file_name);
 
     if result.is_err() {
         println!("Unable to read {}: {}", file_name, result.unwrap_err());
@@ -34,9 +32,12 @@ async fn main() {
             if let Some(auths) = workbook.authorizations {
                 if let Some(selected) = auths.iter().find(|x| 
                     match x {
-                        WorkbookAuthorization::Basic { id, name: _, username: _, password: _ } => *id == selected_id,
-                        WorkbookAuthorization::ApiKey { id , name: _, header: _, value: _ } => *id == selected_id,
-                        WorkbookAuthorization::OAuth2Client { id, name: _, access_token_url: _, client_id: _, client_secret: _, scope: _ } => *id == selected_id,
+                        WorkbookAuthorization::Basic { id, name: _,
+                            username: _, password: _ } => *id == selected_id,
+                        WorkbookAuthorization::ApiKey { id , name: _,
+                            header: _, value: _ } => *id == selected_id,
+                        WorkbookAuthorization::OAuth2Client { id, name: _,
+                            access_token_url: _, client_id: _, client_secret: _, scope: _ } => *id == selected_id,
                     }
                 ) {
                     selected_authorization = Some(selected.clone());
@@ -61,7 +62,7 @@ async fn main() {
 
     while let Some(r) = iter.next() {
         // println!("Request: {}", r);
-        let run_response = run(&r.clone(), &selected_authorization, &selected_scenario, None).await;
+        let run_response = r.run(&selected_authorization, &selected_scenario, None).await;
         match run_response {
             Ok(runs) => {
                 let mut run_number = 0;

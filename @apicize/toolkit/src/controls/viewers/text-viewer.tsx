@@ -1,6 +1,15 @@
 import { Typography } from "@mui/material";
 import { Grammar, highlight, languages } from 'prismjs'
 
+import AceEditor from "react-ace"
+import "ace-builds/src-noconflict/mode-json"
+import "ace-builds/src-noconflict/mode-xml"
+import "ace-builds/src-noconflict/mode-html"
+import "ace-builds/src-noconflict/mode-css"
+import "ace-builds/src-noconflict/mode-text"
+import "ace-builds/src-noconflict/theme-monokai"
+import "ace-builds/src-noconflict/ext-language_tools"
+
 export const MAX_TEXT_RENDER_LENGTH = 64 * 1024 * 1024
 
 const FlexCodeViewer = (props: { text: string, grammar?: Grammar, language?: string }) => (
@@ -23,7 +32,7 @@ const FlexCodeViewer = (props: { text: string, grammar?: Grammar, language?: str
 
 export function TextViewer(props: { text?: string, extension?: string }) {
     const length = props.text?.length ?? 0
-    if (! (props.text && length > 0)) {
+    if (!(props.text && length > 0)) {
         return null
     }
 
@@ -36,16 +45,41 @@ export function TextViewer(props: { text?: string, extension?: string }) {
         }
     }
 
-    switch (props.extension) {
-        case 'html':
-            return (<FlexCodeViewer text={render} grammar={languages.html} language='html' />)
-        case 'css':
-            return (<FlexCodeViewer text={render} grammar={languages.css} language='css' />)
-        case 'js':
-            return (<FlexCodeViewer text={render}  grammar={languages.javascript} language='javascript' />)
-        case 'json':
-            return (<FlexCodeViewer text={render}  grammar={languages.json} language='json' />)
-        default:
-            return (<FlexCodeViewer text={render} />)
-    }
+    let mode = props.extension
+    if (mode === 'txt') mode = 'text'
+
+    return <AceEditor
+        mode={mode}
+        theme='monokai'
+        fontSize='1rem'
+        lineHeight='1rem'
+        width='100%'
+        name='code-editor'
+        showGutter={true}
+        showPrintMargin={false}
+        tabSize={3}
+        editorProps={{ readOnly: true }}
+        setOptions={{
+            readOnly: true,
+            useWorker: false,
+            foldStyle: "markbegin",
+            displayIndentGuides: true,
+            enableAutoIndent: true,
+            fixedWidthGutter: true,
+            showLineNumbers: true,
+        }}
+        value={props.text} />
+
+
+    // switch (props.extension) {
+    //     case 'html':
+    //         return (<FlexCodeViewer text={render} grammar={languages.html} language='html' />)
+    //     case 'css':
+    //         return (<FlexCodeViewer text={render} grammar={languages.css} language='css' />)
+    //     case 'js':
+    //         return (<FlexCodeViewer text={render}  grammar={languages.javascript} language='javascript' />)
+    //     case 'json':
+    //         return (<FlexCodeViewer text={render}  grammar={languages.json} language='json' />)
+    //     default:
+    //         return (<FlexCodeViewer text={render} />)
 }

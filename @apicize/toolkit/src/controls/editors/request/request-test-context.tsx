@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { NO_AUTHORIZATION, NO_SCENARIO } from '@apicize/lib-typescript';
 import { WorkbookState } from '../../../models/store';
 import { Stack, SxProps } from '@mui/system';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useState } from 'react';
 import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context';
 
 export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void }) {
@@ -17,7 +17,7 @@ export function RequestTestContext(props: { sx: SxProps, triggerRun: () => void 
     const selectedScenarioID = useSelector((state: WorkbookState) => state.execution.selectedScenarioID)
     const authorizations = useSelector((state: WorkbookState) => state.navigation.authorizationList)
     const scenarios = useSelector((state: WorkbookState) => state.navigation.scenarioList)
-    const [disableRun, setDisableRun] = useState(false)
+    const [disableRun] = useState(false)
     const runIndex = useSelector((state: WorkbookState) => state.execution.runIndex)
     const runList = useSelector((state: WorkbookState) => state.execution.runList)
     const resultIndex = useSelector((state: WorkbookState) => state.execution.resultIndex)

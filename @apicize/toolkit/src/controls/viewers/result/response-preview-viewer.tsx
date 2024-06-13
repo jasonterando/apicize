@@ -13,7 +13,7 @@ export function ResultResponsePreview(props: {
     triggerCopyTextToClipboard: (text?: string) => void,
     triggerCopyImageToClipboard: (base64?: string) => void,
 }) {
-    const executionId = useSelector((state: WorkbookState) => state.execution.id)
+    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
     useSelector((state: WorkbookState) => state.execution.resultIndex)
     useSelector((state: WorkbookState) => state.execution.runIndex)
     if (!executionId) {
@@ -68,7 +68,7 @@ export function ResultResponsePreview(props: {
                         aria-label="Copy Image to Clipboard"
                         title="Copy Image to Clipboard"
                         sx={{ marginLeft: '16px' }}
-                        onClick={_ => props.triggerCopyImageToClipboard(body?.text)}>
+                        onClick={_ => props.triggerCopyImageToClipboard(body?.data)}>
                         <ContentCopyIcon />
                     </IconButton>)
                     : showTextCopy

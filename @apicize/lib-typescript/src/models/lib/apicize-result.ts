@@ -12,6 +12,8 @@ export interface ApicizeResult {
     executedAt: number
     milliseconds: number
     success: boolean
+    testCount?: number
+    failedTestCount?: number
     errorMessage?: string
 }
 
