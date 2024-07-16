@@ -1,5 +1,5 @@
 import { Identifiable } from '../identifiable';
-import { Named as Named } from '../named';
+import { Named } from '../named';
 
 import {
     ReferrerPolicy,
@@ -7,6 +7,8 @@ import {
     RequestMode,
     RequestRedirect
 } from 'undici-types'
+import { WorkbookAuthorization } from './workbook-authorization';
+import { Selection } from '../selection';
 
 /**
  * Used to represent headers, query string parameters, etc.
@@ -71,4 +73,9 @@ export interface WorkbookRequest extends Identifiable, Named {
     referrerPolicy?: ReferrerPolicy
     duplex?: RequestDuplex
     test?: string
+    runs: number
+    selectedScenario?: Selection
+    selectedAuthorization?: Selection
+    selectedCertificate?: Selection
+    selectedProxy?: Selection
 }

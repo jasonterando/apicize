@@ -2,10 +2,10 @@ import { Grid, TextField } from "@mui/material"
 import { WorkbookState } from "../../../models/store"
 import { useContext } from "react"
 import { useSelector } from "react-redux"
-import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context"
+import { WorkspaceContext } from "../../../contexts/workspace-context"
 
 export function AuthorizationApiKeyPanel() {
-    const auth = useContext(WorkbookStorageContext).authorization
+    const auth = useContext(WorkspaceContext).authorization
 
     const id = useSelector((state: WorkbookState) => state.authorization.id)
     const header = useSelector((state: WorkbookState) => state.authorization.header ?? '')

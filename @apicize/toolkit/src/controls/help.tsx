@@ -13,6 +13,7 @@ import ViewListIcon from '@mui/icons-material/ViewList'
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined'
 import ScienceIcon from '@mui/icons-material/Science';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
+import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
 import { logo } from './logo';
 import { Remark } from 'react-remark'
 import { ComponentPropsWithNode } from 'rehype-react'
@@ -40,7 +41,6 @@ export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: 
 
     useEffect(() => {
         if (helpAnchor.length > 0) {
-            console.log(`Scrolling ${helpAnchor} into view`)
             document.getElementById(helpAnchor)?.scrollIntoView(true)
         }
     }, [helpAnchor, helpText])
@@ -131,17 +131,19 @@ export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: 
         const name = (attrsWithNode.node as any).properties.name
         switch (name) {
             case 'request':
-                return <SendIcon />
+                return <SendIcon className='help-icon' />
             case 'info':
-                return <DisplaySettingsIcon />
+                return <DisplaySettingsIcon className='help-icon' />
             case 'query':
-                return <ViewListIcon />
+                return <ViewListIcon className='help-icon' />
             case 'headers':
-                return <ViewListOutlinedIcon />
+                return <ViewListOutlinedIcon className='help-icon' />
             case 'body':
-                return <ArticleOutlinedIcon />
+                return <ArticleOutlinedIcon className='help-icon' />
             case 'test':
-                return <ScienceIcon />
+                return <AirlineStopsIcon className='help-icon' />
+            case 'proxy':
+                return <ScienceIcon className='help-icon' />
             default:
                 return null
         }

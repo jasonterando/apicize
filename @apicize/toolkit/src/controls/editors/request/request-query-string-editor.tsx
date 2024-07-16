@@ -3,10 +3,10 @@ import { WorkbookState } from '../../../models/store'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
 import { useContext } from 'react'
-import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
+import { WorkspaceContext } from '../../../contexts/workspace-context'
 
 export function RequestQueryStringEditor() {
-  const context = useContext(WorkbookStorageContext)
+  const context = useContext(WorkspaceContext)
   const request = context.request
   const id = useSelector((state: WorkbookState) => state.request.id)
   const queryStringParams = useSelector((state: WorkbookState) => state.request.queryStringParams)

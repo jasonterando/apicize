@@ -8,10 +8,10 @@
       "type": "lldb",
       "request": "launch",
       "name": "Debug Rust CLI",
-      "program": "${workspaceFolder}/@apicize/cli/target/debug/apicize",
+      "program": "${workspaceFolder}/@apicize/cli/target/debug/apicize-run",
       "preLaunchTask": "rust: build cli",
       "args": [
-        "/home/jterando/Documents/apicize/demo.apicize"
+        "/home/jason/Documents/apicize/test.apicize"
       ],
       "env": {
         "RUST_BACKTRACE": "full"
@@ -28,13 +28,12 @@
       "cargo": {
         "args": [
           "build",
-          "--manifest-path=${workspaceFolder}/@apicize/app/src-tauri/Cargo.toml",
+          "--manifest-path=${workspaceFolder}/app/src-tauri/Cargo.toml",
           "--no-default-features"
         ]
       },
       // task for the `beforeDevCommand` if used, must be configured in `.vscode/tasks.json`
-      "preLaunchTask": "ui:dev",
-      "stopOnEntry": false
+      "preLaunchTask": "ui:dev"
     },
     {
       "type": "lldb",

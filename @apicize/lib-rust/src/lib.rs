@@ -9,25 +9,25 @@ extern crate lazy_static;
 pub mod models;
 pub mod oauth2_client_tokens;
 
+use apicize::{
+    ApicizeBody, ApicizeRequest, ApicizeResponse, ApicizeResult, ApicizeResultRuns,
+    ApicizeTestResponse,
+};
 use async_recursion::async_recursion;
 use dirs::{config_dir, document_dir};
 use encoding_rs::{Encoding, UTF_8};
 use mime::Mime;
-use reqwest::{Body, Client};
+use reqwest::{Body, Client, Proxy};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
-use std::sync::Once;
+use std::sync::{Arc, Once};
 use std::time::{Duration, SystemTime};
-use std::{collections::HashMap, vec};
-use std::{env, fs, path};
+use std::{collections::HashMap, path, vec};
 use tokio::select;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
-use models::{
-    ApicizeBody, ApicizeRequest, ApicizeResponse, ApicizeResult, ApicizeResultRuns, ApicizeTestResponse, CommonEnvironment, ExecutionError, RunError,
-    SavedWorkbookAuth, SerializationError, Workbook, WorkbookAuthorization, WorkbookRequest, WorkbookRequestBody, WorkbookRequestEntry,
-    WorkbookRequestMethod, WorkbookScenario
-};
+use models::*;
 
 use oauth2_client_tokens::get_oauth2_client_credentials;
 
@@ -41,124 +41,1348 @@ pub fn cleanup_v8() {
     v8::V8::dispose_platform();
 }
 
-/// Workbook functions
-impl Workbook {
-    /// Return default workbooks directory
-    pub fn get_workbooks_directory() -> path::PathBuf {
-        match document_dir() {
-            Some(directory) => directory.join("apicize"),
-            None => env::current_dir().unwrap().join("apicize"),
-        }
+/// Return default workbooks directory
+fn get_workbooks_directory() -> path::PathBuf {
+    if let Some(directory) = document_dir() {
+        directory.join("apicize")
+    } else {
+        panic!("Operating system did not provide document directory")
     }
-
-    /// Open from specified path
-    pub fn open(path: &String) -> Result<Workbook, SerializationError> {
-        let mut auth_path = PathBuf::from(path);
-        auth_path.set_extension("apicize-auth");
-        
-        let mut workbook = serde_json::from_str::<Workbook>(fs::read_to_string(path)?.as_str())?;
-        if Path::new(&auth_path).is_file() {
-            let auth = serde_json::from_str::<SavedWorkbookAuth>(fs::read_to_string(auth_path)?.as_str())?;
-            workbook.authorizations = auth.authorizations;
-        }
-        Ok(workbook)
-    }
-
-    /// Save to specified path
-    pub fn save(mut self, path: &String) -> Result<(), SerializationError> {
-        let mut auth_path = PathBuf::from(path);
-        auth_path.set_extension("apicize-auth");
-
-        let save_auths = self.authorizations.clone();
-        let has_auths = match &save_auths {
-            Some(auths) => auths.len() > 0,
-            None => false
-        };
-
-        if has_auths {
-            // Clear authorizations from workbook before saving
-            self.authorizations = None;
-
-            // Save authorizations to their own file
-            let auth_to_save = { SavedWorkbookAuth {
-                version: self.version,
-                authorizations: save_auths
-            }};
-            fs::write(auth_path, serde_json::to_string(&auth_to_save)?)?;
-
-        } else {
-            // If there are no authorizations in workbook, delete auth file if it exists
-            if Path::new(&auth_path).is_file() {
-                fs::remove_file(auth_path)?;
-            }
-        }
-        Ok(fs::write(path, serde_json::to_string(&self)?)?)
-
-
-    }
-
 }
 
-impl CommonEnvironment {
-    /// Retrieve common environment file name
-    fn get_file_name() -> String {
-        match config_dir() {
-            Some(directory) => String::from(
-                directory
-                    .join("apicize")
-                    .join("environments.json")
-                    .as_os_str()
-                    .to_string_lossy(),
-            ),
-            None => String::from(
-                env::current_dir()
-                    .unwrap()
-                    .join("apicize")
-                    .join("environment.json")
-                    .as_os_str()
-                    .to_string_lossy(),
-            ),
+impl Workbook {
+    /// Save workbook
+    pub fn save_workbook(
+        file_name: PathBuf,
+        requests: Vec<WorkbookRequestEntry>,
+        scenarios: Vec<WorkbookScenario>,
+        authorizations: Vec<WorkbookAuthorization>,
+        certificates: Vec<WorkbookCertificate>,
+        proxies: Vec<WorkbookProxy>,
+        selected_scenario: Option<Selection>,
+        selected_authorization: Option<Selection>,
+        selected_certificate: Option<Selection>,
+        selected_proxy: Option<Selection>,
+    ) -> Result<SerializationSaveSuccess, SerializationFailure> {
+        let save_scenarios = if scenarios.is_empty() {
+            None
+        } else {
+            Some(scenarios.clone())
+        };
+        let save_authorizations = if authorizations.is_empty() {
+            None
+        } else {
+            Some(authorizations.clone())
+        };
+        let save_certiificates = if certificates.is_empty() {
+            None
+        } else {
+            Some(certificates.clone())
+        };
+        let save_proxies = if proxies.is_empty() {
+            None
+        } else {
+            Some(proxies.clone())
+        };
+
+        let workbook = Workbook {
+            version: 1.0,
+            requests,
+            scenarios: save_scenarios,
+            authorizations: save_authorizations,
+            certificates: save_certiificates,
+            proxies: save_proxies,
+            selected_scenario,
+            selected_authorization,
+            selected_certificate,
+            selected_proxy,
+        };
+
+        save_data_file(&file_name, &workbook)
+    }
+}
+
+impl Parameters {
+    /// Return the file name for globals
+    fn get_globals_filename() -> path::PathBuf {
+        if let Some(directory) = config_dir() {
+            directory.join("apicize").join("globals.json")
+        } else {
+            panic!("Operating system did not provide configuration directory")
+        }
+    }
+
+    // Return the file name for private workbook options
+    fn get_private_options_filename(workbook_path: &PathBuf) -> path::PathBuf {
+        let mut private_path = workbook_path.clone();
+        private_path.set_extension("apicize-priv");
+        private_path
+    }
+
+    /// Return global parameters information
+    pub fn open_global_parameters(
+    ) -> Result<SerializationOpenSuccess<Parameters>, SerializationFailure> {
+        Self::open(Self::get_globals_filename())
+    }
+
+    /// Return workbook private parameter information
+    pub fn open_workbook_private_parameters(
+        workbook_path: &PathBuf,
+    ) -> Result<SerializationOpenSuccess<Parameters>, SerializationFailure> {
+        Self::open(Self::get_private_options_filename(workbook_path))
+    }
+
+    /// Save global parameters information
+    pub fn save_global_parameters(
+        scenarios: &Vec<WorkbookScenario>,
+        authorizations: &Vec<WorkbookAuthorization>,
+        certificates: &Vec<WorkbookCertificate>,
+        proxies: &Vec<WorkbookProxy>,
+    ) -> Result<SerializationSaveSuccess, SerializationFailure> {
+        Self::save(
+            Self::get_globals_filename(),
+            scenarios,
+            authorizations,
+            certificates,
+            proxies,
+        )
+    }
+
+    /// Save workbook parameters information
+    pub fn save_workbook_private_parameters(
+        workbook_path: &PathBuf,
+        scenarios: &Vec<WorkbookScenario>,
+        authorizations: &Vec<WorkbookAuthorization>,
+        certificates: &Vec<WorkbookCertificate>,
+        proxies: &Vec<WorkbookProxy>,
+    ) -> Result<SerializationSaveSuccess, SerializationFailure> {
+        Self::save(
+            Self::get_private_options_filename(workbook_path),
+            scenarios,
+            authorizations,
+            certificates,
+            proxies,
+        )
+    }
+
+    /// Return parameters information
+    fn open(
+        credential_file_name: PathBuf,
+    ) -> Result<SerializationOpenSuccess<Parameters>, SerializationFailure> {
+        if Path::new(&credential_file_name).is_file() {
+            open_data_file(&credential_file_name)
+        } else {
+            Ok(SerializationOpenSuccess {
+                file_name: String::from(credential_file_name.to_string_lossy()),
+                data: Parameters {
+                    version: 1.0,
+                    scenarios: None,
+                    authorizations: None,
+                    certificates: None,
+                    proxies: None,
+                },
+            })
+        }
+    }
+
+    /// Save credential information
+    fn save(
+        file_name_to_save: PathBuf,
+        scenarios: &Vec<WorkbookScenario>,
+        authorizations: &Vec<WorkbookAuthorization>,
+        certificates: &Vec<WorkbookCertificate>,
+        proxies: &Vec<WorkbookProxy>,
+    ) -> Result<SerializationSaveSuccess, SerializationFailure> {
+        let mut any = false;
+        let save_scenarios = if scenarios.is_empty() {
+            None
+        } else {
+            any = true;
+            Some(scenarios.clone())
+        };
+        let save_authorizations = if authorizations.is_empty() {
+            None
+        } else {
+            any = true;
+            Some(authorizations.clone())
+        };
+        let save_certiificates = if certificates.is_empty() {
+            None
+        } else {
+            any = true;
+            Some(certificates.clone())
+        };
+        let save_proxies = if proxies.is_empty() {
+            None
+        } else {
+            any = true;
+            Some(proxies.clone())
+        };
+
+        if any {
+            let globals = Parameters {
+                version: 1.0,
+                scenarios: save_scenarios,
+                authorizations: save_authorizations,
+                certificates: save_certiificates,
+                proxies: save_proxies,
+            };
+            save_data_file(&file_name_to_save, &globals)
+        } else {
+            delete_data_file(&file_name_to_save)
+        }
+    }
+}
+
+impl ApicizeSettings {
+    /// Return the file name for settings
+    fn get_settings_filename() -> path::PathBuf {
+        if let Some(directory) = config_dir() {
+            directory.join("apicize").join("settings.json")
+        } else {
+            panic!("Operating system did not provide configuration directory")
         }
     }
 
     /// Open Apicize common environment from the specified name in the default path
-    pub fn open() -> Result<CommonEnvironment, SerializationError> {
-        let file_name = CommonEnvironment::get_file_name();
-        Ok(serde_json::from_str(
-            fs::read_to_string(file_name)?.as_str(),
-        )?)
-    }
-
-    /// Save Apicize common environment to the specified name in the default path
-    pub fn save(&self) -> Result<(), SerializationError> {
-        let file_name = CommonEnvironment::get_file_name();
-        Ok(fs::write(file_name, serde_json::to_string(self)?)?)
-    }
-}
-
-impl WorkbookRequestEntry {
-    /// Utility function to perform string substitution based upon search/replace values in "subs"
-    fn clone_and_sub(text: &str, subs: &Vec<(String, String)>) -> String {
-        if subs.is_empty() {
-            text.to_string()
+    pub fn open() -> Result<SerializationOpenSuccess<ApicizeSettings>, SerializationFailure> {
+        let file_name = &Self::get_settings_filename();
+        if Path::new(&file_name).is_file() {
+            open_data_file::<ApicizeSettings>(&Self::get_settings_filename())
         } else {
-            let mut clone = text.to_string();
-            let mut i = subs.iter();
-            while let Some(pair) = i.next() {
-                clone = str::replace(&clone, &pair.0, &pair.1)
-            }
-            clone
+            // Return default settings if no existing settings file exists
+            let settings = ApicizeSettings {
+                last_workbook_file_name: None,
+                workbook_directory: Some(String::from(get_workbooks_directory().to_string_lossy())),
+            };
+            Ok(SerializationOpenSuccess {
+                file_name: String::from(""),
+                data: settings,
+            })
         }
     }
 
-    /// Dispatch the specified request (via reqwest), returning either the repsonse or error
-    async fn dispatch<'a>(
+    /// Save Apicize common environment to the specified name in the default path
+    pub fn save(&self) -> Result<SerializationSaveSuccess, SerializationFailure> {
+        save_data_file(&Self::get_settings_filename(), self)
+    }
+}
+
+impl WorkspaceEntity<WorkbookScenario> for WorkbookScenario {
+    fn get_id_and_name(&self) -> (String, String) {
+        (self.id.to_string(), self.name.to_string())
+    }
+
+    fn get_persistence(&self) -> Option<Persistence> {
+        self.persistence
+    }
+
+    fn set_persistence(&mut self, persistence_to_set: Persistence) {
+        self.persistence = Some(persistence_to_set);
+    }
+
+    fn clear_persistence(&mut self) {
+        self.persistence = None
+    }
+}
+
+impl WorkspaceEntity<WorkbookAuthorization> for WorkbookAuthorization {
+    fn get_id_and_name(&self) -> (String, String) {
+        match self {
+            WorkbookAuthorization::Basic { id, name, .. } => (id.to_string(), name.to_string()),
+            WorkbookAuthorization::OAuth2Client { id, name, .. } => {
+                (id.to_string(), name.to_string())
+            }
+            WorkbookAuthorization::ApiKey { id, name, .. } => (id.to_string(), name.to_string()),
+        }
+    }
+
+    fn get_persistence(&self) -> Option<Persistence> {
+        match self {
+            WorkbookAuthorization::Basic { persistence, .. } => *persistence,
+            WorkbookAuthorization::OAuth2Client { persistence, .. } => *persistence,
+            WorkbookAuthorization::ApiKey { persistence, .. } => *persistence,
+        }
+    }
+
+    fn set_persistence(&mut self, persistence_to_set: Persistence) {
+        match self {
+            WorkbookAuthorization::Basic { persistence, .. } => {
+                *persistence = Some(persistence_to_set)
+            }
+            WorkbookAuthorization::OAuth2Client { persistence, .. } => {
+                *persistence = Some(persistence_to_set)
+            }
+            WorkbookAuthorization::ApiKey { persistence, .. } => {
+                *persistence = Some(persistence_to_set)
+            }
+        }
+    }
+
+    fn clear_persistence(&mut self) {
+        match self {
+            WorkbookAuthorization::Basic { persistence, .. } => *persistence = None,
+            WorkbookAuthorization::OAuth2Client { persistence, .. } => *persistence = None,
+            WorkbookAuthorization::ApiKey { persistence, .. } => *persistence = None,
+        }
+    }
+}
+
+impl WorkspaceEntity<WorkbookCertificate> for WorkbookCertificate {
+    fn get_id_and_name(&self) -> (String, String) {
+        match self {
+            WorkbookCertificate::PKCS8 { id, name, .. } => (id.to_string(), name.to_string()),
+            WorkbookCertificate::PKCS12 { id, name, .. } => (id.to_string(), name.to_string()),
+        }
+    }
+
+    fn get_persistence(&self) -> Option<Persistence> {
+        match self {
+            WorkbookCertificate::PKCS8 { persistence, .. } => *persistence,
+            WorkbookCertificate::PKCS12 { persistence, .. } => *persistence,
+        }
+    }
+
+    fn set_persistence(&mut self, persistence_to_set: Persistence) {
+        match self {
+            WorkbookCertificate::PKCS8 { persistence, .. } => {
+                *persistence = Some(persistence_to_set)
+            }
+            WorkbookCertificate::PKCS12 { persistence, .. } => {
+                *persistence = Some(persistence_to_set)
+            }
+        }
+    }
+
+    fn clear_persistence(&mut self) {
+        match self {
+            WorkbookCertificate::PKCS8 { persistence, .. } => *persistence = None,
+            WorkbookCertificate::PKCS12 { persistence, .. } => *persistence = None,
+        }
+    }
+}
+
+impl WorkspaceEntity<WorkbookProxy> for WorkbookProxy {
+    fn get_id_and_name(&self) -> (String, String) {
+        (self.id.to_string(), self.name.to_string())
+    }
+
+    fn get_persistence(&self) -> Option<Persistence> {
+        self.persistence
+    }
+
+    fn set_persistence(&mut self, persistence_to_set: Persistence) {
+        self.persistence = Some(persistence_to_set);
+    }
+
+    fn clear_persistence(&mut self) {
+        self.persistence = None;
+    }
+}
+
+impl Workspace {
+    /// Validate default selections in Workspace
+    fn validate_selection<T: WorkspaceEntity<T>>(
+        &self,
+        entity_type: SelectableOptionType,
+        list: &IndexedEntities<T>,
+        default_type: &SelectableOptionDefaultType,
+        warnings: &mut Vec<String>,
+    ) {
+        let selection = match entity_type {
+            SelectableOptionType::Scenario => self.get_selected_scenario(),
+            SelectableOptionType::Authorization => self.get_selected_authorization(),
+            SelectableOptionType::Certificate => self.get_selected_certificate(),
+            SelectableOptionType::Proxy => self.get_selected_proxy(),
+        };
+
+        if let Some(s) = selection {
+            if !s.id.is_empty() {
+                let mut found = list.entities.keys().any(|id| id.eq(&s.id));
+                if !found {
+                    found = list.entities.values().any(|v| {
+                        let (_, name) = v.get_id_and_name();
+                        name.eq_ignore_ascii_case(&s.name)
+                    });
+                }
+
+                if !found {
+                    warnings.push(format!(
+                        "Unable to locate {} (ID: {}, Name: {}), defaulting to {}",
+                        entity_type.as_str(),
+                        s.id,
+                        s.name,
+                        default_type.as_str(),
+                    ));
+                }
+            }
+        }
+    }
+
+    /// Populate indexes
+    fn populate_indexes<T: Clone + WorkspaceEntity<T>>(
+        entities: &mut Option<Vec<T>>,
+        index: &mut IndexedEntities<T>,
+        persistence: Persistence,
+    ) {
+        if let Some(existing) = entities {
+            for e in existing {
+                let mut cloned = e.clone();
+                let (id, _) = cloned.get_id_and_name();
+                if !index.top_level_ids.contains(&id) {
+                    index.top_level_ids.push(id.clone());
+                }
+                cloned.set_persistence(persistence);
+                index.entities.insert(id, cloned);
+            }
+        }
+    }
+
+    /// Populate the workspace request list
+    fn populate_requests(
+        entities: &mut Vec<WorkbookRequestEntry>,
+        indexed_requests: &mut IndexedRequests,
+        parent_id: Option<String>,
+        scenarios: &IndexedEntities<WorkbookScenario>,
+        authorizations: &IndexedEntities<WorkbookAuthorization>,
+        certificates: &IndexedEntities<WorkbookCertificate>,
+        proxies: &IndexedEntities<WorkbookProxy>,
+        warnings: &mut Vec<String>,
+    ) {
+        let active_parent_id = parent_id.unwrap_or(String::from(""));
+        for e in entities.iter_mut() {
+            e.validate_selections(
+                scenarios,
+                authorizations,
+                certificates,
+                proxies,
+                &SelectableOptionDefaultType::Parent,
+            );
+
+            match e {
+                WorkbookRequestEntry::Info(info) => {
+                    if active_parent_id.is_empty() {
+                        indexed_requests.top_level_ids.push(info.id.clone());
+                    } else {
+                        match indexed_requests.child_ids.as_mut() {
+                            Some(existing) => {
+                                let updated_child_ids = match existing.get(&active_parent_id) {
+                                    Some(matching_group) => {
+                                        let mut updated = matching_group.to_vec();
+                                        updated.push(info.id.clone());
+                                        updated
+                                    }
+                                    None => Vec::from([info.id.clone()]),
+                                };
+                                existing.insert(active_parent_id.clone(), updated_child_ids);
+                            }
+                            None => {
+                                indexed_requests.child_ids = Some(HashMap::from([(
+                                    active_parent_id.clone(),
+                                    Vec::from([info.id.clone()]),
+                                )]));
+                            }
+                        }
+                    }
+                    indexed_requests
+                        .entities
+                        .insert(info.id.clone(), WorkbookRequestEntry::Info(info.clone()));
+                }
+                WorkbookRequestEntry::Group(group) => {
+                    if active_parent_id.is_empty() {
+                        indexed_requests.top_level_ids.push(group.id.clone());
+                    } else {
+                        match indexed_requests.child_ids.as_mut() {
+                            Some(existing) => {
+                                let updated_child_ids = match existing.get(&active_parent_id) {
+                                    Some(matching_group) => {
+                                        let mut updated = matching_group.to_vec();
+                                        updated.push(group.id.clone());
+                                        updated
+                                    }
+                                    None => Vec::from([group.id.clone()]),
+                                };
+                                existing.insert(active_parent_id.clone(), updated_child_ids);
+                            }
+                            None => {
+                                indexed_requests.child_ids = Some(HashMap::from([(
+                                    active_parent_id.clone(),
+                                    Vec::from([group.id.clone()]),
+                                )]));
+                            }
+                        }
+                    }
+
+                    let mut cloned_group = group.clone();
+                    cloned_group.children = None;
+                    indexed_requests
+                        .entities
+                        .insert(group.id.clone(), WorkbookRequestEntry::Group(cloned_group));
+
+                    if let Some(children) = group.children.as_mut() {
+                        Self::populate_requests(
+                            children,
+                            indexed_requests,
+                            Some(group.id.clone()),
+                            scenarios,
+                            authorizations,
+                            certificates,
+                            proxies,
+                            warnings,
+                        );
+
+                        group.children = None;
+                    }
+                }
+            };
+        }
+    }
+
+    /// Find entity (Scenario, Authorization, etc.)
+    fn find_matching_selection<'a, T: WorkspaceEntity<T>>(
+        selection: &Selection,
+        list: &'a IndexedEntities<T>,
+    ) -> Option<&'a T> {
+        if let Some(found) = list.entities.get(&selection.id) {
+            Some(&found)
+        } else {
+            list.entities.values().find(|v| {
+                let (_, name) = v.get_id_and_name();
+                name.eq_ignore_ascii_case(&selection.name)
+            })
+        }
+    }
+
+    /// Find matching scenario, if any
+    pub fn find_scenario<'a>(&self, selection: &Selection) -> Option<&WorkbookScenario> {
+        Workspace::find_matching_selection(selection, &self.scenarios)
+    }
+
+    /// Open a workspace using the specified workbook, taking into account private parameters file (if existing)
+    /// and global settings
+    pub fn open(
+        workbook_file_name: &String,
+    ) -> Result<(Workspace, Vec<String>), SerializationFailure> {
+        let mut wkspc_requests = IndexedRequests {
+            top_level_ids: vec![],
+            child_ids: None,
+            entities: HashMap::new(),
+        };
+        let mut wkspc_scenarios = IndexedEntities::<WorkbookScenario> {
+            top_level_ids: vec![],
+            entities: HashMap::new(),
+        };
+        let mut wkspc_authorizations = IndexedEntities::<WorkbookAuthorization> {
+            top_level_ids: vec![],
+            entities: HashMap::new(),
+        };
+        let mut wkspc_certificates = IndexedEntities::<WorkbookCertificate> {
+            top_level_ids: vec![],
+            entities: HashMap::new(),
+        };
+        let mut wkspc_proxies = IndexedEntities::<WorkbookProxy> {
+            top_level_ids: vec![],
+            entities: HashMap::new(),
+        };
+
+        // Populate entries from global storage
+        let mut globals: Parameters;
+        match Parameters::open_global_parameters() {
+            Ok(success) => {
+                globals = success.data;
+            }
+            Err(failure) => {
+                return Err(failure);
+            }
+        }
+
+        Self::populate_indexes(
+            &mut globals.scenarios,
+            &mut wkspc_scenarios,
+            Persistence::Global,
+        );
+        Self::populate_indexes(
+            &mut globals.authorizations,
+            &mut wkspc_authorizations,
+            Persistence::Global,
+        );
+        Self::populate_indexes(
+            &mut globals.certificates,
+            &mut wkspc_certificates,
+            Persistence::Global,
+        );
+        Self::populate_indexes(
+            &mut globals.proxies,
+            &mut wkspc_proxies,
+            Persistence::Global,
+        );
+
+        // Populate entries from private parameter files, if any
+        let workbook_path = PathBuf::from(workbook_file_name);
+        let mut private_path = workbook_path.clone();
+        private_path.set_extension("apicize-priv");
+
+        if Path::new(&private_path).is_file() {
+            let mut private: Parameters;
+
+            match Parameters::open_workbook_private_parameters(&private_path) {
+                Ok(success) => {
+                    private = success.data;
+                }
+                Err(error) => {
+                    return Err(error);
+                }
+            }
+
+            Self::populate_indexes(
+                &mut private.scenarios,
+                &mut wkspc_scenarios,
+                Persistence::Private,
+            );
+            Self::populate_indexes(
+                &mut private.authorizations,
+                &mut wkspc_authorizations,
+                Persistence::Private,
+            );
+            Self::populate_indexes(
+                &mut private.proxies,
+                &mut wkspc_proxies,
+                Persistence::Private,
+            );
+            Self::populate_indexes(
+                &mut private.proxies,
+                &mut wkspc_proxies,
+                Persistence::Private,
+            );
+        }
+
+        // Populate from workbook
+        let mut wkbk: Workbook;
+        match open_data_file(&workbook_path) {
+            Ok(success) => {
+                wkbk = success.data;
+            }
+            Err(error) => {
+                return Err(error);
+            }
+        }
+
+        let mut warnings: Vec<String> = vec![];
+
+        Self::populate_indexes(
+            &mut wkbk.scenarios,
+            &mut wkspc_scenarios,
+            Persistence::Workbook,
+        );
+
+        Self::populate_indexes(
+            &mut wkbk.authorizations,
+            &mut wkspc_authorizations,
+            Persistence::Workbook,
+        );
+
+        Self::populate_indexes(
+            &mut wkbk.certificates,
+            &mut wkspc_certificates,
+            Persistence::Workbook,
+        );
+
+        Self::populate_indexes(&mut wkbk.proxies, &mut wkspc_proxies, Persistence::Workbook);
+
+        Self::populate_requests(
+            &mut wkbk.requests,
+            &mut wkspc_requests,
+            None,
+            &wkspc_scenarios,
+            &wkspc_authorizations,
+            &wkspc_certificates,
+            &wkspc_proxies,
+            &mut warnings,
+        );
+
+        let mut workspace = Workspace {
+            requests: wkspc_requests,
+            scenarios: wkspc_scenarios,
+            authorizations: wkspc_authorizations,
+            certificates: wkspc_certificates,
+            proxies: wkspc_proxies,
+            selected_scenario: wkbk.selected_scenario,
+            selected_authorization: wkbk.selected_authorization,
+            selected_certificate: wkbk.selected_certificate,
+            selected_proxy: wkbk.selected_proxy,
+            warnings: None,
+        };
+
+        // Validate the default scenarios, etc. selected for testing
+        workspace.warnings = workspace.validate_selections(
+            &workspace.scenarios,
+            &workspace.authorizations,
+            &workspace.certificates,
+            &workspace.proxies,
+            &SelectableOptionDefaultType::None,
+        );
+
+        Ok((workspace, warnings))
+    }
+
+    /// Recursively add requests to the list to save
+    fn build_requests(
+        &self,
+        ids: &Vec<String>,
+        indexed_requests: &IndexedRequests,
+        scenarios: &IndexedEntities<WorkbookScenario>,
+        authorizations: &IndexedEntities<WorkbookAuthorization>,
+        certificates: &IndexedEntities<WorkbookCertificate>,
+        proxies: &IndexedEntities<WorkbookProxy>,
+        warnings: &mut Vec<String>,
+    ) -> Vec<WorkbookRequestEntry> {
+        let mut results: Vec<WorkbookRequestEntry> = vec![];
+        ids.iter().for_each(|id| {
+            if let Some(entry) = indexed_requests.entities.get(id) {
+                match entry {
+                    WorkbookRequestEntry::Info(info) => {
+                        results.push(WorkbookRequestEntry::Info(info.clone()));
+                    }
+                    WorkbookRequestEntry::Group(group) => {
+                        let mut group_to_add = group.clone();
+                        group_to_add.children = None;
+                        if let Some(child_id_list) = indexed_requests.child_ids.as_ref() {
+                            if let Some(child_ids) = child_id_list.get(id) {
+                                let children = self.build_requests(
+                                    child_ids,
+                                    indexed_requests,
+                                    scenarios,
+                                    authorizations,
+                                    certificates,
+                                    proxies,
+                                    warnings,
+                                );
+                                if children.len() > 0 {
+                                    group_to_add.children = Some(children);
+                                }
+                            }
+                        }
+                        results.push(WorkbookRequestEntry::Group(group_to_add));
+                    }
+                }
+            }
+        });
+        results
+    }
+
+    // Add entities to the global, private and workbook lists, depending upon persistence
+    fn append_entities<T: WorkspaceEntity<T> + Clone>(
+        ids: &Vec<String>,
+        list: &IndexedEntities<T>,
+        globals: &mut Vec<T>,
+        private: &mut Vec<T>,
+        workbook: &mut Vec<T>,
+    ) {
+        ids.iter().for_each(|id| {
+            if let Some(entity) = list.entities.get(id) {
+                let mut cloned_entity = entity.clone();
+                // Clear the persistence value from the saved value, we don't need to save it
+                cloned_entity.clear_persistence();
+                match entity.get_persistence() {
+                    Some(Persistence::Global) => globals.push(cloned_entity),
+                    Some(Persistence::Private) => private.push(cloned_entity),
+                    Some(Persistence::Workbook) => workbook.push(cloned_entity),
+                    None => {}
+                }
+            }
+        });
+    }
+
+    /// Save workspace to specified path, including workbook and global parameters
+    pub fn save(
+        &self,
+        workbook_path: &PathBuf,
+    ) -> Result<Vec<SerializationSaveSuccess>, SerializationFailure> {
+        let mut global_scenarios: Vec<WorkbookScenario> = vec![];
+        let mut global_authorizations: Vec<WorkbookAuthorization> = vec![];
+        let mut global_certificates: Vec<WorkbookCertificate> = vec![];
+        let mut global_proxies: Vec<WorkbookProxy> = vec![];
+
+        let mut priv_scenarios: Vec<WorkbookScenario> = vec![];
+        let mut priv_authorizations: Vec<WorkbookAuthorization> = vec![];
+        let mut priv_certificates: Vec<WorkbookCertificate> = vec![];
+        let mut priv_proxies: Vec<WorkbookProxy> = vec![];
+
+        let mut wkbk_scenarios: Vec<WorkbookScenario> = vec![];
+        let mut wkbk_authorizations: Vec<WorkbookAuthorization> = vec![];
+        let mut wkbk_certificates: Vec<WorkbookCertificate> = vec![];
+        let mut wkbk_proxies: Vec<WorkbookProxy> = vec![];
+
+        let mut warnings: Vec<String> = vec![];
+
+        let wkbk_requests = self.build_requests(
+            &self.requests.top_level_ids,
+            &self.requests,
+            &self.scenarios,
+            &self.authorizations,
+            &self.certificates,
+            &self.proxies,
+            &mut warnings,
+        );
+
+        Self::append_entities(
+            &self.scenarios.top_level_ids,
+            &self.scenarios,
+            &mut global_scenarios,
+            &mut priv_scenarios,
+            &mut wkbk_scenarios,
+        );
+        Self::append_entities(
+            &self.authorizations.top_level_ids,
+            &self.authorizations,
+            &mut global_authorizations,
+            &mut priv_authorizations,
+            &mut wkbk_authorizations,
+        );
+        Self::append_entities(
+            &self.certificates.top_level_ids,
+            &self.certificates,
+            &mut global_certificates,
+            &mut priv_certificates,
+            &mut wkbk_certificates,
+        );
+        Self::append_entities(
+            &self.proxies.top_level_ids,
+            &self.proxies,
+            &mut global_proxies,
+            &mut priv_proxies,
+            &mut wkbk_proxies,
+        );
+
+        let mut successes: Vec<SerializationSaveSuccess> = vec![];
+
+        match Workbook::save_workbook(
+            PathBuf::from(workbook_path),
+            wkbk_requests,
+            wkbk_scenarios,
+            wkbk_authorizations,
+            wkbk_certificates,
+            wkbk_proxies,
+            self.selected_scenario.clone(),
+            self.selected_authorization.clone(),
+            self.selected_certificate.clone(),
+            self.selected_proxy.clone(),
+        ) {
+            Ok(success) => successes.push(success),
+            Err(error) => return Err(error),
+        }
+
+        match Parameters::save_workbook_private_parameters(
+            &workbook_path,
+            &priv_scenarios,
+            &priv_authorizations,
+            &priv_certificates,
+            &priv_proxies,
+        ) {
+            Ok(success) => successes.push(success),
+            Err(error) => return Err(error),
+        }
+
+        match Parameters::save_global_parameters(
+            &global_scenarios,
+            &global_authorizations,
+            &global_certificates,
+            &global_proxies,
+        ) {
+            Ok(success) => successes.push(success),
+            Err(error) => return Err(error),
+        }
+
+        return Ok(successes);
+    }
+
+    // /// Returns variables to use from specified scenario (if any)
+    // fn set_variables_from_scenario(
+    //     &self,
+    //     selected_scenario: &Option<Selection>,
+    //     previous: &HashMap<String, Value>,
+    // ) -> HashMap<String, Value> {
+    //     match selected_scenario {
+    //         Some(selected) => {
+    //             if selected.id.is_empty() {
+    //                 // A blank ID indicates that we want to clear all variables
+    //                 return HashMap::new();
+    //             } else {
+    //                 // Merge in values from the specified scenario
+    //                 let scenario = self.scenarios.entities.get(&selected.id).unwrap();
+    //                 let mut result = previous.clone();
+    //                 if let Some(vars) = &scenario.variables {
+    //                     for pair in vars {
+    //                         let enabled = if let Some(disabled) = pair.disabled {
+    //                             !disabled
+    //                         } else {
+    //                             true
+    //                         };
+    //                         if enabled {
+    //                             result.insert(pair.name.clone(), json!(&pair.value));
+    //                         }
+    //                     }
+    //                 }
+    //                 result
+    //             }
+    //         }
+    //         None => {
+    //             // If no scenario is specified, return previous values as-is
+    //             previous.clone()
+    //         }
+    //     }
+    // }
+
+    fn execute_test(
         request: &WorkbookRequest,
-        authorization: &'a Option<WorkbookAuthorization>,
-        scenario: &'a Option<WorkbookScenario>,
+        response: &ApicizeResponse,
+        variables: &HashMap<String, Value>,
+    ) -> Result<Option<ApicizeTestResponse>, ExecutionError> {
+        // Create a new Isolate and make it the current one.
+        let isolate = &mut v8::Isolate::new(v8::CreateParams::default());
+
+        // Create a stack-allocated handle scope.
+        let scope = &mut v8::HandleScope::new(isolate);
+        let context = v8::Context::new(scope);
+        let scope = &mut v8::ContextScope::new(scope, context);
+
+        let mut init_code = String::new();
+        init_code.push_str(include_str!("./static/framework.min.js"));
+        init_code.push_str(include_str!("./static/routines.js"));
+
+        // Compile the source code
+        let v8_code = v8::String::new(scope, &init_code).unwrap();
+        let script = v8::Script::compile(scope, v8_code, None).unwrap();
+        script.run(scope).unwrap();
+
+        let tc = &mut v8::TryCatch::new(scope);
+
+        // Return empty test results if no test
+        if let None = request.test {
+            return Ok(None);
+        }
+
+        let mut init_code = String::new();
+        init_code.push_str(&format!(
+            "runTestSuite({}, {}, {}, () => {{{}}})",
+            serde_json::to_string(request).unwrap(),
+            serde_json::to_string(response).unwrap(),
+            serde_json::to_string(variables).unwrap(),
+            request.test.as_ref().unwrap()
+        ));
+
+        let v8_code = v8::String::new(tc, &init_code).unwrap();
+
+        let Some(script) = v8::Script::compile(tc, v8_code, None) else {
+            let message = tc.message().unwrap();
+            let message = message.get(tc).to_rust_string_lossy(tc);
+            return Err(ExecutionError::FailedTest(message));
+        };
+
+        let Some(value) = script.run(tc) else {
+            let message = tc.message().unwrap();
+            let message = message.get(tc).to_rust_string_lossy(tc);
+            return Err(ExecutionError::FailedTest(message));
+        };
+
+        let result = value.to_string(tc);
+        let s = result.unwrap().to_rust_string_lossy(tc);
+        let test_response: ApicizeTestResponse = serde_json::from_str(&s).unwrap();
+
+        Ok(Some(test_response))
+    }
+
+    /// Run the specified request entry recursively
+    #[async_recursion]
+    async fn run_int<'a>(
+        workspace: Arc<Workspace>,
+        tests_started: SystemTime,
+        request_id: &'a String,
+        variables: &'a HashMap<String, Value>,
+        selected_scenario: &'a Option<Selection>,
+        selected_authorization: &'a Option<Selection>,
+        selected_certificate: &'a Option<Selection>,
+        selected_proxy: &'a Option<Selection>,
+        parent_name: &'a Option<Vec<String>>,
+        run: u32,
+        total_runs: &'a u32,
+    ) -> (Vec<ApicizeResult>, HashMap<String, Value>) {
+        let request = workspace.requests.entities.get(request_id).unwrap();
+        let request_name = if let Some(parent) = parent_name {
+            let mut cloned = parent.clone();
+            cloned.push(request.get_name().clone());
+            Some(cloned)
+        } else {
+            Some(vec![request.get_name().clone()])
+        };
+
+        match request {
+            WorkbookRequestEntry::Info(info) => {
+                let now = SystemTime::now();
+
+                let mut scenario: Option<&WorkbookScenario> = None;
+                let mut authorization: Option<&WorkbookAuthorization> = None;
+                let mut certificate: Option<&WorkbookCertificate> = None;
+                let mut proxy: Option<&WorkbookProxy> = None;
+
+                let mut done = false;
+                let mut current = request;
+
+                while !done {
+                    // Set the credential values at the current request value
+                    if let Some(selected) = current.get_selected_scenario() {
+                        scenario = workspace.scenarios.entities.get(&selected.id)
+                    };
+                    if let Some(selected) = current.get_selected_authorization() {
+                        authorization = workspace.authorizations.entities.get(&selected.id)
+                    };
+                    if let Some(selected) = current.get_selected_certificate() {
+                        certificate = workspace.certificates.entities.get(&selected.id)
+                    };
+                    if let Some(selected) = current.get_selected_proxy() {
+                        proxy = workspace.proxies.entities.get(&selected.id)
+                    };
+
+                    done = scenario.is_some()
+                        && authorization.is_some()
+                        && certificate.is_some()
+                        && proxy.is_some();
+
+                    if !done {
+                        // Get the parent
+                        let id = current.get_id();
+                        let mut parent: Option<&WorkbookRequestEntry> = None;
+                        if let Some(child_ids) = &workspace.requests.child_ids {
+                            for (parent_id, children) in child_ids.iter() {
+                                if children.contains(&id) {
+                                    parent = workspace.requests.entities.get(&parent_id.clone());
+                                    break;
+                                }
+                            }
+                        }
+
+                        if let Some(found_parent) = parent {
+                            current = found_parent;
+                        } else {
+                            done = true;
+                        }
+                    }
+                }
+
+                let dispatch_response = info
+                    .dispatch(&variables, authorization, certificate, proxy)
+                    .await;
+
+                match &dispatch_response {
+                    Ok((request, response)) => {
+                        let test_response = Workspace::execute_test(&info, response, &variables);
+                        match test_response {
+                            Ok(test_results) => {
+                                let mut test_count = 0;
+                                let mut failed_test_count = 0;
+                                let (reported_test_results, reported_test_scenario) =
+                                    match test_results {
+                                        Some(results) => {
+                                            if let Some(test_results) = &results.results {
+                                                test_count = test_results.len();
+                                                failed_test_count = failed_test_count
+                                                    + test_results
+                                                        .iter()
+                                                        .filter(|r| !r.success)
+                                                        .count();
+                                            }
+                                            (results.results, results.variables)
+                                        }
+                                        None => (None, HashMap::new()),
+                                    };
+                                let test_result = (
+                                    vec![ApicizeResult {
+                                        request_id: info.id.clone(),
+                                        run: run.clone(),
+                                        total_runs: total_runs.clone(),
+                                        request: Some(request.clone()),
+                                        response: Some(response.clone()),
+                                        tests: reported_test_results,
+                                        executed_at: now
+                                            .duration_since(tests_started)
+                                            .unwrap()
+                                            .as_millis(),
+                                        milliseconds: now.elapsed().unwrap().as_millis(),
+                                        success: true,
+                                        test_count: Some(test_count),
+                                        failed_test_count: Some(failed_test_count),
+                                        error_message: None,
+                                    }],
+                                    reported_test_scenario,
+                                );
+                                test_result
+                            }
+                            Err(err) => (
+                                vec![ApicizeResult {
+                                    request_id: info.id.clone(),
+                                    run: run.clone(),
+                                    total_runs: total_runs.clone(),
+                                    request: Some(request.clone()),
+                                    response: Some(response.clone()),
+                                    tests: None,
+                                    executed_at: now
+                                        .duration_since(tests_started)
+                                        .unwrap()
+                                        .as_millis(),
+                                    milliseconds: now.elapsed().unwrap().as_millis(),
+                                    success: false,
+                                    test_count: None,
+                                    failed_test_count: None,
+                                    error_message: Some(format!("{}", err)),
+                                }],
+                                HashMap::new(),
+                            ),
+                        }
+                    }
+                    Err(err) => (
+                        vec![ApicizeResult {
+                            request_id: info.id.clone(),
+                            run: run.clone(),
+                            total_runs: total_runs.clone(),
+                            request: None,
+                            response: None,
+                            tests: None,
+                            executed_at: now.duration_since(tests_started).unwrap().as_millis(),
+                            milliseconds: now.elapsed().unwrap().as_millis(),
+                            success: false,
+                            test_count: None,
+                            failed_test_count: None,
+                            error_message: Some(format!("{}", err)),
+                        }],
+                        HashMap::new(),
+                    ),
+                }
+            }
+            WorkbookRequestEntry::Group(group) => {
+                // Recursively run requests located in groups...
+                let mut results: Vec<ApicizeResult> = Vec::new();
+
+                // Set the selections for nested calls
+                let scenario = if group.selected_scenario.is_some() {
+                    &group.selected_scenario
+                } else {
+                    selected_scenario
+                };
+                let authorization = if group.selected_authorization.is_some() {
+                    &group.selected_authorization
+                } else {
+                    selected_authorization
+                };
+                let certificate = if group.selected_certificate.is_some() {
+                    &group.selected_certificate
+                } else {
+                    selected_certificate
+                };
+                let proxy = if group.selected_proxy.is_some() {
+                    &group.selected_proxy
+                } else {
+                    selected_proxy
+                };
+
+                let mut active_vars = variables.clone();
+
+                if let Some(child_ids) = &workspace.requests.child_ids {
+                    if let Some(group_child_ids) = child_ids.get(&group.id) {
+                        let mut group_child_ids_iter = group_child_ids.iter();
+
+                        //     let mut runs = JoinSet::new();
+
+                        //     while let Some(group_child_id) = group_child_ids_iter.next() {
+                        //     runs.spawn(async move {
+                        //             Workspace::run_int(
+                        //                 workspace.clone(),
+                        //                 SystemTime::now(),
+                        //                 group_child_id,
+                        //                 &variables,
+                        //                 &selected_scenario,
+                        //                 &selected_authorization,
+                        //                 &selected_certificate,
+                        //                 &selected_proxy,
+                        //                 &None,
+                        //                 run,
+                        //                 &total_runs
+                        //             )
+                        //         }
+                        //     );
+                        // }
+
+                        while let Some(group_child_id) = group_child_ids_iter.next() {
+                            let (group_test_results, group_vars) = Workspace::run_int(
+                                workspace.clone(),
+                                tests_started,
+                                group_child_id,
+                                &active_vars,
+                                &scenario,
+                                &authorization,
+                                &certificate,
+                                &proxy,
+                                &request_name,
+                                run,
+                                total_runs,
+                            )
+                            .await;
+
+                            results.extend(group_test_results);
+                            active_vars = group_vars;
+                        }
+                    }
+                }
+
+                return (results, active_vars);
+            }
+        }
+    }
+
+    /// Dispatch the request (info or group) and test results
+    pub async fn run(
+        workspace: Arc<Workspace>,
+        request_id: &String,
+        cancellation: Option<CancellationToken>,
+    ) -> Result<ApicizeResultRuns, RunError> {
+        let request_entry: &WorkbookRequestEntry;
+        match workspace.requests.entities.get(request_id) {
+            Some(entry) => request_entry = entry,
+            None => {
+                return Err(RunError::Other(format!(
+                    "Request ID \"{request_id}\" is invalid"
+                )));
+            }
+        }
+
+        // Ensure V8 is initialized
+        V8_INIT.call_once(|| {
+            let platform = v8::new_unprotected_default_platform(0, false).make_shared();
+            v8::V8::initialize_platform(platform);
+            v8::V8::initialize();
+        });
+
+        // Set up defaults
+        let total_runs = request_entry.get_runs();
+        let selected_scenario = request_entry.get_selected_scenario();
+        let selected_authorization = request_entry.get_selected_authorization();
+        let selected_certificate = request_entry.get_selected_certificate();
+        let selected_proxy = request_entry.get_selected_proxy();
+
+        let mut runs: JoinSet<Option<(Vec<ApicizeResult>, HashMap<String, Value>)>> =
+            JoinSet::new();
+        let token = match cancellation {
+            Some(cancellation_token) => cancellation_token,
+            None => CancellationToken::new(),
+        };
+
+        let mut results: Vec<ApicizeResult> = Vec::new();
+        for run in 0..total_runs {
+            // All of this cloning kind of sucks, but it's required to make spawn work,
+            // need to figure out if Arc<Box> is a solution...
+            let cloned_token = token.clone();
+            let cloned_request_id = request_id.clone();
+            let cloned_workspace = workspace.clone();
+
+            let selected_scenario: Option<Selection> = selected_scenario.clone();
+            let selected_authorization = selected_authorization.clone();
+            let selected_certificate = selected_certificate.clone();
+            let selected_proxy = selected_proxy.clone();
+
+            let variables = if let Some(selection) = &selected_scenario {
+                if let Some(scenario) = workspace.find_scenario(&selection) {
+                    if let Some(variables) = &scenario.variables {
+                        HashMap::from_iter(
+                            variables
+                                .iter()
+                                .map(|pair| (pair.name.clone(), Value::from(pair.value.clone()))),
+                        )
+                    } else {
+                        HashMap::new()
+                    }
+                } else {
+                    HashMap::new()
+                }
+            } else {
+                HashMap::new()
+            };
+
+            // xxx
+            runs.spawn(async move {
+                select! {
+                    _ = cloned_token.cancelled() => None,
+                    result = Workspace::run_int(
+                        cloned_workspace,
+                        SystemTime::now(),
+                        &cloned_request_id,
+                        &variables,
+                        &selected_scenario,
+                        &selected_authorization,
+                        &selected_certificate,
+                        &selected_proxy,
+                        &None,
+                        run,
+                        &total_runs,
+                    ) => {
+                        Some(result)
+                    }
+                }
+            });
+        }
+
+        let mut caught: Option<RunError> = None;
+
+        while let Some(result) = runs.join_next().await {
+            match result {
+                Ok(result_or_cancel) => match result_or_cancel {
+                    Some(mut result) => {
+                        results.append(&mut result.0);
+                    }
+                    None => {
+                        caught = Some(RunError::Cancelled);
+                    }
+                },
+                Err(err) => {
+                    Some(RunError::JoinError(err));
+                }
+            }
+        }
+
+        match caught {
+            Some(caught_error) => Err(caught_error),
+            None => {
+                let mut results_by_run: ApicizeResultRuns =
+                    vec![vec![]; usize::try_from(total_runs).unwrap()];
+
+                results.sort_by(|a, b| {
+                    let mut ord = a.run.cmp(&b.run);
+                    if ord.is_eq() {
+                        ord = a.executed_at.cmp(&b.executed_at);
+                    }
+                    ord
+                });
+
+                results.drain(..).for_each(|r| {
+                    results_by_run[usize::try_from(r.run).unwrap()].push(r);
+                });
+
+                Ok(results_by_run)
+            }
+        }
+    }
+}
+
+impl WorkbookRequest {
+    /// Dispatch the specified request (via reqwest), returning either the repsonse or error
+    async fn dispatch(
+        &self,
+        variables: &HashMap<String, Value>,
+        // scenario: Option<&WorkbookScenario>,
+        authorization: Option<&WorkbookAuthorization>,
+        _certificate: Option<&WorkbookCertificate>,
+        proxy: Option<&WorkbookProxy>,
     ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError> {
         let method: reqwest::Method;
-        match request.method {
+        match self.method {
             Some(WorkbookRequestMethod::Get) => method = reqwest::Method::GET,
             Some(WorkbookRequestMethod::Post) => method = reqwest::Method::POST,
             Some(WorkbookRequestMethod::Put) => method = reqwest::Method::PUT,
@@ -166,11 +1390,11 @@ impl WorkbookRequestEntry {
             Some(WorkbookRequestMethod::Head) => method = reqwest::Method::HEAD,
             Some(WorkbookRequestMethod::Options) => method = reqwest::Method::OPTIONS,
             None => method = reqwest::Method::GET,
-            _ => panic!("Invalid method \"{:?}\"", request.method),
+            _ => panic!("Invalid method \"{:?}\"", self.method),
         }
 
         let timeout: Duration;
-        if let Some(t) = request.timeout {
+        if let Some(t) = self.timeout {
             timeout = Duration::from_millis(t as u64);
         } else {
             timeout = Duration::from_secs(30);
@@ -183,41 +1407,40 @@ impl WorkbookRequestEntry {
         //     keep_alive = true;
         // }
 
-        let subs: Vec<(String, String)>;
+        let subs = variables
+            .iter()
+            .map(|(name, value)| {
+                let v = if let Some(s) = value.as_str() {
+                    String::from(s)
+                } else {
+                    format!("{}", value)
+                };
 
-        match scenario {
-            Some(active_scenario) => {
-                match &active_scenario.variables {
-                    Some(pairs) => {
-                        subs = pairs
-                            .iter()
-                            .filter(|pair| pair.disabled != Some(true))
-                            .map(|pair| {
-                                // (pair.name.as_str(), pair.value.as_str())
-                                (format!("{{{{{}}}}}", pair.name), pair.value.clone())
-                            })
-                            .collect::<Vec<(String, String)>>()
-                    }
-                    None => subs = vec![],
-                }
-            }
-            None => subs = vec![],
-        }
+                // (pair.name.as_str(), pair.value.as_str())
+                (format!("{{{{{}}}}}", name), v)
+            })
+            .collect();
 
         // Build the reqwest client and request
-        let client = Client::builder()
+        let mut builder = Client::builder()
             // .http2_keep_alive_while_idle(keep_alive)
-            .timeout(timeout)
-            .build()?;
+            .timeout(timeout);
+
+        if let Some(active_proxy) = &proxy {
+            let url = &active_proxy.url;
+            builder = builder.proxy(Proxy::all(url).expect("Proxy unavailable"));
+        }
+
+        let client = builder.build()?;
 
         let mut request_builder = client.request(
-            method.clone(),
-            WorkbookRequestEntry::clone_and_sub(request.url.as_str(), &subs),
+            method,
+            WorkbookRequestEntry::clone_and_sub(self.url.as_str(), &subs),
         );
 
         // Add headers, including authorization if applicable
         let mut headers = reqwest::header::HeaderMap::new();
-        if let Some(h) = &request.headers {
+        if let Some(h) = &self.headers {
             for nvp in h {
                 if nvp.disabled != Some(true) {
                     headers.insert(
@@ -237,19 +1460,11 @@ impl WorkbookRequestEntry {
         let mut auth_token_cached: Option<bool> = None;
         match authorization {
             Some(WorkbookAuthorization::Basic {
-                id: _,
-                name: _,
-                username,
-                password,
+                username, password, ..
             }) => {
                 request_builder = request_builder.basic_auth(username, Some(password));
             }
-            Some(WorkbookAuthorization::ApiKey {
-                id: _,
-                name: _,
-                header,
-                value,
-            }) => {
+            Some(WorkbookAuthorization::ApiKey { header, value, .. }) => {
                 headers.append(
                     reqwest::header::HeaderName::try_from(header).unwrap(),
                     reqwest::header::HeaderValue::try_from(value).unwrap(),
@@ -257,11 +1472,11 @@ impl WorkbookRequestEntry {
             }
             Some(WorkbookAuthorization::OAuth2Client {
                 id,
-                name: _,
                 access_token_url,
                 client_id,
                 client_secret,
                 scope, // send_credentials_in_body: _,
+                ..
             }) => {
                 match get_oauth2_client_credentials(
                     id,
@@ -287,7 +1502,7 @@ impl WorkbookRequestEntry {
         }
 
         // Add query string parameters, if applicable
-        if let Some(q) = &request.query_string_params {
+        if let Some(q) = &self.query_string_params {
             let mut query: Vec<(String, String)> = vec![];
             for nvp in q {
                 if nvp.disabled != Some(true) {
@@ -301,7 +1516,7 @@ impl WorkbookRequestEntry {
         }
 
         // Add body, if applicable
-        match &request.body {
+        match &self.body {
             Some(WorkbookRequestBody::Text { data }) => {
                 let s = WorkbookRequestEntry::clone_and_sub(&data, &subs);
                 request_builder = request_builder.body(Body::from(s.clone()));
@@ -443,7 +1658,7 @@ impl WorkbookRequestEntry {
                 return Ok((
                     ApicizeRequest {
                         url: request_url,
-                        method: request.method.as_ref().unwrap().as_str().to_string(),
+                        method: self.method.as_ref().unwrap().as_str().to_string(),
                         headers: request_headers,
                         body: request_body,
                     },
@@ -458,415 +1673,375 @@ impl WorkbookRequestEntry {
             }
         }
     }
+}
 
-    fn execute_test<'a>(
-        request: &'a WorkbookRequest,
-        response: &'a ApicizeResponse,
-        scenario: &'a Option<WorkbookScenario>,
-    ) -> Result<Option<ApicizeTestResponse>, ExecutionError> {
-        // Create a new Isolate and make it the current one.
-        let isolate = &mut v8::Isolate::new(v8::CreateParams::default());
-
-        // Create a stack-allocated handle scope.
-        let scope = &mut v8::HandleScope::new(isolate);
-        let context = v8::Context::new(scope);
-        let scope = &mut v8::ContextScope::new(scope, context);
-
-        let mut init_code = String::new();
-        init_code.push_str(include_str!("./static/framework.min.js"));
-        init_code.push_str(include_str!("./static/routines.js"));
-
-        // Compile the source code
-        let v8_code = v8::String::new(scope, &init_code).unwrap();
-        let script = v8::Script::compile(scope, v8_code, None).unwrap();
-        script.run(scope).unwrap();
-
-        let tc = &mut v8::TryCatch::new(scope);
-
-        // Return empty test results if no test
-        if let None = request.test {
-            return Ok(None);
-        }
-
-        let mut init_code = String::new();
-        init_code.push_str(&format!(
-            "runTestSuite({}, {}, {}, () => {{{}}})",
-            serde_json::to_string(request).unwrap(),
-            serde_json::to_string(response).unwrap(),
-            serde_json::to_string(scenario).unwrap(),
-            request.test.as_ref().unwrap()
-        ));
-
-        let v8_code = v8::String::new(tc, &init_code).unwrap();
-
-        let Some(script) = v8::Script::compile(tc, v8_code, None) else {
-            let message = tc.message().unwrap();
-            let message = message.get(tc).to_rust_string_lossy(tc);
-            return Err(ExecutionError::FailedTest(message));
-        };
-
-        let Some(value) = script.run(tc) else {
-            let message = tc.message().unwrap();
-            let message = message.get(tc).to_rust_string_lossy(tc);
-            return Err(ExecutionError::FailedTest(message));
-        };
-
-        let result = value.to_string(tc);
-        let s = result.unwrap().to_rust_string_lossy(tc);
-        let test_response: ApicizeTestResponse = serde_json::from_str(&s).unwrap();
-
-        Ok(Some(test_response))
-    }
-
-    /// Run the specified request entry recursively
-    #[async_recursion]
-    async fn run_int<'a>(
-        tests_started: SystemTime,
-        parent_request_name: &'a Option<Vec<String>>,
-        request: &'a WorkbookRequestEntry,
-        authorization: &'a Option<WorkbookAuthorization>,
-        scenario: &'a Option<WorkbookScenario>,
-        run: &u32,
-        total_runs: &u32,
-    ) -> (Vec<ApicizeResult>, Option<WorkbookScenario>) {
-        match request {
-            WorkbookRequestEntry::Info(info) => {
-                let now = SystemTime::now();
-                let mut request_name = match parent_request_name {
-                    Some(existing_name) => existing_name.clone(),
-                    None => vec![],
-                };
-                request_name.push(info.name.clone());
-                let dispatch_response =
-                    WorkbookRequestEntry::dispatch(info, authorization, scenario).await;
-                match &dispatch_response {
-                    Ok((request, response)) => {
-                        let test_response =
-                            WorkbookRequestEntry::execute_test(info, response, scenario);
-                        match test_response {
-                            Ok(test_results) => {
-                                let mut test_count = 0;
-                                let mut failed_test_count = 0;
-                                let (reported_test_results, reported_test_scenario) =
-                                    match test_results {
-                                        Some(results) => {
-                                            if let Some(test_results) = &results.results {
-                                                test_count = test_results.len();
-                                                failed_test_count = failed_test_count
-                                                    + test_results
-                                                        .iter()
-                                                        .filter(|r| !r.success)
-                                                        .count();
-                                            }
-                                            (results.results, results.scenario)
-                                        }
-                                        None => (None, None),
-                                    };
-                                (
-                                    vec![ApicizeResult {
-                                        request_id: info.id.clone(),
-                                        run: run.clone(),
-                                        total_runs: total_runs.clone(),
-                                        request: Some(request.clone()),
-                                        response: Some(response.clone()),
-                                        tests: reported_test_results,
-                                        executed_at: now
-                                            .duration_since(tests_started)
-                                            .unwrap()
-                                            .as_millis(),
-                                        milliseconds: now.elapsed().unwrap().as_millis(),
-                                        success: true,
-                                        test_count: Some(test_count),
-                                        failed_test_count: Some(failed_test_count),
-                                        error_message: None,
-                                    }],
-                                    reported_test_scenario,
-                                )
-                            }
-                            Err(err) => (
-                                vec![ApicizeResult {
-                                    request_id: info.id.clone(),
-                                    run: run.clone(),
-                                    total_runs: total_runs.clone(),
-                                    request: Some(request.clone()),
-                                    response: Some(response.clone()),
-                                    tests: None,
-                                    executed_at: now
-                                        .duration_since(tests_started)
-                                        .unwrap()
-                                        .as_millis(),
-                                    milliseconds: now.elapsed().unwrap().as_millis(),
-                                    success: false,
-                                    test_count: None,
-                                    failed_test_count: None,
-                                    error_message: Some(format!("{}", err)),
-                                }],
-                                None,
-                            ),
-                        }
-                    }
-                    Err(err) => (
-                        vec![ApicizeResult {
-                            request_id: info.id.clone(),
-                            run: run.clone(),
-                            total_runs: total_runs.clone(),
-                            request: None,
-                            response: None,
-                            tests: None,
-                            executed_at: now.duration_since(tests_started).unwrap().as_millis(),
-                            milliseconds: now.elapsed().unwrap().as_millis(),
-                            success: false,
-                            test_count: None,
-                            failed_test_count: None,
-                    error_message: Some(format!("{}", err)),
-                        }],
-                        None,
-                    ),
-                }
+impl WorkbookRequestEntry {
+    /// Utility function to perform string substitution based upon search/replace values in "subs"
+    fn clone_and_sub(text: &str, subs: &HashMap<String, String>) -> String {
+        if subs.is_empty() {
+            text.to_string()
+        } else {
+            let mut clone = text.to_string();
+            let mut i = subs.iter();
+            while let Some((find, value)) = i.next() {
+                clone = str::replace(&clone, find, value)
             }
-            WorkbookRequestEntry::Group(group) => {
-                // Recursively run requests located in groups...
-                let mut results: Vec<ApicizeResult> = Vec::new();
-                let mut request_name = match parent_request_name {
-                    Some(existing_name) => existing_name.clone(),
-                    None => vec![],
-                };
-                request_name.push(group.name.clone());
-
-                let mut items = group.children.iter();
-                let mut active_scenario = scenario.clone();
-
-                while let Some(item) = items.next() {
-                    let (group_test_results, group_scenario) = WorkbookRequestEntry::run_int(
-                        tests_started,
-                        &Some(request_name.clone()),
-                        item,
-                        authorization,
-                        &active_scenario,
-                        run,
-                        total_runs,
-                    )
-                    .await;
-                    results.extend(group_test_results);
-                    active_scenario = group_scenario;
-                }
-
-                return (results, active_scenario);
-            }
+            clone
         }
     }
 
-    // #[async_trait]
-    // impl Runnable for WorkbookRequestEntry {
-    /// Dispatch the request (info or group) and test results
-    pub async fn run<'a>(
-        &self,
-        authorization: &'a Option<WorkbookAuthorization>,
-        scenario: &'a Option<WorkbookScenario>,
-        cancellation: Option<CancellationToken>,
-    ) -> Result<ApicizeResultRuns, RunError> {
-        // Ensure V8 is initialized
-        V8_INIT.call_once(|| {
-            let platform = v8::new_unprotected_default_platform(0, false).make_shared();
-            v8::V8::initialize_platform(platform);
-            v8::V8::initialize();
-        });
+    fn get_id(&self) -> &String {
+        match self {
+            WorkbookRequestEntry::Info(info) => &info.id,
+            WorkbookRequestEntry::Group(group) => &group.id,
+        }
+    }
 
-        let total_runs = match self {
-            WorkbookRequestEntry::Info(_) => 1,
+    fn get_name(&self) -> &String {
+        match self {
+            WorkbookRequestEntry::Info(info) => &info.name,
+            WorkbookRequestEntry::Group(group) => &group.name,
+        }
+    }
+
+    fn get_runs(&self) -> u32 {
+        match self {
+            WorkbookRequestEntry::Info(info) => info.runs,
             WorkbookRequestEntry::Group(group) => group.runs,
-        };
-
-        let mut runs: JoinSet<Option<(Vec<ApicizeResult>, Option<WorkbookScenario>)>> =
-            JoinSet::new();
-        let token = match cancellation {
-            Some(cancellation_token) => cancellation_token,
-            None => CancellationToken::new(),
-        };
-
-        let mut results: Vec<ApicizeResult> = Vec::new();
-        for run in 0..total_runs {
-            // All of this cloning kind of sucks, but it's required to make spawn work
-            let cloned_token = token.clone();
-            let cloned_request = self.clone();
-            let cloned_auth = authorization.clone();
-            let cloned_scenario = scenario.clone();
-
-            runs.spawn(async move {
-                select! {
-                    _ = cloned_token.cancelled() => None,
-                    result = WorkbookRequestEntry::run_int(
-                        SystemTime::now(),
-                        &None,
-                        &cloned_request,
-                        &cloned_auth,
-                        &cloned_scenario,
-                        &run,
-                        &total_runs,
-                    ) => Some(result)
-                }
-            });
-        }
-
-        let mut caught: Option<RunError> = None;
-
-        while let Some(result) = runs.join_next().await {
-            match result {
-                Ok(result_or_cancel) => match result_or_cancel {
-                    Some(mut result) => {
-                        results.append(&mut result.0);
-                    }
-                    None => {
-                        caught = Some(RunError::Cancelled);
-                    }
-                },
-                Err(err) => {
-                    Some(RunError::JoinError(err));
-                }
-            }
-        }
-
-        match caught {
-            Some(caught_error) => Err(caught_error),
-            None => {
-                let mut results_by_run: ApicizeResultRuns =
-                    vec![vec![]; usize::try_from(total_runs).unwrap()];
-
-                results.sort_by(|a, b| {
-                    let mut ord = a.run.cmp(&b.run);
-                    if ord.is_eq() {
-                        ord = a.executed_at.cmp(&b.executed_at);
-                    }
-                    ord
-                });
-
-                results.drain(..).for_each(|r| {
-                    results_by_run[usize::try_from(r.run).unwrap()].push(r);
-                });
-
-                Ok(results_by_run)
-            }
-        }
-    }
-    // }
-}
-
-#[cfg(test)]
-mod lib_tests {
-
-    use super::models::{WorkbookRequest, WorkbookRequestMethod};
-    use crate::{ExecutionError, WorkbookRequestEntry};
-
-    #[tokio::test]
-    async fn test_dispatch_success() -> Result<(), ExecutionError> {
-        let mut server = mockito::Server::new();
-
-        // Use one of these addresses to configure your client
-        let url = server.url();
-
-        // Create a mock
-        let mock = server
-            .mock("GET", "/")
-            .with_status(200)
-            .with_header("content-type", "text/plain")
-            .with_header("x-api-key", "1234")
-            .with_body("ok")
-            .create();
-
-        let request = WorkbookRequest {
-            id: String::from(""),
-            name: String::from("test"),
-            url,
-            method: Some(WorkbookRequestMethod::Get),
-            timeout: None,
-            keep_alive: None,
-            headers: None,
-            query_string_params: None,
-            body: None,
-            test: None,
-        };
-
-        let result = WorkbookRequestEntry::dispatch(&request, &None, &None).await;
-        mock.assert();
-
-        match result {
-            Ok((_, response)) => {
-                assert_eq!(response.status, 200);
-                assert_eq!(response.body.unwrap().text.unwrap(), String::from("ok"));
-                Ok(())
-            }
-            Err(err) => Err(err),
         }
     }
 
-    // #[test]
-    // fn test_perform_test_success() {
-    //     let request = WorkbookRequest {
-    //         id: String::from(""),
-    //         name: String::from("Test #1"),
-    //         url: String::from("https://foo"),
-    //         method: Some(WorkbookRequestMethod::Get),
-    //         timeout: None,
-    //         body: None,
-    //         headers: None,
-    //         query_string_params: None,
-    //         keep_alive: None,
-    //         test: Some(String::from("describe(\"Status\", () => it(\"equals 200\", () => expect(response.status).to.equal(200)))"))
-    //     };
-    //     let response = ApicizeResponse {
-    //         status: 200,
-    //         status_text: String::from("Ok"),
-    //         headers: None,
-    //         body: None,
-    //         auth_token_cached: None,
-    //     };
+    fn validate_selection<T: WorkspaceEntity<T>>(
+        &self,
+        entity_type: SelectableOptionType,
+        list: &IndexedEntities<T>,
+        default_type: &SelectableOptionDefaultType,
+        warnings: &mut Vec<String>,
+    ) {
+        let selection = match entity_type {
+            SelectableOptionType::Scenario => self.get_selected_scenario(),
+            SelectableOptionType::Authorization => self.get_selected_authorization(),
+            SelectableOptionType::Certificate => self.get_selected_certificate(),
+            SelectableOptionType::Proxy => self.get_selected_proxy(),
+        };
 
-    //     let result = request.execute(&response).unwrap();
+        if let Some(s) = selection {
+            if !s.id.is_empty() {
+                let mut found = list.entities.keys().any(|id| id.eq(&s.id));
+                if !found {
+                    found = list.entities.values().any(|v| {
+                        let (_, name) = v.get_id_and_name();
+                        name.eq_ignore_ascii_case(&s.name)
+                    });
+                }
 
-    //     assert_eq!(
-    //         result,
-    //         vec!(ApicizeTestResult {
-    //             test_name: vec![String::from("Status"), String::from("equals 200")],
-    //             success: true,
-    //             error: None,
-    //             logs: None
-    //         })
-    //     );
-    // }
-
-    // #[test]
-    // fn test_perform_test_fail() {
-    //     let request = WorkbookRequest {
-    //         id: String::from(""),
-    //         name: String::from("Test #1"),
-    //         url: String::from("https://foo"),
-    //         method: Some(WorkbookRequestMethod::Get),
-    //         timeout: None,
-    //         body: None,
-    //         headers: None,
-    //         query_string_params: None,
-    //         keep_alive: None,
-    //         test: Some(String::from("describe(\"Status\", () => it(\"equals 200\", () => expect(response.status).to.equal(200)))"))
-    //     };
-
-    //     let response = ApicizeResponse {
-    //         status: 404,
-    //         status_text: String::from("Not Found"),
-    //         headers: None,
-    //         body: None,
-    //         auth_token_cached: None,
-    //     };
-
-    //     let result = request.execute(&response).unwrap();
-
-    //     assert_eq!(
-    //         result,
-    //         vec!(ApicizeTestResult {
-    //             test_name: vec![String::from("Status"), String::from("equals 200")],
-    //             success: false,
-    //             error: Some(String::from("expected 404 to equal 200")),
-    //             logs: None
-    //         })
-    //     );
-    // }
+                if !found {
+                    warnings.push(format!(
+                        "Unable to locate {} (ID: {}, Name: {}), defaulting to {}",
+                        entity_type.as_str(),
+                        s.id,
+                        s.name,
+                        default_type.as_str(),
+                    ));
+                }
+            }
+        }
+    }
 }
+
+impl SelectableOptions for WorkbookRequestEntry {
+    fn validate_selections(
+        &self,
+        scenarios: &IndexedEntities<WorkbookScenario>,
+        authorizations: &IndexedEntities<WorkbookAuthorization>,
+        certificates: &IndexedEntities<WorkbookCertificate>,
+        proxies: &IndexedEntities<WorkbookProxy>,
+        default_type: &SelectableOptionDefaultType,
+    ) -> Option<Vec<String>> {
+        let mut warnings: Vec<String> = Vec::new();
+        self.validate_selection(
+            SelectableOptionType::Scenario,
+            scenarios,
+            default_type,
+            &mut warnings,
+        );
+        self.validate_selection(
+            SelectableOptionType::Authorization,
+            authorizations,
+            default_type,
+            &mut warnings,
+        );
+        self.validate_selection(
+            SelectableOptionType::Certificate,
+            certificates,
+            default_type,
+            &mut warnings,
+        );
+        self.validate_selection(
+            SelectableOptionType::Proxy,
+            proxies,
+            default_type,
+            &mut warnings,
+        );
+        if warnings.is_empty() {
+            None
+        } else {
+            Some(warnings)
+        }
+    }
+
+    fn get_selected_scenario(&self) -> &Option<Selection> {
+        match self {
+            WorkbookRequestEntry::Info(info) => &info.selected_scenario,
+            WorkbookRequestEntry::Group(group) => &group.selected_scenario,
+        }
+    }
+
+    fn get_selected_authorization(&self) -> &Option<Selection> {
+        match self {
+            WorkbookRequestEntry::Info(info) => &info.selected_authorization,
+            WorkbookRequestEntry::Group(group) => &group.selected_authorization,
+        }
+    }
+
+    fn get_selected_certificate(&self) -> &Option<Selection> {
+        match self {
+            WorkbookRequestEntry::Info(info) => &info.selected_certificate,
+            WorkbookRequestEntry::Group(group) => &group.selected_certificate,
+        }
+    }
+
+    fn get_selected_proxy(&self) -> &Option<Selection> {
+        match self {
+            WorkbookRequestEntry::Info(info) => &info.selected_proxy,
+            WorkbookRequestEntry::Group(group) => &group.selected_proxy,
+        }
+    }
+
+    fn set_scenario(&mut self, value: Option<Selection>) {
+        match self {
+            WorkbookRequestEntry::Info(info) => info.selected_scenario = value,
+            WorkbookRequestEntry::Group(group) => group.selected_scenario = value,
+        }
+    }
+
+    fn set_authorization(&mut self, value: Option<Selection>) {
+        match self {
+            WorkbookRequestEntry::Info(info) => info.selected_authorization = value,
+            WorkbookRequestEntry::Group(group) => group.selected_authorization = value,
+        }
+    }
+
+    fn set_certificate(&mut self, value: Option<Selection>) {
+        match self {
+            WorkbookRequestEntry::Info(info) => info.selected_certificate = value,
+            WorkbookRequestEntry::Group(group) => group.selected_certificate = value,
+        }
+    }
+
+    fn set_proxy(&mut self, value: Option<Selection>) {
+        match self {
+            WorkbookRequestEntry::Info(info) => info.selected_proxy = value,
+            WorkbookRequestEntry::Group(group) => group.selected_proxy = value,
+        }
+    }
+}
+
+impl SelectableOptions for Workspace {
+    fn validate_selections(
+        &self,
+        scenarios: &IndexedEntities<WorkbookScenario>,
+        authorizations: &IndexedEntities<WorkbookAuthorization>,
+        certificates: &IndexedEntities<WorkbookCertificate>,
+        proxies: &IndexedEntities<WorkbookProxy>,
+        default_type: &SelectableOptionDefaultType,
+    ) -> Option<Vec<String>> {
+        let mut warnings: Vec<String> = Vec::new();
+        self.validate_selection(
+            SelectableOptionType::Scenario,
+            scenarios,
+            default_type,
+            &mut warnings,
+        );
+        self.validate_selection(
+            SelectableOptionType::Authorization,
+            authorizations,
+            default_type,
+            &mut warnings,
+        );
+        self.validate_selection(
+            SelectableOptionType::Certificate,
+            certificates,
+            default_type,
+            &mut warnings,
+        );
+        self.validate_selection(
+            SelectableOptionType::Proxy,
+            proxies,
+            default_type,
+            &mut warnings,
+        );
+        if warnings.is_empty() {
+            None
+        } else {
+            Some(warnings)
+        }
+    }
+
+    fn get_selected_scenario(&self) -> &Option<Selection> {
+        &self.selected_scenario
+    }
+
+    fn get_selected_authorization(&self) -> &Option<Selection> {
+        &self.selected_authorization
+    }
+
+    fn get_selected_certificate(&self) -> &Option<Selection> {
+        &self.selected_certificate
+    }
+
+    fn get_selected_proxy(&self) -> &Option<Selection> {
+        &self.selected_proxy
+    }
+
+    fn set_scenario(&mut self, value: Option<Selection>) {
+        self.selected_scenario = value;
+    }
+
+    fn set_authorization(&mut self, value: Option<Selection>) {
+        self.selected_authorization = value;
+    }
+
+    fn set_certificate(&mut self, value: Option<Selection>) {
+        self.selected_certificate = value;
+    }
+
+    fn set_proxy(&mut self, value: Option<Selection>) {
+        self.selected_proxy = value;
+    }
+}
+
+// #[cfg(test)]
+// mod lib_tests {
+
+//     use super::models::{WorkbookRequest, WorkbookRequestMethod};
+//     use crate::{ExecutionError, WorkbookRequestEntry};
+
+//     #[tokio::test]
+//     async fn test_dispatch_success() -> Result<(), ExecutionError> {
+//         let mut server = mockito::Server::new();
+
+//         // Use one of these addresses to configure your client
+//         let url = server.url();
+
+//         // Create a mock
+//         let mock = server
+//             .mock("GET", "/")
+//             .with_status(200)
+//             .with_header("content-type", "text/plain")
+//             .with_header("x-api-key", "1234")
+//             .with_body("ok")
+//             .create();
+
+//         let request = WorkbookRequest {
+//             id: String::from(""),
+//             name: String::from("test"),
+//             url,
+//             method: Some(WorkbookRequestMethod::Get),
+//             timeout: None,
+//             keep_alive: None,
+//             runs: 1,
+//             headers: None,
+//             query_string_params: None,
+//             body: None,
+//             test: None,
+//             selected_scenario: None,
+//             selected_authorization: None,
+//             selected_certificate: None,
+//             selected_proxy: None,
+//         };
+
+//         let result = WorkbookRequestEntry::dispatch(&request, &None, &None, &None).await;
+//         mock.assert();
+
+//         match result {
+//             Ok((_, response)) => {
+//                 assert_eq!(response.status, 200);
+//                 assert_eq!(response.body.unwrap().text.unwrap(), String::from("ok"));
+//                 Ok(())
+//             }
+//             Err(err) => Err(err),
+//         }
+//     }
+
+//     // #[test]
+//     // fn test_perform_test_success() {
+//     //     let request = WorkbookRequest {
+//     //         id: String::from(""),
+//     //         name: String::from("Test #1"),
+//     //         url: String::from("https://foo"),
+//     //         method: Some(WorkbookRequestMethod::Get),
+//     //         timeout: None,
+//     //         body: None,
+//     //         headers: None,
+//     //         query_string_params: None,
+//     //         keep_alive: None,
+//     //         test: Some(String::from("describe(\"Status\", () => it(\"equals 200\", () => expect(response.status).to.equal(200)))"))
+//     //     };
+//     //     let response = ApicizeResponse {
+//     //         status: 200,
+//     //         status_text: String::from("Ok"),
+//     //         headers: None,
+//     //         body: None,
+//     //         auth_token_cached: None,
+//     //     };
+
+//     //     let result = request.execute(&response).unwrap();
+
+//     //     assert_eq!(
+//     //         result,
+//     //         vec!(ApicizeTestResult {
+//     //             test_name: vec![String::from("Status"), String::from("equals 200")],
+//     //             success: true,
+//     //             error: None,
+//     //             logs: None
+//     //         })
+//     //     );
+//     // }
+
+//     // #[test]
+//     // fn test_perform_test_fail() {
+//     //     let request = WorkbookRequest {
+//     //         id: String::from(""),
+//     //         name: String::from("Test #1"),
+//     //         url: String::from("https://foo"),
+//     //         method: Some(WorkbookRequestMethod::Get),
+//     //         timeout: None,
+//     //         body: None,
+//     //         headers: None,
+//     //         query_string_params: None,
+//     //         keep_alive: None,
+//     //         test: Some(String::from("describe(\"Status\", () => it(\"equals 200\", () => expect(response.status).to.equal(200)))"))
+//     //     };
+
+//     //     let response = ApicizeResponse {
+//     //         status: 404,
+//     //         status_text: String::from("Not Found"),
+//     //         headers: None,
+//     //         body: None,
+//     //         auth_token_cached: None,
+//     //     };
+
+//     //     let result = request.execute(&response).unwrap();
+
+//     //     assert_eq!(
+//     //         result,
+//     //         vec!(ApicizeTestResult {
+//     //             test_name: vec![String::from("Status"), String::from("equals 200")],
+//     //             success: false,
+//     //             error: Some(String::from("expected 404 to equal 200")),
+//     //             logs: None
+//     //         })
+//     //     );
+//     // }
+// }

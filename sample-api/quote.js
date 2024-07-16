@@ -10,7 +10,6 @@ const setupQuote = async () => {
     })
 
     await db.run('CREATE TABLE quotes (id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT NOT NULL, quote TEXT NOT NULL)')
-    await db.run('INSERT INTO quotes (id, author, quote) VALUES (1, "Mark Twain", "Politicians and diapers must be changed often, and for the same reason.")')
 
     router.use(
         express.json({
@@ -26,29 +25,72 @@ const setupQuote = async () => {
                 return
             }
             res.statusCode = 401
-            res.send(JSON.stringify({message: 'Invalid or missing API key'}))
+            res.send(JSON.stringify({ message: 'Invalid or missing API key' }))
 
         }
     );
 
+    /**
+     * Create a quote
+     */
+    router.post('/quote', async (req, res) => {
+        let statusCode = 500
+        let response
+        try {
+            const data = req.body
+            const author = data.author
+            const quote = data.quote
+            if ((author?.length ?? 0) < 1) {
+                res.statusCode = 400
+                throw new Error('"author" is required')
+            }
+            if ((quote?.length ?? 0) < 1) {
+                res.statusCode = 400
+                throw new Error('"quote" is required')
+            }
+
+            const r = await db.run('INSERT INTO quotes (author, quote) VALUES (?, ?)', [author, quote])
+            response = { id: r.lastID }
+            statusCode = 200
+        } catch (e) {
+            response = {
+                message: e.message
+            }
+        }
+        res.statusCode = statusCode
+        res.set({ 'Content-Type': 'application/json' })
+        res.send(JSON.stringify(response))
+    })
+
+    /**
+     * Retrieve list of quotes
+     */
     router.get('/quote', async (req, res) => {
         const results = await db.get('SELECT id, author, quote FROM quotes')
         res.set({ 'Content-Type': 'application/json' })
         res.send(JSON.stringify(results))
     })
 
+    /**
+     * Retrieve specific quote
+     */
     router.get('/quote/:id', async (req, res) => {
+        let statusCode = 200
         let results = await db.get('SELECT id, author, quote FROM quotes WHERE id=?', req.params.id)
         if (!results) {
             results = {
                 message: 'Not Found'
             }
-            res.statusCode = 404
+            statusCode = 404
         }
         res.set({ 'Content-Type': 'application/json' })
+        res.statusCode = statusCode
         res.send(JSON.stringify(results))
     })
 
+    /**
+     * Update quote
+     */
     router.put('/quote/:id', async (req, res) => {
         let response
         try {
@@ -84,6 +126,26 @@ const setupQuote = async () => {
 
         res.set({ 'Content-Type': 'application/json' })
         res.send(JSON.stringify(response))
+    })
+
+
+    /**
+     * Delete quote quote
+     */
+    router.delete('/quote/:id', async (req, res) => {
+        let statusCode = 200
+        let results
+        try {
+            results = await db.get('DELETE FROM quotes WHERE id=?', req.params.id)
+        } catch (e) {
+            statusCode = 500
+            results = {
+                message: `${e}`
+            }
+        }
+        res.statusCode = statusCode
+        res.set({ 'Content-Type': 'application/json' })
+        res.send(JSON.stringify(results))
     })
 
     return router

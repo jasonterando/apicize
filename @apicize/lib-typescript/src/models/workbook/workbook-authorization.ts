@@ -1,17 +1,11 @@
 import { Identifiable } from "../identifiable"
-
-export const NO_AUTHORIZATION = '\0'
+import { Named } from "../named"
+import { Persisted } from "../persistence"
 
 /**
  * Specifies the type of authorization used for a request
  */
 export enum WorkbookAuthorizationType { None = 'none', Basic = 'Basic', OAuth2Client = 'OAuth2Client', ApiKey = 'ApiKey'};
-
-// export interface WorkbookAuthorization extends Named {
-//     type: WorkbookAuthorizationType
-// }
-
-export enum PersistenceOption { None = 'None', Workbook = 'Workbook', CommonEnvironment = 'Environment' }
 
 /**
  * Specifies how to persist sensitive information
@@ -19,16 +13,14 @@ export enum PersistenceOption { None = 'None', Workbook = 'Workbook', CommonEnvi
 
 export type WorkbookAuthorization = WorkbookBasicAuthorization | WorkbookOAuth2ClientAuthorization | WorkbookApiKeyAuthorization
 
-export interface WorkbookAuthorizationBase extends Identifiable {
-    name: string
+export interface WorkbookBaseAuthorization extends Identifiable, Named, Persisted {
     type: WorkbookAuthorizationType
-    persistence: PersistenceOption
 }
 
 /**
  * Information required for basic authentication
  */
-export interface WorkbookBasicAuthorization extends WorkbookAuthorizationBase {
+export interface WorkbookBasicAuthorization extends WorkbookBaseAuthorization {
     type: WorkbookAuthorizationType.Basic
     username: string
     password: string
@@ -37,7 +29,7 @@ export interface WorkbookBasicAuthorization extends WorkbookAuthorizationBase {
 /**
  * Information required for basic authentication
  */
-export interface WorkbookOAuth2ClientAuthorization extends WorkbookAuthorizationBase {
+export interface WorkbookOAuth2ClientAuthorization extends WorkbookBaseAuthorization {
     type: WorkbookAuthorizationType.OAuth2Client
     accessTokenUrl: string
     clientId: string
@@ -49,7 +41,7 @@ export interface WorkbookOAuth2ClientAuthorization extends WorkbookAuthorization
 /**
  * Information required for API key authentication (passed in via header)
  */
-export interface WorkbookApiKeyAuthorization extends WorkbookAuthorizationBase {
+export interface WorkbookApiKeyAuthorization extends WorkbookBaseAuthorization {
     type: WorkbookAuthorizationType.ApiKey
     header: string
     value: string

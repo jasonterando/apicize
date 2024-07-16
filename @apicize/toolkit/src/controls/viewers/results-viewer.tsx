@@ -17,7 +17,7 @@ import { ResultInfoViewer } from "./result/result-info-viewer";
 import { ResponseHeadersViewer } from "./result/response-headers-viewer";
 import { ResultRequestViewer } from "./result/result-request-viewer";
 import { RequestRunProgress } from "./result/requuest-run-progress";
-import { WorkbookStorageContext } from "../../contexts/workbook-storage-context";
+import { WorkspaceContext } from "../../contexts/workspace-context";
 
 export function ResultsViewer(props: {
     sx: SxProps<Theme>,
@@ -25,7 +25,7 @@ export function ResultsViewer(props: {
     triggerCopyImageToClipboard: (base64?: string) => void,
     cancelRequest: (id: string) => void
 }) {
-    const context = useContext(WorkbookStorageContext)
+    const context = useContext(WorkspaceContext)
     const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
     const resultType = useSelector((state: WorkbookState) => state.execution.resultType)
     const failedTestCount = useSelector((state: WorkbookState) => state.execution.failedTestCount)

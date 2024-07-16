@@ -6,7 +6,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import BlockIcon from '@mui/icons-material/Block';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context";
+import { WorkspaceContext } from "../../../contexts/workspace-context";
 import { useContext } from "react";
 import { ExecutionSummaryInfo } from "../../../models/workbook/execution-summary-info";
 
@@ -104,7 +104,7 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
         </Box>
         <Stack direction='column'>
             <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }}>
-                Test: {props.name.join(' ')}
+                {props.name.join(' ')}
             </Typography>
             {(props.error?.length ?? 0) > 0 ? (<Typography 
                 sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, ":first-letter": { textTransform: 'capitalize'} }} color='error'>{props.error}</Typography>) : (<></>)}
@@ -125,7 +125,7 @@ export function ResultInfoViewer(props: {
         return null
     }
 
-    const execution = useContext(WorkbookStorageContext).execution
+    const execution = useContext(WorkspaceContext).execution
     const summary = execution.getSummary(executionId)
     
     const copyToClipboard = (data: any) => {

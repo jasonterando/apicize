@@ -1,13 +1,13 @@
 import { useSelector } from "react-redux"
-import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from "../../viewers/image-viewer";
-import { TextViewer } from "../../viewers/text-viewer";
+import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from "../image-viewer";
+import { TextViewer } from "../text-viewer";
 import { WorkbookState } from "../../../models/store";
 import { IconButton, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
 import { useContext } from "react";
-import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context";
+import { WorkspaceContext } from "../../../contexts/workspace-context";
 
 export function ResultResponsePreview(props: {
     triggerCopyTextToClipboard: (text?: string) => void,
@@ -20,7 +20,7 @@ export function ResultResponsePreview(props: {
         return null
     }
 
-    const execution = useContext(WorkbookStorageContext).execution
+    const execution = useContext(WorkspaceContext).execution
     const headers = execution.getResponseHeaders(executionId)
     const body = execution.getResponseBody(executionId)
 

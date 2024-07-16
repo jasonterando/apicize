@@ -30,9 +30,6 @@
 		{
 			"type": "cargo",
 			"command": "build",
-			"problemMatcher": [
-				"$rustc"
-			],
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -41,6 +38,10 @@
 				"cwd": "${workspaceFolder}/@apicize/cli"
 			},
 			"label": "rust: build cli",
+			"problemMatcher": {
+				"base": "$rustc",
+				"fileLocation": "autoDetect"
+			}
 		},
 	]
 }

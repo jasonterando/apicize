@@ -1,0 +1,102 @@
+{
+  "$schema": "../../node_modules/@tauri-apps/cli/schema.json",
+  "identifier": "apicize.app",
+  "productName": "Apicize",
+  "version": "0.1.0",
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 800,
+        "resizable": true,
+        "title": "Apicize",
+        "width": 1200
+      }
+    ]
+  },
+  "build": {
+    "beforeBuildCommand": "yarn build",
+    "beforeDevCommand": "yarn dev",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../out"
+  },
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "copyright": "",
+    "externalBin": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "description": "Apicize Workbooks",
+        "ext": [
+          "apicize"
+        ]
+      }
+    ],
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "longDescription": "Apicize",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "resources": [
+      "../examples/demo.apicize",
+      "./help/*"
+    ],
+    "shortDescription": "",
+    "targets": [
+      "deb"
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "plugins": {
+    "fs": {
+      "scope": {
+        "allow": [
+          "$CONFIG",
+          "$CONFIG/**",
+          "$APP_CONFIG",
+          "$APP_CONFIG/**"
+        ],
+        "requireLiteralLeadingDot": false
+      },
+      "fs:exist": true,
+      "fs:copyFile": true,
+      "scope-appconfig": true,
+      "scope-appconfig-index": true,
+      "allow-appconfig-meta": true,
+      "allow-appconfig-read": true,
+      "allow-appconfig-write": true,
+      "scope-appconfig-recursive": true,
+      "allow-appconfig-index-recursive": true,
+      "allow-appconfig-meta-recursive": true,
+      "allow-appconfig-read-recursive": true,
+      "allow-appconfig-write-recursive": true,
+      "allow-applocaldata-read-recursive": true,
+      "allow-applocaldata-write-recursive": true,
+      "allow-document-read-recursive": true,
+      "allow-document-write-recursive": true
+    }
+  }
+}

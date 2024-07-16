@@ -3,7 +3,7 @@ import { WorkbookState } from "../../../models/store"
 import { DataGrid } from "@mui/x-data-grid"
 import { GenerateIdentifier } from "../../../services/random-identifier-generator"
 import { Box, Stack, Typography } from "@mui/material"
-import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context"
+import { WorkspaceContext } from "../../../contexts/workspace-context"
 import { useContext } from "react"
 
 export function ResponseHeadersViewer() {
@@ -12,7 +12,7 @@ export function ResponseHeadersViewer() {
         return null
     }
 
-    const execution = useContext(WorkbookStorageContext).execution
+    const execution = useContext(WorkspaceContext).execution
     useSelector((state: WorkbookState) => state.execution.resultIndex)
     useSelector((state: WorkbookState) => state.execution.runIndex)
 

@@ -1,8 +1,7 @@
-import { WorkbookAuthorization } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { WorkbookApiKeyAuthorization, WorkbookAuthorizationBase, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization } from "@apicize/lib-typescript/dist/models/workbook/workbook-authorization"
+import { WorkbookApiKeyAuthorization, WorkbookBaseAuthorization, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization } from "@apicize/lib-typescript/dist/models/workbook/workbook-authorization"
 
-export interface EditableWorkbookAuthorization extends Editable, WorkbookAuthorizationBase {
+export interface EditableWorkbookAuthorization extends Editable, WorkbookBaseAuthorization {
 }
 
 export interface EditableWorkbookApiKeyAuthorization extends Editable, WorkbookApiKeyAuthorization {
@@ -19,7 +18,7 @@ export interface EditableWorkbookOAuth2ClientAuthorization extends Editable, Wor
  * @param authorization 
  * @returns 
  */
-export function EditableWorkbookAuthorizationToAuthorization(authorization: EditableWorkbookAuthorization): WorkbookAuthorizationBase {
+export function EditableWorkbookAuthorizationToAuthorization(authorization: EditableWorkbookAuthorization): WorkbookBaseAuthorization {
     const cloned = structuredClone(authorization)
     delete cloned.dirty
     delete cloned.invalid

@@ -1,11 +1,11 @@
 import { useSelector } from "react-redux"
 import { WorkbookState } from "../../../models/store"
-import { TextViewer } from "../../viewers/text-viewer"
+import { TextViewer } from "../text-viewer"
 import { IconButton, Typography } from "@mui/material"
 import { Box } from "@mui/system"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context"
+import { WorkspaceContext } from "../../../contexts/workspace-context"
 import { useContext } from "react"
 
 export function ResultRequestViewer(props: {
@@ -18,7 +18,7 @@ export function ResultRequestViewer(props: {
         return null
     }
 
-    const execution = useContext(WorkbookStorageContext).execution
+    const execution = useContext(WorkspaceContext).execution
     const request = execution.getRequest(executionId)
 
     const text = beautify.js_beautify(JSON.stringify(request), {})

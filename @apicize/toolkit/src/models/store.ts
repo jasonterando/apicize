@@ -1,26 +1,28 @@
 import { createSlice, PayloadAction, configureStore } from '@reduxjs/toolkit'
 import {
-  BodyType,
-  Method,
-  NO_AUTHORIZATION,
-  NO_SCENARIO,
+  Persistence,
+  Selection,
+  WorkbookBodyData,
+  WorkbookBodyType,
+  WorkbookMethod,
   WorkbookAuthorizationType,
+  WorkbookCertificateType,
 } from '@apicize/lib-typescript'
 import { IndexedText } from './workbook/workbook-execution'
 import { EditableNameValuePair } from './workbook/editable-name-value-pair'
-import { WorkbookBodyData, WorkbookBodyType } from '@apicize/lib-typescript/dist/models/workbook/workbook-request'
 import { NavigationListItem } from './navigation-list-item'
-import { PersistenceOption } from '@apicize/lib-typescript/dist/models/workbook/workbook-authorization'
+import { EntitySelection } from './workbook/entity-selection'
 
-export const noAuthorization = {
-  id: NO_AUTHORIZATION,
-  name: 'Anonymous (None)',
-  type: WorkbookAuthorizationType.None
+export const NO_SELECTION_ID = '\tNONE\t'
+export const NO_SELECTION: Selection = {
+  id: NO_SELECTION_ID,
+  name: '(None)'
 }
 
-export const noScenario = {
-  id: NO_SCENARIO,
-  name: '(None)'
+export const DEFAULT_SELECTION_ID = '\tDEFAULT\t'
+export const DEFAULT_SELECTION: Selection = {
+  id: DEFAULT_SELECTION_ID,
+  name: '(Default)'
 }
 
 export enum NavigationType {
@@ -29,6 +31,7 @@ export enum NavigationType {
   Group,
   Authorization,
   Scenario,
+  Proxy,
 }
 
 const navigationSlice = createSlice({
@@ -40,6 +43,7 @@ const navigationSlice = createSlice({
     requestList: [] as NavigationListItem[],
     authorizationList: [] as NavigationListItem[],
     scenarioList: [] as NavigationListItem[],
+    proxyList: [] as NavigationListItem[],
     showNavigation: false,
     appName: '',
     appVersion: ''
@@ -67,11 +71,13 @@ const navigationSlice = createSlice({
     setLists: (state, action: PayloadAction<{
       requests: NavigationListItem[],
       authorizations: NavigationListItem[],
-      scenarios: NavigationListItem[]
+      scenarios: NavigationListItem[],
+      proxies: NavigationListItem[],
     }>) => {
       state.requestList = action.payload.requests
       state.authorizationList = action.payload.authorizations
       state.scenarioList = action.payload.scenarios
+      state.proxyList = action.payload.proxies
     },
     setRequestList: (state, action: PayloadAction<NavigationListItem[]>) => {
       state.requestList = action.payload
@@ -81,6 +87,9 @@ const navigationSlice = createSlice({
     },
     setScenariosList: (state, action: PayloadAction<NavigationListItem[]>) => {
       state.scenarioList = action.payload
+    },
+    setProxiesList: (state, action: PayloadAction<NavigationListItem[]>) => {
+      state.proxyList = action.payload
     },
     setShowNavigation: (state, action: PayloadAction<boolean>) => {
       state.showNavigation = action.payload
@@ -122,14 +131,65 @@ const helpSlice = createSlice({
   }
 })
 
+// Manage state of selectable credential dentities
+const parametersSlice = createSlice({
+  name: 'parameters',
+  initialState: {
+    scenarios: [] as EntitySelection[],
+    scenarioId: NO_SELECTION_ID,
+    authorizations: [] as EntitySelection[],
+    authorizationId: NO_SELECTION_ID,
+    certificates: [] as EntitySelection[],
+    certificateId: NO_SELECTION_ID,
+    proxies: [] as EntitySelection[],
+    proxyId: NO_SELECTION_ID,
+  },
+  reducers: {
+    set: (state, action: PayloadAction<{
+      scenarios: EntitySelection[],
+      scenarioId: string,
+      authorizations: EntitySelection[],
+      authorizationId: string,
+      certificates: EntitySelection[],
+      certificateId: string,
+      proxies: EntitySelection[],
+      proxyId: string,
+    }>) => {
+      console.log(`group set scenario ID to ${action.payload.scenarioId}`)
+      state.scenarios = action.payload.scenarios
+      state.scenarioId = action.payload.scenarioId
+      state.authorizations = action.payload.authorizations
+      state.authorizationId = action.payload.authorizationId
+      state.certificates = action.payload.certificates
+      state.certificateId = action.payload.certificateId
+      state.proxies = action.payload.proxies
+      state.proxyId = action.payload.proxyId
+    },
+    setSelectedScenarioId: (state, action: PayloadAction<string>) => {
+      console.log(`individual set scenario ID to ${action.payload}`)
+      state.scenarioId = action.payload
+    },
+    setSelectedAuthorizationId: (state, action: PayloadAction<string>) => {
+      state.authorizationId = action.payload
+    },
+    setSelectedCertificateId: (state, action: PayloadAction<string>) => {
+      state.certificateId = action.payload
+    },
+    setSelectedProxyId: (state, action: PayloadAction<string>) => {
+      state.proxyId = action.payload
+    },
+  },
+})
+
 const requestSlice = createSlice({
   name: 'request',
   initialState: {
     id: '' as string | null,
     name: '',
     url: '',
-    method: Method.Get,
+    method: WorkbookMethod.Get,
     timeout: 30000,
+    runs: 1,
     queryStringParams: undefined as EditableNameValuePair[] | undefined,
     headers: undefined as EditableNameValuePair[] | undefined,
     bodyType: undefined as WorkbookBodyType | undefined,
@@ -141,24 +201,30 @@ const requestSlice = createSlice({
       id: string,
       name: string,
       url: string,
-      method: Method,
+      method: WorkbookMethod,
       timeout: number,
+      runs: number,
       queryStringParams: EditableNameValuePair[] | undefined,
       headers: EditableNameValuePair[] | undefined,
       bodyType: WorkbookBodyType | undefined,
       bodyData: WorkbookBodyData | undefined,
       test: string | undefined,
+      selectedScenarioId: string | undefined,
+      selectedCertificateId: string | undefined,
+      selectedAuthorizationId: string | undefined,
+      selectedProxyId: string | undefined,
     }>) => {
       state.id = action.payload.id
-      state.name = action.payload.name,
-        state.url = action.payload.url,
-        state.method = action.payload.method,
-        state.timeout = action.payload.timeout
+      state.name = action.payload.name
+      state.url = action.payload.url
+      state.method = action.payload.method
+      state.timeout = action.payload.timeout
+      state.runs = action.payload.runs
       state.queryStringParams = action.payload.queryStringParams
       state.headers = action.payload.headers
-      state.bodyType = action.payload.bodyType,
-        state.bodyData = action.payload.bodyData,
-        state.test = action.payload.test
+      state.bodyType = action.payload.bodyType
+      state.bodyData = action.payload.bodyData
+      state.test = action.payload.test
     },
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
@@ -166,11 +232,14 @@ const requestSlice = createSlice({
     setURL: (state, action: PayloadAction<string>) => {
       state.url = action.payload
     },
-    setMethod: (state, action: PayloadAction<Method>) => {
+    setMethod: (state, action: PayloadAction<WorkbookMethod>) => {
       state.method = action.payload
     },
     setRequestTimeout: (state, action: PayloadAction<number>) => {
       state.timeout = action.payload
+    },
+    setRuns: (state, action: PayloadAction<number>) => {
+      state.runs = action.payload
     },
     setQueryStringParams: (state, action: PayloadAction<EditableNameValuePair[] | undefined>) => {
       state.queryStringParams = action.payload
@@ -178,7 +247,7 @@ const requestSlice = createSlice({
     setHeaders: (state, action: PayloadAction<EditableNameValuePair[] | undefined>) => {
       state.headers = action.payload
     },
-    setBody: (state, action: PayloadAction<{ type: BodyType, data: WorkbookBodyData }>) => {
+    setBody: (state, action: PayloadAction<{ type: WorkbookBodyType, data: WorkbookBodyData }>) => {
       state.bodyType = action.payload.type
       state.bodyData = action.payload.data
     },
@@ -214,12 +283,44 @@ const groupSlice = createSlice({
   }
 })
 
+const scenarioSlice = createSlice({
+  name: 'scenario',
+  initialState: {
+    id: '' as string | null,
+    name: '',
+    persistence: Persistence.Workbook,
+    variables: undefined as EditableNameValuePair[] | undefined
+  },
+  reducers: {
+    initialize: (state, action: PayloadAction<{
+      id: string,
+      name: string,
+      persistence: Persistence,
+      variables: EditableNameValuePair[] | undefined
+    }>) => {
+      state.id = action.payload.id
+      state.name = action.payload.name
+      state.persistence = action.payload.persistence
+      state.variables = action.payload.variables
+    },
+    setName: (state, action: PayloadAction<string>) => {
+      state.name = action.payload
+    },
+    setPersistence: (state, action: PayloadAction<Persistence>) => {
+      state.persistence = action.payload
+    },
+    setVariables: (state, action: PayloadAction<EditableNameValuePair[] | undefined>) => {
+      state.variables = action.payload
+    },
+  }
+})
+
 const authorizationSlice = createSlice({
   name: 'authorization',
   initialState: {
     id: '' as string | null,
     name: '',
-    persistence: PersistenceOption.Workbook,
+    persistence: Persistence.Private,
     type: WorkbookAuthorizationType.None,
     username: undefined as string | undefined,
     password: undefined as string | undefined,
@@ -234,7 +335,7 @@ const authorizationSlice = createSlice({
     initialize: (state, action: PayloadAction<{
       id: string,
       name: string,
-      persistence: PersistenceOption,
+      persistence: Persistence,
       type: WorkbookAuthorizationType,
       username: string | undefined,
       password: string | undefined,
@@ -261,7 +362,7 @@ const authorizationSlice = createSlice({
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
     },
-    setPersistence: (state, action: PayloadAction<PersistenceOption>) => {
+    setPersistence: (state, action: PayloadAction<Persistence>) => {
       state.persistence = action.payload
     },
     setType: (state, action: PayloadAction<WorkbookAuthorizationType>) => {
@@ -294,28 +395,90 @@ const authorizationSlice = createSlice({
   }
 })
 
-const scenarioSlice = createSlice({
-  name: 'scenario',
+const certificateSlice = createSlice({
+  name: 'certificate',
   initialState: {
     id: '' as string | null,
     name: '',
-    variables: undefined as EditableNameValuePair[] | undefined
+    persistence: Persistence.Private,
+    type: WorkbookCertificateType.None,
+    der: undefined as any | undefined,
+    password: undefined as string | undefined,
+    pem: undefined as string | undefined,
+    key: undefined as string | undefined,
   },
   reducers: {
     initialize: (state, action: PayloadAction<{
       id: string,
       name: string,
-      variables: EditableNameValuePair[] | undefined
+      persistence: Persistence,
+      type: WorkbookCertificateType,
+      der: any | undefined,
+      password: string | undefined,
+      pem: string | undefined,
+      key: string | undefined,
     }>) => {
       state.id = action.payload.id
       state.name = action.payload.name
-      state.variables = action.payload.variables
+      state.persistence = action.payload.persistence,
+        state.type = action.payload.type
+      state.der = action.payload.der
+      state.password = action.payload.password
+      state.pem = action.payload.pem
+      state.key = action.payload.key
     },
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
     },
-    setVariables: (state, action: PayloadAction<EditableNameValuePair[] | undefined>) => {
-      state.variables = action.payload
+    setPersistence: (state, action: PayloadAction<Persistence>) => {
+      state.persistence = action.payload
+    },
+    setType: (state, action: PayloadAction<WorkbookCertificateType>) => {
+      state.type = action.payload
+    },
+    setDer: (state, action: PayloadAction<string>) => {
+      state.der = action.payload
+    },
+    setPassword: (state, action: PayloadAction<string>) => {
+      state.password = action.payload
+    },
+    setPem: (state, action: PayloadAction<string>) => {
+      state.pem = action.payload
+    },
+    setKey: (state, action: PayloadAction<string | undefined>) => {
+      state.key = action.payload
+    },
+  }
+})
+
+const proxySlice = createSlice({
+  name: 'proxy',
+  initialState: {
+    id: '' as string | null,
+    name: '',
+    persistence: Persistence.Global,
+    url: '',
+  },
+  reducers: {
+    initialize: (state, action: PayloadAction<{
+      id: string,
+      name: string,
+      persistence: Persistence,
+      url: string | undefined
+    }>) => {
+      state.id = action.payload.id
+      state.name = action.payload.name
+      state.persistence = action.payload.persistence,
+        state.url = action.payload.url ?? ''
+    },
+    setName: (state, action: PayloadAction<string>) => {
+      state.name = action.payload
+    },
+    setPersistence: (state, action: PayloadAction<Persistence>) => {
+      state.persistence = action.payload
+    },
+    setUrl: (state, action: PayloadAction<string>) => {
+      state.url = action.payload
     },
   }
 })
@@ -347,13 +510,12 @@ const workbookSlice = createSlice({
     // Called when workbook is saved
     saveWorkbook: (state, action: PayloadAction<{
       fullName: string,
-      displayName: string
+      displayName: string,
     }>) => {
       state.workbookFullName = action.payload.fullName
       state.workbookDisplayName = action.payload.displayName
       state.dirty = false
     },
-
   }
 })
 
@@ -363,8 +525,6 @@ const executionSlice = createSlice({
   name: 'execution',
   initialState: {
     id: undefined as string | undefined,
-    selectedAuthorizationID: NO_AUTHORIZATION,
-    selectedScenarioID: NO_SCENARIO,
     running: false,
     resultType: ResultType.None,
     failedTestCount: undefined as number | undefined,
@@ -374,7 +534,7 @@ const executionSlice = createSlice({
     resultIndex: undefined as number | undefined,
     resultLists: undefined as IndexedText[][] | undefined,
     currentResultSuccess: null as boolean | null,
-    panel: ''
+    panel: '',
   },
   reducers: {
     setExecution: (state, action: PayloadAction<{
@@ -400,6 +560,18 @@ const executionSlice = createSlice({
         state.panel = 'Info'
       }
     },
+    resetExecution: (state) => {
+      state.id = undefined
+      state.running = false
+      state.resultType = ResultType.None
+      state.failedTestCount = undefined
+      state.runIndex = undefined
+      state.runList = undefined
+      state.resultIndex = undefined
+      state.resultLists = undefined
+      state.currentResultSuccess = null
+      state.panel = ''
+    },
     runStart: (state, action: PayloadAction<string>) => {
       state.id = action.payload
       state.running = true
@@ -419,13 +591,6 @@ const executionSlice = createSlice({
       state.resultIndex = action.payload.resultIndex
       state.resultLists = action.payload.resultLists
     },
-    setSelected: (state, action: PayloadAction<{
-      selectedAuthorizationID: string,
-      selectedScenarioID: string
-    }>) => {
-      state.selectedAuthorizationID = action.payload.selectedAuthorizationID
-      state.selectedScenarioID = action.payload.selectedScenarioID
-    },
     setPanel: (state, action: PayloadAction<string>) => {
       state.panel = action.payload
     }
@@ -435,10 +600,12 @@ const executionSlice = createSlice({
 export const workbookActions = workbookSlice.actions
 export const navigationActions = navigationSlice.actions
 export const helpActions = helpSlice.actions
+export const parametersActions = parametersSlice.actions
 export const requestActions = requestSlice.actions
 export const groupActions = groupSlice.actions
 export const authorizationActions = authorizationSlice.actions
 export const scenarioActions = scenarioSlice.actions
+export const proxyActions = proxySlice.actions
 export const executionActions = executionSlice.actions
 
 export const workbookStore = configureStore({
@@ -446,10 +613,12 @@ export const workbookStore = configureStore({
     workbook: workbookSlice.reducer,
     navigation: navigationSlice.reducer,
     help: helpSlice.reducer,
+    parameters: parametersSlice.reducer,
     request: requestSlice.reducer,
     group: groupSlice.reducer,
     authorization: authorizationSlice.reducer,
     scenario: scenarioSlice.reducer,
+    proxy: proxySlice.reducer,
     execution: executionSlice.reducer,
   }
 })

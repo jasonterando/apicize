@@ -7,9 +7,11 @@ import SaveAsIcon from '@mui/icons-material/SaveAs'
 import HelpIcon from '@mui/icons-material/Help'
 import SendIcon from '@mui/icons-material/Send'
 import LockIcon from '@mui/icons-material/Lock'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import LanguageIcon from '@mui/icons-material/Language'
 import { TreeView } from '@mui/x-tree-view/TreeView'
@@ -23,8 +25,9 @@ import { useConfirmation } from '../../services/confirmation-service'
 import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensors, useSensor, PointerSensor, DragCancelEvent, DragMoveEvent } from '@dnd-kit/core'
 import { GetTitle } from '@apicize/lib-typescript';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
-import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
+import { WorkspaceContext } from '../../contexts/workspace-context';
 import { NavigationListItem } from '../../models/navigation-list-item';
+import { Check } from '@mui/icons-material';
 
 interface MenuPosition {
     id: string
@@ -40,7 +43,7 @@ export function Navigation(props: {
     triggerHelp: (topic?: string) => void
 }) {
 
-    const context = useContext(WorkbookStorageContext)
+    const context = useContext(WorkspaceContext)
     const confirm = useConfirmation()
 
     let activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
@@ -50,12 +53,14 @@ export function Navigation(props: {
     const requests = useSelector((state: WorkbookState) => state.navigation.requestList)
     const authorizations = useSelector((state: WorkbookState) => state.navigation.authorizationList)
     const scenarios = useSelector((state: WorkbookState) => state.navigation.scenarioList)
+    const proxies = useSelector((state: WorkbookState) => state.navigation.proxyList)
     const workbookFullName = useSelector((state: WorkbookState) => state.workbook.workbookFullName)
 
     const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>(undefined)
     const [reqMenu, setReqMenu] = useState<MenuPosition | undefined>(undefined)
     const [authMenu, setAuthMenu] = useState<MenuPosition | undefined>(undefined)
     const [scenarioMenu, setScenarioMenu] = useState<MenuPosition | undefined>(undefined)
+    const [proxyMenu, setProxyMenu] = useState<MenuPosition | undefined>(undefined)
 
     enum DragPosition {
         None = 'NONE',
@@ -156,7 +161,8 @@ export function Navigation(props: {
                         props.type === 'request' ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
                             props.type === 'auth' ? (<LockIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
                                 props.type === 'scenario' ? (<LanguageIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
-                                    (<></>)
+                                    props.type === 'proxy' ? (<AirlineStopsIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                                        (<></>)
                     }
                     <Box className='nav-node-text' sx={{ flexGrow: 1 }}>
                         {props.title}
@@ -309,7 +315,7 @@ export function Navigation(props: {
                                 ? <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
                                 : null
                         }
-                        <Box className='nav-node-text'>{GetTitle(props.item)}</Box>
+                        <Box className='nav-node-text' sx={{verticalAlign: 'middle'}}>{GetTitle(props.item)}</Box>
                         <IconButton
                             sx={{
                                 visibility: props.item.id === activeID ? 'normal' : 'hidden'
@@ -344,6 +350,10 @@ export function Navigation(props: {
 
     const closeScenarioMenu = () => {
         setScenarioMenu(undefined)
+    }
+
+    const closeProxyMenu = () => {
+        setProxyMenu(undefined)
     }
 
     const handleShowRequestsMenu = (event: React.MouseEvent, id: string) => {
@@ -394,11 +404,24 @@ export function Navigation(props: {
         )
     }
 
+    const handleShowProxyMenu = (event: React.MouseEvent, id: string) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setProxyMenu(
+            {
+                id,
+                mouseX: event.clientX - 1,
+                mouseY: event.clientY - 6,
+            }
+        )
+    }
+
     const closeAllMenus = () => {
         closeRequestsMenu()
         closeRequestMenu()
         closeAuthMenu()
         closeScenarioMenu()
+        closeProxyMenu()
     }
 
     const handleSelectHeader = (e: SyntheticEvent, helpTopic?: string) => {
@@ -428,6 +451,10 @@ export function Navigation(props: {
         context.workbook.activateScenario(id)
     }
 
+    const selectProxy = (id: string) => {
+        context.workbook.activateProxy(id)
+    }
+
     const handleAddRequest = (targetRequestId?: string | null) => {
         closeRequestsMenu()
         closeRequestMenu()
@@ -450,10 +477,15 @@ export function Navigation(props: {
         context.scenario.add(targetScenarioId)
     }
 
+    const handleAddProxy = (targetProxyId?: string | null) => {
+        closeProxyMenu()
+        context.proxy.add(targetProxyId)
+    }
+
     const handleDeleteRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (!activeID || activeType !== NavigationType.Request) return
+        if (!activeID || (activeType !== NavigationType.Request && activeType !== NavigationType.Group)) return
         const id = activeID
         confirm({
             title: 'Delete Request',
@@ -505,6 +537,24 @@ export function Navigation(props: {
         })
     }
 
+    const handleDeleteProxy = () => {
+        closeProxyMenu()
+        if (!activeID || activeType !== NavigationType.Proxy) return
+        const id = activeID
+        confirm({
+            title: 'Delete Proxy',
+            message: `Are you are you sure you want to delete ${GetTitle(proxies.find(s => s.id === id))}?`,
+            okButton: 'Yes',
+            cancelButton: 'No',
+            defaultToCancel: true
+        }).then((result) => {
+            if (result) {
+                clearAllSelections()
+                context.proxy.delete(id)
+            }
+        })
+    }
+
     const handleDupeRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
@@ -519,6 +569,11 @@ export function Navigation(props: {
     const handleDupeScenario = () => {
         closeScenarioMenu()
         if (activeType === NavigationType.Scenario && activeID) context.scenario.copy(activeID)
+    }
+
+    const handleDupeProxy = () => {
+        closeProxyMenu()
+        if (activeType === NavigationType.Proxy && activeID) context.proxy.copy(activeID)
     }
 
     const handleMoveRequest = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
@@ -536,6 +591,11 @@ export function Navigation(props: {
         context.scenario.move(id, destinationID, onLowerHalf, onLeft)
     }
 
+    const handleMoveProxy = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
+        selectProxy(id)
+        context.proxy.move(id, destinationID, onLowerHalf, onLeft)
+    }
+
     function RequestsMenu() {
         return (
             <Menu
@@ -548,13 +608,13 @@ export function Navigation(props: {
                     left: requestsMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddRequest(activeID)}>
+                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequest(activeID)}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(_) => handleAddRequestGroup(activeID)}>
+                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequestGroup(activeID)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
@@ -576,25 +636,25 @@ export function Navigation(props: {
                     left: reqMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(e) => handleAddRequest(activeID)}>
+                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequest(activeID)}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(e) => handleAddRequestGroup(activeID)}>
+                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequestGroup(activeID)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request Group</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(e) => handleDupeRequest()}>
+                <MenuItem className='navigation-menu-item' onClick={(e) => handleDupeRequest()}>
                     <ListItemIcon>
                         <ContentCopyOutlinedIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Duplicate</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(e) => handleDeleteRequest()}>
+                <MenuItem className='navigation-menu-item' onClick={(e) => handleDeleteRequest()}>
                     <ListItemIcon>
                         <DeleteIcon fontSize='small' />
                     </ListItemIcon>
@@ -672,6 +732,40 @@ export function Navigation(props: {
         )
     }
 
+    function ProxyMenu() {
+        return (
+            <Menu
+                id='proxy-menu'
+                open={proxyMenu !== undefined}
+                onClose={closeProxyMenu}
+                anchorReference='anchorPosition'
+                anchorPosition={{
+                    top: proxyMenu?.mouseY ?? 0,
+                    left: proxyMenu?.mouseX ?? 0
+                }}
+            >
+                <MenuItem onClick={(_) => handleAddProxy(activeID)}>
+                    <ListItemIcon>
+                        <LanguageIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Add Proxy</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDupeProxy()}>
+                    <ListItemIcon>
+                        <ContentCopyOutlinedIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Duplicate Proxy</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDeleteProxy()}>
+                    <ListItemIcon>
+                        <DeleteIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Delete Proxy</ListItemText>
+                </MenuItem>
+            </Menu>
+        )
+    }
+
     const onDragCancel = (e: DragCancelEvent) => {
         setDragPosition(DragPosition.None)
     }
@@ -744,7 +838,7 @@ export function Navigation(props: {
         setDragPosition(DragPosition.None)
     }
 
-    const defaultExpanded = ['hdr-request', 'hdr-auth', 'hdr-scenario']
+    const defaultExpanded = ['hdr-request', 'hdr-auth', 'hdr-scenario', 'hdr-proxy']
     const expandRequestsWithChildren = (item: NavigationListItem) => {
         if (item.children && (item.children?.length ?? 0) > 0) {
             defaultExpanded.push(item.id)
@@ -754,8 +848,8 @@ export function Navigation(props: {
     requests.forEach(expandRequestsWithChildren)
 
     return showNavigation ? (
-        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '8px', paddingRight: '20px', backgroundColor: '#202020' }}>
-            <Box display='flex' flexDirection='row' sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '4px' }}>
+        <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '4px', paddingRight: '20px', backgroundColor: '#202020' }}>
+            <Box display='flex' flexDirection='row' sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '2px' }}>
                 <Box sx={{width: '100%', marginRight: '8px'}}>
                     <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
                         <PostAddIcon />
@@ -800,19 +894,6 @@ export function Navigation(props: {
                             />)
                         }
                     </NavTreeSection>
-                    <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' helpTopic='authorizations' onAdd={handleAddAuth}>
-                        {
-                            authorizations.map(t => <NavTreeItem
-                                item={t}
-                                depth={0}
-                                type='auth'
-                                key={`nav-section-${t.id}`}
-                                onSelect={selectAuthorization}
-                                onMenu={handleShowAuthMenu}
-                                onMove={handleMoveAuth}
-                            />)
-                        }
-                    </NavTreeSection>
                     <NavTreeSection key='nav-section-scenario' type='scenario' title='Scenarios' helpTopic='scenarios' onAdd={handleAddScenario}>
                         {
                             scenarios.map(t => <NavTreeItem
@@ -826,12 +907,39 @@ export function Navigation(props: {
                             />)
                         }
                     </NavTreeSection>
+                    <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' helpTopic='authorizations' onAdd={handleAddAuth}>
+                        {
+                            authorizations.map(t => <NavTreeItem
+                                item={t}
+                                depth={0}
+                                type='auth'
+                                key={`nav-section-${t.id}`}
+                                onSelect={selectAuthorization}
+                                onMenu={handleShowAuthMenu}
+                                onMove={handleMoveAuth}
+                            />)
+                        }
+                    </NavTreeSection>
+                    <NavTreeSection key='nav-section-proxy' type='proxy' title='Proxies' helpTopic='proxies' onAdd={handleAddProxy}>
+                        {
+                            proxies.map(t => <NavTreeItem
+                                item={t}
+                                depth={0}
+                                type='proxy'
+                                key={`nav-proxy-${t.id}`}
+                                onSelect={selectProxy}
+                                onMenu={handleShowProxyMenu}
+                                onMove={handleMoveProxy}
+                            />)
+                        }
+                    </NavTreeSection>
                 </TreeView>
             </DndContext>
             <RequestsMenu />
             <RequestMenu />
             <AuthMenu />
             <ScenarioMenu />
+            <ProxyMenu />
         </Stack>
     ) : null
 }

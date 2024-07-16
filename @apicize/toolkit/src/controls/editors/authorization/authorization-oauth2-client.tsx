@@ -3,10 +3,10 @@ import { WorkbookState } from '../../../models/store'
 import { useContext, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { EditableWorkbookOAuth2ClientAuthorization } from '../../../models/workbook/editable-workbook-authorization'
-import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
+import { WorkspaceContext } from '../../../contexts/workspace-context'
 
 export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {}}) {
-    const auth = useContext(WorkbookStorageContext).authorization
+    const auth = useContext(WorkspaceContext).authorization
 
     const id = useSelector((state: WorkbookState) => state.authorization.id)
     const accessTokenUrl = useSelector((state: WorkbookState) => state.authorization.accessTokenUrl ?? '')

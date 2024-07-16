@@ -1,4 +1,4 @@
-import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Stack, FormControlLabel, FormLabel, Radio, RadioGroup } from '@mui/material'
+import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Stack, FormControlLabel, FormLabel, Radio, RadioGroup, Switch } from '@mui/material'
 import LockIcon from '@mui/icons-material/Lock';
 import { useSelector } from "react-redux";
 import { useContext } from 'react'
@@ -6,21 +6,21 @@ import { NavigationType, WorkbookState } from '../../models/store'
 import { AuthorizationBasicPanel } from './authorization/authorization-basic';
 import { AuthorizationOAuth2ClientPanel } from './authorization/authorization-oauth2-client';
 import { AuthorizationApiKeyPanel } from './authorization/authorization-api-key';
-import { WorkbookAuthorizationType } from '@apicize/lib-typescript';
-import { WorkbookStorageContext } from '../../contexts/workbook-storage-context';
+import { Persistence, WorkbookAuthorizationType } from '@apicize/lib-typescript';
+import { WorkspaceContext } from '../../contexts/workspace-context';
 import { EditorTitle } from '../editor-title';
 import React from 'react';
-// import { PersistenceOption } from '@apicize/lib-typescript/dist/models/workbook/workbook-authorization';
+import { PersistenceEditor } from './persistence-editor';
 
 export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
-    const help = useContext(WorkbookStorageContext).help
-    const auth = useContext(WorkbookStorageContext).authorization
+    const help = useContext(WorkspaceContext).help
+    const auth = useContext(WorkspaceContext).authorization
 
     const activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
     const activeID = useSelector((state: WorkbookState) => state.navigation.activeID)
     const name = useSelector((state: WorkbookState) => state.authorization.name)
     const authType = useSelector((state: WorkbookState) => state.authorization.type)
-    // const persistence = useSelector((state: WorkbookState) => state.authorization.persistence)
+    const persistence = useSelector((state: WorkbookState) => state.authorization.persistence)
 
     React.useEffect(() => {
         if (activeType == NavigationType.Authorization) {
@@ -28,7 +28,7 @@ export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
         }
     }, [activeType])
 
-    if (activeType !== NavigationType.Authorization || ! activeID) {
+    if (activeType !== NavigationType.Authorization || !activeID) {
         return null
     }
 
@@ -40,9 +40,9 @@ export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
         auth.setType(activeID, type as WorkbookAuthorizationType)
     }
 
-    // const updatePersistence = (persistence: PersistenceOption) => {
-    //     auth.setPersistence(activeID, persistence)
-    // }
+    const updatePersistence = (persistence: Persistence) => {
+        auth.setPersistence(activeID, persistence)
+    }
 
     return (
         <Stack className='editor-panel-no-toolbar' direction={'column'} sx={{ flexGrow: 1 }}>
@@ -60,20 +60,23 @@ export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
                     />
                 </Grid>
                 <Grid item>
-                    <FormControl>
-                        <InputLabel id='auth-type-label-id'>Type</InputLabel>
-                        <Select
-                            labelId='auth-type-label-id'
-                            id='auth-type'
-                            value={authType}
-                            label='Type'
-                            onChange={e => updateType(e.target.value)}
-                        >
-                            <MenuItem value={WorkbookAuthorizationType.Basic}>Basic Authentication</MenuItem>
-                            <MenuItem value={WorkbookAuthorizationType.ApiKey}>API Key Authentication</MenuItem>
-                            <MenuItem value={WorkbookAuthorizationType.OAuth2Client}>OAuth2 Client Flow</MenuItem>
-                        </Select>
-                    </FormControl>
+                    <Stack direction={'row'} spacing={'2em'}>
+                        <FormControl>
+                            <InputLabel id='auth-type-label-id'>Type</InputLabel>
+                            <Select
+                                labelId='auth-type-label-id'
+                                id='auth-type'
+                                value={authType}
+                                label='Type'
+                                onChange={e => updateType(e.target.value)}
+                            >
+                                <MenuItem value={WorkbookAuthorizationType.Basic}>Basic Authentication</MenuItem>
+                                <MenuItem value={WorkbookAuthorizationType.ApiKey}>API Key Authentication</MenuItem>
+                                <MenuItem value={WorkbookAuthorizationType.OAuth2Client}>OAuth2 Client Flow</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <PersistenceEditor onUpdatePersistence={updatePersistence} persistence={persistence} />
+                    </Stack>
                 </Grid>
                 <Grid item>
                     {authType === WorkbookAuthorizationType.Basic ? <AuthorizationBasicPanel /> :
@@ -82,19 +85,6 @@ export function AuthorizationEditor(props = { triggerClearToken: () => { } }) {
                                 null
                     }
                 </Grid>
-                {/* <Grid item>
-                    <FormControl>
-                        <FormLabel id='auth-storage-label'>Storage</FormLabel>
-                        <RadioGroup
-                            value={persistence}
-                            onChange={e => updatePersistence(e.target.value as PersistenceOption)}
-                        >
-                            <FormControlLabel value={PersistenceOption.Workbook} control={<Radio />} label="Store in Workbook" />
-                            <FormControlLabel value={PersistenceOption.CommonEnvironment} control={<Radio />} label="Store in Local Common Storage" />
-                            <FormControlLabel value={PersistenceOption.None} control={<Radio />} label="Do Not Store" />
-                        </RadioGroup>
-                    </FormControl>
-                </Grid> */}
             </Grid>
         </Stack>
     )

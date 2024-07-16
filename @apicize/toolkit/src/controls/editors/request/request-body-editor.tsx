@@ -3,25 +3,25 @@ import Box from '@mui/material/Box'
 import { useSelector } from 'react-redux'
 import { WorkbookState } from '../../../models/store'
 import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
-import { BodyType, BodyTypes } from '@apicize/lib-typescript'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
 import { useContext } from 'react'
-import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
+import { WorkspaceContext } from '../../../contexts/workspace-context'
 
 import AceEditor from "react-ace"
 import "ace-builds/src-noconflict/mode-json"
 import "ace-builds/src-noconflict/mode-xml"
 import "ace-builds/src-noconflict/theme-monokai"
 import "ace-builds/src-noconflict/ext-language_tools"
+import { WorkbookBodyType, WorkbookBodyTypes } from '@apicize/lib-typescript'
 
 export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void }) {
-  const context = useContext(WorkbookStorageContext)
+  const context = useContext(WorkspaceContext)
   const request = context.request
 
-  const headerDoesNotMatchType = (bodyType: BodyType | undefined | null) => {
+  const headerDoesNotMatchType = (bodyType: WorkbookBodyType | undefined | null) => {
     let needsContextHeaderUpdate = true
     let mimeType = getBodyTypeMimeType(bodyType)
     const contentTypeHeader = headers?.find(h => h.name === 'Content-Type')
@@ -33,17 +33,17 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
     return needsContextHeaderUpdate
   }
 
-  const getBodyTypeMimeType = (bodyType: BodyType | undefined | null) => {
+  const getBodyTypeMimeType = (bodyType: WorkbookBodyType | undefined | null) => {
     switch (bodyType) {
-      case BodyType.None:
+      case WorkbookBodyType.None:
         return ''
-      case BodyType.JSON:
+      case WorkbookBodyType.JSON:
         return 'application/json'
-      case BodyType.XML:
+      case WorkbookBodyType.XML:
         return 'application/xml'
-      case BodyType.Text:
+      case WorkbookBodyType.Text:
         return 'text/plain'
-      case BodyType.Form:
+      case WorkbookBodyType.Form:
         return 'application/x-www-form-urlencoded'
       default:
         return 'application/octet-stream'
@@ -61,8 +61,8 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
     return null
   }
 
-  const updateBodyType = (val: BodyType | string) => {
-    const newBodyType = (val == "" ? undefined : val as unknown as BodyType) ?? BodyType.Text
+  const updateBodyType = (val: WorkbookBodyType | string) => {
+    const newBodyType = (val == "" ? undefined : val as unknown as WorkbookBodyType) ?? WorkbookBodyType.Text
     request.setBodyType(id, newBodyType)
     setAllowUpdateHeader(headerDoesNotMatchType(newBodyType))
   }
@@ -100,7 +100,7 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
   }
 
   const bodyTypeMenuItems = () => {
-    return BodyTypes.map(bodyType => (
+    return WorkbookBodyTypes.map(bodyType => (
       <MenuItem key={bodyType} value={bodyType}>{bodyType}</MenuItem>
     ))
   }
@@ -108,10 +108,10 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
   let mode
 
   switch(bodyType) {
-    case BodyType.JSON:
+    case WorkbookBodyType.JSON:
       mode = 'json'
       break
-    case BodyType.XML:
+    case WorkbookBodyType.XML:
       mode = 'xml'
       break
   }
@@ -136,11 +136,11 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
         </FormControl>
         <Button disabled={!allowUpdateHeader} onClick={updateTypeHeader}>Update Content-Type Header</Button>
       </Stack>
-      {bodyType == BodyType.None
+      {bodyType == WorkbookBodyType.None
         ? <></>
-        : bodyType == BodyType.Form
+        : bodyType == WorkbookBodyType.Form
           ? <NameValueEditor values={bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={updateBodyAsFormData} />
-          : bodyType == BodyType.Raw
+          : bodyType == WorkbookBodyType.Raw
             ? <Stack
               direction='row'
               sx={{

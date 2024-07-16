@@ -1,10 +1,9 @@
 use apicize_lib;
 use apicize_lib::cleanup_v8;
-use apicize_lib::models::Workbook;
-use apicize_lib::models::WorkbookAuthorization;
-use apicize_lib::models::WorkbookScenario;
+use apicize_lib::models::Workspace;
 use std::env;
 use std::process;
+use std::sync::Arc;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -15,54 +14,35 @@ async fn main() {
     }
 
     let file_name = &args[1];
-    let result = Workbook::open(file_name);
-
-    if result.is_err() {
-        println!("Unable to read {}: {}", file_name, result.unwrap_err());
-        process::exit(-2);
-    }
-
-    let workbook = result.unwrap();
-
-    let mut selected_authorization: Option<WorkbookAuthorization> = None;
-    let mut selected_scenario: Option<WorkbookScenario> = None;
-
-    if let Some(settings) = workbook.settings {
-        if let Some(selected_id) = settings.selected_authorization_id {
-            if let Some(auths) = workbook.authorizations {
-                if let Some(selected) = auths.iter().find(|x| 
-                    match x {
-                        WorkbookAuthorization::Basic { id, name: _,
-                            username: _, password: _ } => *id == selected_id,
-                        WorkbookAuthorization::ApiKey { id , name: _,
-                            header: _, value: _ } => *id == selected_id,
-                        WorkbookAuthorization::OAuth2Client { id, name: _,
-                            access_token_url: _, client_id: _, client_secret: _, scope: _ } => *id == selected_id,
-                    }
-                ) {
-                    selected_authorization = Some(selected.clone());
-                }
+    let workspace: Workspace;
+    match Workspace::open(file_name) {
+        Ok((wkspc, warnings)) => {
+            workspace = wkspc;
+            for warning in warnings {
+                println!("WARNING: {warning}");
             }
         }
-
-        if let Some(selected_id) = settings.selected_scenario_id {
-            if let Some(scenarios) = workbook.scenarios {
-                if let Some(selected) = scenarios.iter().find(|x| x.id == selected_id) {
-                    selected_scenario = Some(selected.clone());
-                }
-            }
+        Err(err) => {
+            println!("Unable to read {}: {}", err.file_name, err.error);
+            process::exit(-2);
         }
     }
 
     // initialize_v8();
 
+    let arc_workspace = Arc::new(workspace);
+
     let mut pass_count = 0;
     let mut fail_count = 0;
-    let mut iter = workbook.requests.iter();
 
-    while let Some(r) = iter.next() {
-        // println!("Request: {}", r);
-        let run_response = r.run(&selected_authorization, &selected_scenario, None).await;
+    let mut iter_ids = arc_workspace.requests.top_level_ids.iter();
+    while let Some(request_id) = iter_ids.next() {
+        let run_response = Workspace::run(arc_workspace.clone(), request_id, None).await;
+
+        if let Some(r) = arc_workspace.requests.entities.get(request_id) {
+            println!("Request: {}", r);
+        }
+
         match run_response {
             Ok(runs) => {
                 let mut run_number = 0;
@@ -87,7 +67,9 @@ async fn main() {
                                             println!(
                                                 " - {} [FAIL] {}",
                                                 tr.test_name.join(", "),
-                                                tr.error.as_ref().unwrap_or(&String::from("Unknown Error"))
+                                                tr.error
+                                                    .as_ref()
+                                                    .unwrap_or(&String::from("Unknown Error"))
                                             );
                                             fail_count += 1;
                                         }
@@ -96,13 +78,16 @@ async fn main() {
                                 None => {}
                             }
                         } else {
-                            println!(" - [ERROR] {}", match &result.error_message {
-                                Some(msg) => msg.clone(),
-                                None => String::from("Unexpected Error")
-                            });
+                            println!(
+                                " - [ERROR] {}",
+                                match &result.error_message {
+                                    Some(msg) => msg.clone(),
+                                    None => String::from("Unexpected Error"),
+                                }
+                            );
                         }
                     })
-                });        
+                });
             }
             Err(err) => {
                 println!(" - [ERROR] {}", err);

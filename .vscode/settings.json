@@ -1,10 +1,11 @@
 {
     "files.associations": {
         "*.apicize": "json",    
+        "*.apicize-priv": "json",    
     },
     "rust-analyzer.linkedProjects": [
         "./@apicize/lib-rust/Cargo.toml",
         "./@apicize/cli/Cargo.toml",
-        "./@apicize/app/src-tauri/Cargo.toml"
+        "./app/src-tauri/Cargo.toml"
     ]
 }

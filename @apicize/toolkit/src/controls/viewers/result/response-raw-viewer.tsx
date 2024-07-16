@@ -1,10 +1,10 @@
 import { useSelector } from "react-redux"
-import { TextViewer } from "../../viewers/text-viewer";
+import { TextViewer } from "../text-viewer";
 import { WorkbookState } from "../../../models/store";
 import { Box, IconButton, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useContext } from "react";
-import { WorkbookStorageContext } from "../../../contexts/workbook-storage-context";
+import { WorkspaceContext } from "../../../contexts/workspace-context";
 
 export function ResultRawPreview(props: {
     triggerCopyTextToClipboard: (text?: string) => void
@@ -16,7 +16,7 @@ export function ResultRawPreview(props: {
         return null
     }
 
-    const execution = useContext(WorkbookStorageContext).execution
+    const execution = useContext(WorkspaceContext).execution
     const body = execution.getResponseBody(executionId)
         
     let has_text = body?.text !== undefined

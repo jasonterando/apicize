@@ -6,11 +6,11 @@ import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
 import AceEditor from "react-ace"
 import "ace-builds/src-noconflict/mode-javascript"
-import { WorkbookStorageContext } from '../../../contexts/workbook-storage-context'
+import { WorkspaceContext } from '../../../contexts/workspace-context'
 // import { TextareaAutosize } from '@mui/material'
 
 export function RequestTestEditor() {
-  const context = useContext(WorkbookStorageContext)
+  const context = useContext(WorkspaceContext)
   const request = context.request
   const id = useSelector((state: WorkbookState) => state.request.id)
   const test = useSelector((state: WorkbookState) => state.request.test ?? '')

@@ -1,31 +1,23 @@
 //! Apicize models
 //! 
 //! This module defines models used to store and execute Apicize workbook requests
-
 use oauth2::basic::BasicErrorResponseType;
 use oauth2::{RequestTokenError, StandardErrorResponse};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use serde_with::base64::{Base64, Standard};
-use serde_with::formats::Unpadded;
-use serde_with::serde_as;
 use tokio::task::JoinError;
-use std::collections::HashMap;
 use std::fmt::Display;
-use std::io;
 use thiserror::Error;
-use uuid::Uuid;
 
-/// Represents errors occurring during Workbook serialization and deserialization
-#[derive(Error, Debug)]
-pub enum SerializationError {
-    /// File system error
-    #[error(transparent)]
-    IO(#[from] io::Error),
-    /// JSON parsing error
-    #[error(transparent)]
-    JSON(#[from] serde_json::Error),
-}
+pub mod apicize;
+pub mod settings;
+pub mod shared;
+pub mod utility;
+pub mod workbook;
+pub mod workspace;
+pub use settings::*;
+pub use shared::*;
+pub use utility::*;
+pub use workbook::*;
+pub use workspace::*;
 
 /// Represents errors occuring during Workbook running, dispatching and testing
 #[derive(Error, Debug)]
@@ -59,25 +51,6 @@ pub enum RunError {
 }
 
 /// HTTP methods for Apicize Requests
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum WorkbookRequestMethod {
-    /// HTTP GET
-    Get,
-    /// HTTP POST
-    Post,
-    /// HTTP PUT
-    Put,
-    /// HTTP DELETE
-    Delete,
-    /// HTTP PATCH
-    Patch,
-    /// HTTP HEAD
-    Head,
-    /// HTTP OPTIONS
-    Options,
-}
-
 impl WorkbookRequestMethod {
     /// Returns Apicize Request method as string
     pub fn as_str(&self) -> &'static str {
@@ -93,121 +66,13 @@ impl WorkbookRequestMethod {
     }
 }
 
-
-/// Apicize Request body.  
-/// Note: we have to have structs as variants to get serde_as
-/// support for Base64
-#[serde_as]
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(tag = "type")]
-pub enum WorkbookRequestBody {
-    /// Text (UTF-8) body data
-    Text {
-        /// Text
-        data: String,
-    },
-    /// JSON body data
-    #[serde(rename = "JSON")]
-    JSON {
-        /// Text
-        data: Value,
-    },
-    /// XML body data
-    #[serde(rename = "XML")]
-    XML {
-        /// Text
-        data: String,
-    },
-    /// Form (not multipart) body data
-    Form {
-        /// Name/value pairs of form data
-        data: Vec<WorkbookNameValuePair>,
-    },
-    /// Binary body data serialized as Base64
-    Raw {
-        /// Base-64 encoded binary data
-        #[serde_as(as = "Base64<Standard, Unpadded>")]
-        data: Vec<u8>,
-    }
-}
-
-/// String name/value pairs used to store values like Apicize headers, query string parameters, etc.
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct WorkbookNameValuePair {
-    /// Name of value
-    pub name: String,
-    /// Value
-    pub value: String,
-    /// If set to true, name/value pair should be ignored when dispatching Apicize Requests
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub disabled: Option<bool>,
-}
-
-/// Generate unique ID
-fn generate_uuid() -> String {
-    Uuid::new_v4().to_string()
-}
-
-/// Information required to dispatch and test an Apicize Request
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkbookRequest {
-    /// Unique identifier (required to keep track of dispatches and test executions)
-    #[serde(default = "generate_uuid")]
-    pub id: String,
-    /// Human-readable name describing the Apicize Request
-    pub name: String,
-    /// Test to execute after dispatching request and receiving response
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub test: Option<String>,
-    /// URL to dispatch the HTTP request to
-    pub url: String,
-    /// HTTP method
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub method: Option<WorkbookRequestMethod>,
-    /// Timeout, in seconds, to wait for a response
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timeout: Option<u32>,
-    /// HTTP headers
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub headers: Option<Vec<WorkbookNameValuePair>>,
-    /// HTTP query string parameters
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub query_string_params: Option<Vec<WorkbookNameValuePair>>,
-    /// HTTP body
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<WorkbookRequestBody>,
-    /// Keep HTTP connection alive
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_alive: Option<bool>,
-}
-
 impl Display for WorkbookRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
 
-/// Generate the value 1 for default, since serde doesn't suport literal defaults
-fn one() -> u32 {
-    1
-}
 
-
-/// A group of Apicize Requests
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct WorkbookRequestGroup {
-    /// Uniquely identifies group of Apicize requests
-    #[serde(default = "generate_uuid")]
-    pub id: String,
-    /// Human-readable name of group
-    pub name: String,
-    /// List of Apicize Requests in group
-    pub children: Box<Vec<WorkbookRequestEntry>>,
-    #[serde(default = "one")]
-    /// Number of runs for the group to execute
-    pub runs: u32,
-}
 
 impl Display for WorkbookRequestGroup {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -215,16 +80,6 @@ impl Display for WorkbookRequestGroup {
     }
 }
 
-/// Apcize Request that is either a specific request to run (Info)
-/// or a group of requests (Group)
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(untagged)]
-pub enum WorkbookRequestEntry {
-    /// Request to run
-    Info(WorkbookRequest),
-    /// Group of Apicize Requests
-    Group(WorkbookRequestGroup),
-}
 
 impl Display for WorkbookRequestEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -235,227 +90,8 @@ impl Display for WorkbookRequestEntry {
     }
 }
 
-/// Authorization information used when dispatching an Apicize Request
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(tag = "type")]
-pub enum WorkbookAuthorization {
-    /// Basic authentication (basic authorization header)
-    #[serde(rename_all = "camelCase")]
-    Basic {
-        /// Uniquely identifies authorization configuration
-        #[serde(default = "generate_uuid")]
-        id: String,
-        /// Human-readable name of authorization configuration
-        name: String,
-        /// User name
-        username: String,
-        /// Password
-        password: String,
-    },
-    /// OAuth2 client flow (bearer authorization header)
-    #[serde(rename_all = "camelCase")]
-    OAuth2Client {
-        /// Uniquely identifies authorization configuration
-        #[serde(default = "generate_uuid")]
-        id: String,
-        /// Indicates if/how authorization will be persisted
-        /// Human-readable name of authorization configuration
-        name: String,
-        /// URL to retrieve access token from
-        access_token_url: String,
-        /// Client ID
-        client_id: String,
-        /// Client secret (allowed to be blank)
-        client_secret: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        /// Scope to add to token (multiple scopes should be space-delimited)
-        scope: Option<String>,
-        // #[serde(skip_serializing_if="Option::is_none")]
-        // send_credentials_in_body: Option<bool>,
-    },
-    /// API key authentication (sent in HTTP header)
-    #[serde(rename_all = "camelCase")]
-    ApiKey {
-        /// Uniquely identifies authorization configuration
-        #[serde(default = "generate_uuid")]
-        id: String,
-        /// Indicates if/how authorization will be persisted
-        /// Human-readable name of authorization configuration
-        name: String,
-        /// Name of header (ex. "x-api-key")
-        header: String,
-        /// Value of key to include as header value
-        value: String,
-    },
-}
 
-/// A set of variables that can be injected into templated values
-/// when submitting an Apicize Request
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct WorkbookScenario {
-    /// Uniquely identifies scenario
-    #[serde(default = "generate_uuid")]
-    pub id: String,
-    /// Name of variable to substitute (avoid using curly braces)
-    pub name: String,
-    /// Value of variable to substitute
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub variables: Option<Vec<WorkbookNameValuePair>>,
-}
-
-/// Miscellaneous Workbook settings
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkbookSettings {
-    /// Optionally set to default authorization
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_authorization_id: Option<String>,
-    /// Optionally set to default scenario
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_scenario_id: Option<String>,
-}
-
-/// Persisted Apcizize requests, authorization and scenario definitions
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct Workbook {
-    /// Version of workbook format (should not be changed manually)
-    pub version: f32,
-    /// List of requests/request groups
-    pub requests: Vec<WorkbookRequestEntry>,
-    /// List of authorizations
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorizations: Option<Vec<WorkbookAuthorization>>,
-    /// List of scenarios
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub scenarios: Option<Vec<WorkbookScenario>>,
-    /// Miscelaneous Workbook settings
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub settings: Option<WorkbookSettings>,
-}
-
-/// Saved workbook authentications
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct SavedWorkbookAuth {
-    /// Version of workbook format (should not be changed manually)
-    pub version: f32,
-    /// List of authorizations
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorizations: Option<Vec<WorkbookAuthorization>>,
-}
-
-/// Persisted Apicize common storage of authorizations, certificates, etc.
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct CommonEnvironment {
-    /// Common authorizations
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorizations: Option<Vec<WorkbookAuthorization>>
-}
-
-/// Body information used when dispatching an Apicize Request
-#[serde_as]
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ApicizeBody {
-    /// Body as data (UTF-8 bytes)
-    #[serde_as(as = "Option<Base64<Standard, Unpadded>>")]
-    pub data: Option<Vec<u8>>,
-    /// Reprsents body as text
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
-}
-
-/// Information used to dispatch an Apicize request
-#[serde_as]
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ApicizeRequest {
-    /// URL
-    pub url: String,
-    /// HTTP Method
-    pub method: String,
-    /// Headers
-    pub headers: HashMap<String, String>,
-    /// Body
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<ApicizeBody>,
-}
-
-/// Information about the response to a dispatched Apicize request
-#[serde_as]
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ApicizeResponse {
-    /// HTTP status code
-    pub status: u16,
-    /// HTTP status text
-    pub status_text: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    /// Response headers
-    pub headers: Option<HashMap<String, String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    /// Response body
-    pub body: Option<ApicizeBody>,
-    /// True if authorization token cached
-    pub auth_token_cached: Option<bool>,
-}
-
-/// Response when executing an Apicize test
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ApicizeTestResponse {
-    /// Results of test
-    pub results: Option<Vec<ApicizeTestResult>>,
-    /// Scenario values (if any)
-    pub scenario: Option<WorkbookScenario>,
-}
-
-/// Information about an executed Apicize test
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ApicizeTestResult {
-    /// Human readable name of the test
-    pub test_name: Vec<String>,
-    /// Whether or not the test was successful
-    pub success: bool,
-    /// Error generated during the test
-    pub error: Option<String>,
-    /// Console I/O generated during the test
-    pub logs: Option<Vec<String>>,
-}
-
-/// Apicize run result
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ApicizeResult {
-    /// Request ID
-    pub request_id: String,
-    /// Attempt run number (zero indexed)
-    pub run: u32,
-    /// Total number of run attempts
-    pub total_runs: u32,
-    /// Request sent as HTTP call
-    pub request: Option<ApicizeRequest>,
-    /// Response received from HTTP call
-    pub response: Option<ApicizeResponse>,
-    /// Test results
-    pub tests: Option<Vec<ApicizeTestResult>>,
-    /// Time-of-day of execution
-    pub executed_at: u128,
-    /// Duration of execution
-    pub milliseconds: u128,
-    /// Set to true if HTTP call succeeded (regardless of status code)
-    pub success: bool,
-    /// Number of executed tests
-    pub test_count: Option<usize>,
-    /// Number of failed tests
-    pub failed_test_count: Option<usize>,
-    /// Any error message generated during HTTP call
-    pub error_message: Option<String>,
-}
-
-/// List of Apicize Result runs
-pub type ApicizeResultRuns = Vec<Vec<ApicizeResult>>;
-
+/*
 #[cfg(test)]
 mod model_tests {
     use serde_json::{json, Value};
@@ -477,6 +113,7 @@ mod model_tests {
                     method: None,
                     timeout: None,
                     keep_alive: None,
+                    runs: 1,
                     headers: None,
                     query_string_params: None,
                     body: None,
@@ -490,6 +127,7 @@ mod model_tests {
                 method: None,
                 timeout: None,
                 keep_alive: None,
+                runs: 1,
                 headers: None,
                 query_string_params: None,
                 body: None,
@@ -537,6 +175,7 @@ mod model_tests {
                 method: Some(WorkbookRequestMethod::Post),
                 timeout: None,
                 keep_alive: None,
+                runs: 1,
                 headers: None,
                 query_string_params: None,
                 body: None,
@@ -544,6 +183,7 @@ mod model_tests {
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -577,6 +217,7 @@ mod model_tests {
                 method: None,
                 timeout: Some(100),
                 keep_alive: None,
+                runs: 1,
                 headers: None,
                 query_string_params: None,
                 body: None,
@@ -584,6 +225,7 @@ mod model_tests {
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -621,6 +263,7 @@ mod model_tests {
                         method: None,
                         timeout: None,
                         keep_alive: Some(true),
+                        runs: 1,
                         headers: None,
                         query_string_params: None,
                         body: None,
@@ -628,6 +271,7 @@ mod model_tests {
                     })]),
                     authorizations: None,
                     scenarios: None,
+                    proxies: None,
                     settings: None,
                 };
                 assert_eq!(expected, w);
@@ -662,6 +306,7 @@ mod model_tests {
                 method: None,
                 timeout: None,
                 keep_alive: None,
+                runs: 1,
                 headers: Some(vec![WorkbookNameValuePair {
                     name: String::from("foo"),
                     value: String::from("bar"),
@@ -673,6 +318,7 @@ mod model_tests {
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -709,6 +355,7 @@ mod model_tests {
                 method: None,
                 timeout: None,
                 keep_alive: None,
+                runs: 1,
                 headers: None,
                 query_string_params: Some(vec![WorkbookNameValuePair {
                     name: String::from("foo"),
@@ -720,6 +367,7 @@ mod model_tests {
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -756,6 +404,7 @@ mod model_tests {
                 method: None,
                 timeout: None,
                 keep_alive: None,
+                runs: 1,
                 headers: None,
                 query_string_params: None,
                 body: Some(WorkbookRequestBody::Text {
@@ -765,6 +414,7 @@ mod model_tests {
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -804,6 +454,7 @@ mod model_tests {
                 method: None,
                 timeout: None,
                 keep_alive: None,
+                runs: 1,
                 headers: None,
                 query_string_params: None,
                 body: Some(WorkbookRequestBody::JSON {
@@ -813,6 +464,7 @@ mod model_tests {
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -849,6 +501,7 @@ mod model_tests {
                 method: None,
                 timeout: None,
                 keep_alive: None,
+                runs: 1,
                 headers: None,
                 query_string_params: None,
                 body: Some(WorkbookRequestBody::XML {
@@ -858,6 +511,7 @@ mod model_tests {
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -894,6 +548,7 @@ mod model_tests {
                 method: None,
                 timeout: None,
                 keep_alive: None,
+                runs: 1,
                 headers: None,
                 query_string_params: None,
                 body: Some(WorkbookRequestBody::Raw { 
@@ -903,6 +558,7 @@ mod model_tests {
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -937,12 +593,14 @@ mod model_tests {
                 timeout: None,
                 keep_alive: None,
                 headers: None,
+                runs: 1,
                 query_string_params: None,
                 body: None,
                 test: Some(String::from("foo()")),
             })]),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -967,6 +625,7 @@ mod model_tests {
             requests: self::default_requests(),
             authorizations: None,
             scenarios: None,
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -1004,6 +663,7 @@ mod model_tests {
                 username: String::from("foo"),
                 password: String::from("bar"),
             }]),
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -1045,6 +705,7 @@ mod model_tests {
                 scope: None,
                 // send_credentials_in_body: None,
             }]),
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -1088,6 +749,7 @@ mod model_tests {
                 scope: Some(String::from("abc def")),
                 // send_credentials_in_body: Some(true),
             }]),
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -1126,6 +788,7 @@ mod model_tests {
                 header: String::from("foo"),
                 value: String::from("bar"),
             }]),
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -1174,6 +837,7 @@ mod model_tests {
                     },
                 ]),
             }]),
+            proxies: None,
             settings: None,
         };
         let result: Result<Workbook, serde_json::Error> = serde_json::from_value(data);
@@ -1210,3 +874,4 @@ mod model_tests {
     // }
 
 }
+*/

@@ -1,9 +1,12 @@
 import { Identifiable } from "../identifiable";
 import { Named } from "../named";
-import { WorkbookRequest } from "./workbook-request";
+import { Selection } from "../selection";
 
 export interface WorkbookRequestGroup extends Identifiable, Named {
     id: string
-    children: (WorkbookRequest | WorkbookRequestGroup)[]
     runs: number
+    selectedScenario?: Selection
+    selectedAuthorization?: Selection
+    selectedCertificate?: Selection
+    selectedProxy?: Selection
 }
