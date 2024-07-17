@@ -3,7 +3,6 @@
 //! This submodule defines modules used to manage workspaces
 
 use std::collections::HashMap;
-use super::shared::*;
 use super::workbook::*;
 use serde::{Deserialize, Serialize};
 

@@ -2,9 +2,114 @@
 //! 
 //! This submodule defines modules used to store Workbooks
 
-use super::shared::*;
 use super::utility::*;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use serde_with::base64::{Base64, Standard};
+use serde_with::formats::Unpadded;
+use serde_json::Value;
+
+/// Enumeration of HTTP methods
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorkbookRequestMethod {
+    /// HTTP GET
+    Get,
+    /// HTTP POST
+    Post,
+    /// HTTP PUT
+    Put,
+    /// HTTP DELETE
+    Delete,
+    /// HTTP PATCH
+    Patch,
+    /// HTTP HEAD
+    Head,
+    /// HTTP OPTIONS
+    Options,
+}
+
+/// String name/value pairs used to store values like Apicize headers, query string parameters, etc.
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct WorkbookNameValuePair {
+    /// Name of value
+    pub name: String,
+    /// Value
+    pub value: String,
+    /// If set to true, name/value pair should be ignored when dispatching Apicize Requests
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disabled: Option<bool>,
+}
+
+
+/// Apicize Request body.  
+/// Note: we have to have structs as variants to get serde_as
+/// support for Base64
+#[serde_as]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(tag = "type")]
+pub enum WorkbookRequestBody {
+    /// Text (UTF-8) body data
+    Text {
+        /// Text
+        data: String,
+    },
+    /// JSON body data
+    #[serde(rename = "JSON")]
+    JSON {
+        /// Text
+        data: Value,
+    },
+    /// XML body data
+    #[serde(rename = "XML")]
+    XML {
+        /// Text
+        data: String,
+    },
+    /// Form (not multipart) body data
+    Form {
+        /// Name/value pairs of form data
+        data: Vec<WorkbookNameValuePair>,
+    },
+    /// Binary body data serialized as Base64
+    Raw {
+        /// Base-64 encoded binary data
+        #[serde_as(as = "Base64<Standard, Unpadded>")]
+        data: Vec<u8>,
+    }
+}
+
+/// Specifies persistence options for non-request entities
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Persistence {
+    /// Shared configuration file
+    Global,
+    /// Workbook private information file
+    Private,
+    /// Workbook file
+    Workbook,
+}
+
+/// Information about a selected entity, include both ID and name
+/// to give the maximum chance of finding a match
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Selection {
+    /// ID of selected entity
+    pub id: String,
+    /// Name of selected entity
+    pub name: String,
+}
+
+/// Indicator on workbook child execution order
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum WorkbookExecution {
+    /// Group children execute sequentially
+    Sequential,
+    /// Group children execute concurrently
+    Concurrent
+}
 
 /// Information required to dispatch and test an Apicize Request
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -73,6 +178,9 @@ pub struct WorkbookRequestGroup {
     /// Number of runs for the group to execute
     #[serde(default = "one")]
     pub runs: u32,
+    /// Execution of children
+    #[serde(default = "sequential")]
+    pub execution: WorkbookExecution,
     /// Selected scenario, if applicable
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_scenario: Option<Selection>,

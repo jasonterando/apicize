@@ -3,7 +3,7 @@ import { ReactNode, createContext } from "react"
 import { EditableWorkbookApiKeyAuthorization, EditableWorkbookAuthorization, EditableWorkbookBasicAuthorization, EditableWorkbookOAuth2ClientAuthorization } from "../models/workbook/editable-workbook-authorization"
 import { castEntryAsGroup, castEntryAsRequest, EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request-entry"
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario"
-import { WorkbookBodyData, GetTitle, WorkbookAuthorizationType, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization, WorkbookApiKeyAuthorization, ApicizeResult, StoredGlobalSettings, WorkbookMethod, WorkbookBodyType, Persistence, removeEntity, moveEntity, addNestedEntity, moveNestedEntity, getNestedEntity, getEntity, Workspace, addEntity, removeNestedEntity, findParentEntity, IndexedEntities, Identifiable, Selection, Named, IndexedNestedRequests } from "@apicize/lib-typescript"
+import { WorkbookBodyData, GetTitle, WorkbookAuthorizationType, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization, WorkbookApiKeyAuthorization, ApicizeResult, StoredGlobalSettings, WorkbookMethod, WorkbookBodyType, Persistence, removeEntity, moveEntity, addNestedEntity, moveNestedEntity, getNestedEntity, getEntity, Workspace, addEntity, removeNestedEntity, findParentEntity, IndexedEntities, Identifiable, Selection, Named, IndexedNestedRequests, WorkbookRequestGroup, WorkbookGroupExecution } from "@apicize/lib-typescript"
 import { newStateStorage, stateToGlobalSettingsStorage, stateToWorkspace, workspaceToState } from "../services/apicize-serializer"
 import { WorkbookState, requestActions, navigationActions, authorizationActions, scenarioActions, groupActions, workbookActions, executionActions, ResultType, NavigationType, helpActions, proxyActions, NO_SELECTION, NO_SELECTION_ID, parametersActions, DEFAULT_SELECTION_ID } from "../models/store"
 import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request"
@@ -264,7 +264,8 @@ const storageActions = () => {
                 dispatch(groupActions.initialize({
                     id: group.id,
                     name: group.name ?? '',
-                    runs: group.runs
+                    runs: group.runs,
+                    execution: WorkbookGroupExecution.Sequential,
                 }))
                 dispatch(navigationActions.openEditor({
                     type: NavigationType.Group,
@@ -771,6 +772,13 @@ const storageActions = () => {
             entry.name = value
             dispatch(workbookActions.setDirty(true))
             dispatch(groupActions.setName(value))
+            dispatch(navigationActions.setRequestList(generateRequestNavList()))
+        },
+        setExecution: (id: string, value: WorkbookGroupExecution) => {
+            let entry = stateStorage.requests.entities[id] as WorkbookRequestGroup
+            entry.execution = value
+            dispatch(workbookActions.setDirty(true))
+            dispatch(groupActions.setExecution(value))
             dispatch(navigationActions.setRequestList(generateRequestNavList()))
         },
         setRuns: (id: string, value: number) => {

@@ -994,27 +994,27 @@ impl Workspace {
 
     /// Run the specified request entry recursively
     #[async_recursion]
-    async fn run_int<'a>(
+    async fn run_int(
         workspace: Arc<Workspace>,
         tests_started: SystemTime,
-        request_id: &'a String,
-        variables: &'a HashMap<String, Value>,
-        selected_scenario: &'a Option<Selection>,
-        selected_authorization: &'a Option<Selection>,
-        selected_certificate: &'a Option<Selection>,
-        selected_proxy: &'a Option<Selection>,
-        parent_name: &'a Option<Vec<String>>,
+        request_id: String,
+        variables: Arc<HashMap<String, Value>>,
+        selected_scenario: Arc<Option<Selection>>,
+        selected_authorization: Arc<Option<Selection>>,
+        selected_certificate: Arc<Option<Selection>>,
+        selected_proxy: Arc<Option<Selection>>,
+        parent_name: Arc<Option<Vec<String>>>,
         run: u32,
-        total_runs: &'a u32,
+        total_runs: u32,
     ) -> (Vec<ApicizeResult>, HashMap<String, Value>) {
-        let request = workspace.requests.entities.get(request_id).unwrap();
-        let request_name = if let Some(parent) = parent_name {
+        let request = workspace.requests.entities.get(&request_id).unwrap();
+        let request_name = Arc::new(if let Some(parent) = parent_name.as_ref() {
             let mut cloned = parent.clone();
             cloned.push(request.get_name().clone());
             Some(cloned)
         } else {
             Some(vec![request.get_name().clone()])
-        };
+        });
 
         match request {
             WorkbookRequestEntry::Info(info) => {
@@ -1099,7 +1099,7 @@ impl Workspace {
                                     vec![ApicizeResult {
                                         request_id: info.id.clone(),
                                         run: run.clone(),
-                                        total_runs: total_runs.clone(),
+                                        total_runs,
                                         request: Some(request.clone()),
                                         response: Some(response.clone()),
                                         tests: reported_test_results,
@@ -1121,7 +1121,7 @@ impl Workspace {
                                 vec![ApicizeResult {
                                     request_id: info.id.clone(),
                                     run: run.clone(),
-                                    total_runs: total_runs.clone(),
+                                    total_runs,
                                     request: Some(request.clone()),
                                     response: Some(response.clone()),
                                     tests: None,
@@ -1143,7 +1143,7 @@ impl Workspace {
                         vec![ApicizeResult {
                             request_id: info.id.clone(),
                             run: run.clone(),
-                            total_runs: total_runs.clone(),
+                            total_runs,
                             request: None,
                             response: None,
                             tests: None,
@@ -1164,76 +1164,103 @@ impl Workspace {
 
                 // Set the selections for nested calls
                 let scenario = if group.selected_scenario.is_some() {
-                    &group.selected_scenario
+                    Arc::new(group.selected_scenario.clone())
                 } else {
                     selected_scenario
                 };
                 let authorization = if group.selected_authorization.is_some() {
-                    &group.selected_authorization
+                    Arc::new(group.selected_authorization.clone())
                 } else {
                     selected_authorization
                 };
                 let certificate = if group.selected_certificate.is_some() {
-                    &group.selected_certificate
+                    Arc::new(group.selected_certificate.clone())
                 } else {
                     selected_certificate
                 };
                 let proxy = if group.selected_proxy.is_some() {
-                    &group.selected_proxy
+                    Arc::new(group.selected_proxy.clone())
                 } else {
                     selected_proxy
                 };
 
                 let mut active_vars = variables.clone();
+                let fake = Vec::<String>::new();
+                let group_child_ids = workspace
+                    .requests
+                    .child_ids
+                    .as_ref()
+                    .unwrap()
+                    .get(&group.id)
+                    .unwrap_or(&fake)
+                    .into_iter();
 
-                if let Some(child_ids) = &workspace.requests.child_ids {
-                    if let Some(group_child_ids) = child_ids.get(&group.id) {
-                        let mut group_child_ids_iter = group_child_ids.iter();
+                if group.execution == WorkbookExecution::Concurrent {
+                    let mut runs = JoinSet::new();
 
-                        //     let mut runs = JoinSet::new();
+                    for id in group_child_ids {
+                        let cloned_variables = variables.clone();
+                        let cloned_id = id.clone();
+                        let cloned_workspace = workspace.clone();
+                        let cloned_scenario = scenario.clone();
+                        let cloned_authorization = authorization.clone();
+                        let cloned_certificate = certificate.clone();
+                        let cloned_proxy = proxy.clone();
+                        let cloned_request_name = request_name.clone();
 
-                        //     while let Some(group_child_id) = group_child_ids_iter.next() {
-                        //     runs.spawn(async move {
-                        //             Workspace::run_int(
-                        //                 workspace.clone(),
-                        //                 SystemTime::now(),
-                        //                 group_child_id,
-                        //                 &variables,
-                        //                 &selected_scenario,
-                        //                 &selected_authorization,
-                        //                 &selected_certificate,
-                        //                 &selected_proxy,
-                        //                 &None,
-                        //                 run,
-                        //                 &total_runs
-                        //             )
-                        //         }
-                        //     );
-                        // }
+                        runs.spawn(Workspace::run_int(
+                            cloned_workspace,
+                            SystemTime::now(),
+                            cloned_id,
+                            cloned_variables,
+                            cloned_scenario,
+                            cloned_authorization,
+                            cloned_certificate,
+                            cloned_proxy,
+                            cloned_request_name,
+                            run,
+                            total_runs,
+                        ));
+                    }
 
-                        while let Some(group_child_id) = group_child_ids_iter.next() {
-                            let (group_test_results, group_vars) = Workspace::run_int(
-                                workspace.clone(),
-                                tests_started,
-                                group_child_id,
-                                &active_vars,
-                                &scenario,
-                                &authorization,
-                                &certificate,
-                                &proxy,
-                                &request_name,
-                                run,
-                                total_runs,
-                            )
-                            .await;
-
-                            results.extend(group_test_results);
-                            active_vars = group_vars;
+                    while let Some(result) = runs.join_next().await {
+                        if let Ok(r) = result {
+                            results.extend(r.0);
                         }
+                    }
+                } else {
+                    for id in group_child_ids {
+                        let cloned_variables = active_vars.clone();
+                        let cloned_id = id.clone();
+                        let cloned_workspace = workspace.clone();
+                        let cloned_scenario = scenario.clone();
+                        let cloned_authorization = authorization.clone();
+                        let cloned_certificate = certificate.clone();
+                        let cloned_proxy = proxy.clone();
+                        let cloned_request_name = request_name.clone();
+
+
+                        let (group_test_results, group_vars) = Workspace::run_int(
+                            cloned_workspace,
+                            tests_started,
+                            cloned_id,
+                            cloned_variables,
+                            cloned_scenario,
+                            cloned_authorization,
+                            cloned_certificate,
+                            cloned_proxy,
+                            cloned_request_name,
+                            run,
+                            total_runs,
+                        )
+                        .await;
+
+                        results.extend(group_test_results);
+                        active_vars = Arc::new(group_vars.clone());
                     }
                 }
 
-                return (results, active_vars);
+                return (results, active_vars.as_ref().clone());
             }
         }
     }
@@ -1242,7 +1269,7 @@ impl Workspace {
     pub async fn run(
         workspace: Arc<Workspace>,
         request_id: &String,
-        cancellation: Option<CancellationToken>,
+        cancellation_token: Option<CancellationToken>,
     ) -> Result<ApicizeResultRuns, RunError> {
         let request_entry: &WorkbookRequestEntry;
         match workspace.requests.entities.get(request_id) {
@@ -1253,6 +1280,11 @@ impl Workspace {
                 )));
             }
         }
+
+        let cancellation = match cancellation_token {
+            Some(t) => t,
+            None => CancellationToken::new(),
+        };
 
         // Ensure V8 is initialized
         V8_INIT.call_once(|| {
@@ -1270,25 +1302,21 @@ impl Workspace {
 
         let mut runs: JoinSet<Option<(Vec<ApicizeResult>, HashMap<String, Value>)>> =
             JoinSet::new();
-        let token = match cancellation {
-            Some(cancellation_token) => cancellation_token,
-            None => CancellationToken::new(),
-        };
 
         let mut results: Vec<ApicizeResult> = Vec::new();
         for run in 0..total_runs {
             // All of this cloning kind of sucks, but it's required to make spawn work,
             // need to figure out if Arc<Box> is a solution...
-            let cloned_token = token.clone();
             let cloned_request_id = request_id.clone();
             let cloned_workspace = workspace.clone();
 
-            let selected_scenario: Option<Selection> = selected_scenario.clone();
-            let selected_authorization = selected_authorization.clone();
-            let selected_certificate = selected_certificate.clone();
-            let selected_proxy = selected_proxy.clone();
+            let cloned_token = cancellation.clone();
+            let cloned_scenario = Arc::new(selected_scenario.clone());
+            let cloned_authorization = Arc::new(selected_authorization.clone());
+            let cloned_certificate = Arc::new(selected_certificate.clone());
+            let cloned_proxy = Arc::new(selected_proxy.clone());
 
-            let variables = if let Some(selection) = &selected_scenario {
+            let cloned_variables = Arc::new(if let Some(selection) = &selected_scenario {
                 if let Some(scenario) = workspace.find_scenario(&selection) {
                     if let Some(variables) = &scenario.variables {
                         HashMap::from_iter(
@@ -1304,24 +1332,25 @@ impl Workspace {
                 }
             } else {
                 HashMap::new()
-            };
+            });
 
-            // xxx
+            let no_name = Arc::new(None);
+
             runs.spawn(async move {
                 select! {
                     _ = cloned_token.cancelled() => None,
                     result = Workspace::run_int(
                         cloned_workspace,
                         SystemTime::now(),
-                        &cloned_request_id,
-                        &variables,
-                        &selected_scenario,
-                        &selected_authorization,
-                        &selected_certificate,
-                        &selected_proxy,
-                        &None,
+                        cloned_request_id,
+                        cloned_variables,
+                        cloned_scenario,
+                        cloned_authorization,
+                        cloned_certificate,
+                        cloned_proxy,
+                        no_name,
                         run,
-                        &total_runs,
+                        total_runs,
                     ) => {
                         Some(result)
                     }

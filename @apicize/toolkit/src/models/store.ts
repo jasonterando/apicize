@@ -7,6 +7,7 @@ import {
   WorkbookMethod,
   WorkbookAuthorizationType,
   WorkbookCertificateType,
+  WorkbookGroupExecution,
 } from '@apicize/lib-typescript'
 import { IndexedText } from './workbook/workbook-execution'
 import { EditableNameValuePair } from './workbook/editable-name-value-pair'
@@ -263,22 +264,28 @@ const groupSlice = createSlice({
     id: '' as string | null,
     name: '',
     runs: 1,
+    execution: WorkbookGroupExecution.Sequential
   },
   reducers: {
     initialize: (state, action: PayloadAction<{
       id: string,
       name: string,
       runs: number,
+      execution: WorkbookGroupExecution,
     }>) => {
       state.id = action.payload.id
       state.name = action.payload.name
       state.runs = action.payload.runs
+      state.execution = action.payload.execution
     },
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
     },
     setRuns: (state, action: PayloadAction<number>) => {
       state.runs = action.payload
+    },
+    setExecution: (state, action: PayloadAction<WorkbookGroupExecution>) => {
+      state.execution = action.payload
     }
   }
 })
