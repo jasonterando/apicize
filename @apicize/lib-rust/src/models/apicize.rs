@@ -115,4 +115,11 @@ pub struct ApicizeResult {
 }
 
 /// List of Apicize Result runs
-pub type ApicizeResultRuns = Vec<Vec<ApicizeResult>>;
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ApicizeExecutionResults {
+    /// All test runs
+    pub runs: Vec<Vec<ApicizeResult>>,
+    /// Duration of all tests in milliseconds
+    pub milliseconds: u128,
+}

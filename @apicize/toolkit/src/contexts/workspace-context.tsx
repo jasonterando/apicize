@@ -3,9 +3,9 @@ import { ReactNode, createContext } from "react"
 import { EditableWorkbookApiKeyAuthorization, EditableWorkbookAuthorization, EditableWorkbookBasicAuthorization, EditableWorkbookOAuth2ClientAuthorization } from "../models/workbook/editable-workbook-authorization"
 import { castEntryAsGroup, castEntryAsRequest, EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request-entry"
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario"
-import { WorkbookBodyData, GetTitle, WorkbookAuthorizationType, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization, WorkbookApiKeyAuthorization, ApicizeResult, StoredGlobalSettings, WorkbookMethod, WorkbookBodyType, Persistence, removeEntity, moveEntity, addNestedEntity, moveNestedEntity, getNestedEntity, getEntity, Workspace, addEntity, removeNestedEntity, findParentEntity, IndexedEntities, Identifiable, Selection, Named, IndexedNestedRequests, WorkbookRequestGroup, WorkbookGroupExecution } from "@apicize/lib-typescript"
+import { WorkbookBodyData, GetTitle, WorkbookAuthorizationType, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization, WorkbookApiKeyAuthorization, StoredGlobalSettings, WorkbookMethod, WorkbookBodyType, Persistence, removeEntity, moveEntity, addNestedEntity, moveNestedEntity, getNestedEntity, getEntity, Workspace, addEntity, removeNestedEntity, findParentEntity, IndexedEntities, Identifiable, Selection, Named, WorkbookRequestGroup, WorkbookGroupExecution, ApicizeExecutionResults, WorkbookCertificateType, WorkbookPkcs12Certificate, WorkbookPkcs8Certificate } from "@apicize/lib-typescript"
 import { newStateStorage, stateToGlobalSettingsStorage, stateToWorkspace, workspaceToState } from "../services/apicize-serializer"
-import { WorkbookState, requestActions, navigationActions, authorizationActions, scenarioActions, groupActions, workbookActions, executionActions, ResultType, NavigationType, helpActions, proxyActions, NO_SELECTION, NO_SELECTION_ID, parametersActions, DEFAULT_SELECTION_ID } from "../models/store"
+import { WorkbookState, requestActions, navigationActions, authorizationActions, scenarioActions, groupActions, workbookActions, executionActions, ResultType, NavigationType, helpActions, proxyActions, NO_SELECTION, NO_SELECTION_ID, parametersActions, DEFAULT_SELECTION_ID, certificateActions } from "../models/store"
 import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request"
 import { GenerateIdentifier } from "../services/random-identifier-generator"
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair"
@@ -16,16 +16,14 @@ import { NavigationListItem } from "../models/navigation-list-item"
 import { ExecutionSummaryInfo } from "../models/workbook/execution-summary-info"
 import { MAX_TEXT_RENDER_LENGTH } from "../controls/viewers/text-viewer"
 import { EditableWorkbookProxy } from "../models/workbook/editable-workbook-proxy"
-import { EditableWorkbookCertificate } from "../models/workbook/editable-workbook-certificate"
 import { EntitySelection } from "../models/workbook/entity-selection"
-import { request } from "http"
-import { WorkbookRequestEntry } from "@apicize/lib-typescript/dist/models/workbook/workbook-request-entry"
+import { EditableWorkbookCertificate } from "../models/workbook/editable-workbook-certificate"
 
 let stateStorage = newStateStorage()
 
 let requestExecutions = new Map<string, WorkbookExecution>()
 
-const storageActions = () => {
+const StorageActions = () => {
 
     const dispatch = useDispatch()
 
@@ -79,16 +77,22 @@ const storageActions = () => {
         return stateStorage.requests.topLevelIds.map(id => mapItem(id))
     }
 
+    // Generate scenario navigation list
+    const generateScenarioNavList = () =>
+        stateStorage.scenarios.topLevelIds.map(id => (
+            { id, name: GetTitle(stateStorage.scenarios.entities[id]), type: 'scenario' }
+        ))
+
     // Generate authorization navigation list
     const generateAuthorizationNavList = () =>
         stateStorage.authorizations.topLevelIds.map(id => (
             { id, name: GetTitle(stateStorage.authorizations.entities[id]), type: 'auth' }
         ))
 
-    // Generate scenario navigation list
-    const generateScenarioNavList = () =>
-        stateStorage.scenarios.topLevelIds.map(id => (
-            { id, name: GetTitle(stateStorage.scenarios.entities[id]), type: 'scenario' }
+    // Generate certificate navigation list
+    const generateCertificateNavList = () =>
+        stateStorage.certificates.topLevelIds.map(id => (
+            { id, name: GetTitle(stateStorage.certificates.entities[id]), type: 'cert' }
         ))
 
     // Generate proxy navigation list
@@ -265,7 +269,7 @@ const storageActions = () => {
                     id: group.id,
                     name: group.name ?? '',
                     runs: group.runs,
-                    execution: WorkbookGroupExecution.Sequential,
+                    execution: group.execution,
                 }))
                 dispatch(navigationActions.openEditor({
                     type: NavigationType.Group,
@@ -281,6 +285,35 @@ const storageActions = () => {
             activateExecution(id, execution)
         } else {
             activateExecution(null, null)
+        }
+    }
+
+    // Copy scenario state for editing
+    const activateScenario = (id: string | null) => {
+        let scenario
+        if (id) {
+            scenario = stateStorage.scenarios.entities[id]
+            if (!scenario) throw new Error(`Invalid ID ${id}`)
+        } else {
+            scenario = null
+        }
+
+        if (scenario) {
+            dispatch(helpActions.hideHelp())
+            dispatch(helpActions.setNextHelpTopic('scenarios'))
+            dispatch(scenarioActions.initialize({
+                id: scenario.id,
+                name: scenario.name ?? '',
+                persistence: scenario.persistence,
+                variables: scenario.variables
+            }))
+            dispatch(navigationActions.openEditor({
+                type: NavigationType.Scenario,
+                id: scenario.id
+            }))
+
+        } else {
+            dispatch(navigationActions.closeEditor())
         }
     }
 
@@ -320,28 +353,32 @@ const storageActions = () => {
         }
     }
 
-    // Copy scenario state for editing
-    const activateScenario = (id: string | null) => {
-        let scenario
+    // Copy certificate state for editing
+    const activateCertificate = (id: string | null) => {
+        let certificate
         if (id) {
-            scenario = stateStorage.scenarios.entities[id]
-            if (!scenario) throw new Error(`Invalid ID ${id}`)
+            certificate = stateStorage.certificates.entities[id]
+            if (!certificate) throw new Error(`Invalid ID ${id}`)
         } else {
-            scenario = null
+            certificate = null
         }
 
-        if (scenario) {
+        if (certificate) {
             dispatch(helpActions.hideHelp())
             dispatch(helpActions.setNextHelpTopic('scenarios'))
-            dispatch(scenarioActions.initialize({
-                id: scenario.id,
-                name: scenario.name ?? '',
-                persistence: scenario.persistence,
-                variables: scenario.variables
+            dispatch(certificateActions.initialize({
+                id: certificate.id,
+                name: certificate.name ?? '',
+                persistence: certificate.persistence,
+                type: certificate.type,
+                der: (certificate as WorkbookPkcs12Certificate)?.der,
+                password: (certificate as WorkbookPkcs12Certificate)?.password,
+                pem: (certificate as WorkbookPkcs8Certificate)?.pem,
+                key: (certificate as WorkbookPkcs8Certificate)?.key,
             }))
             dispatch(navigationActions.openEditor({
-                type: NavigationType.Scenario,
-                id: scenario.id
+                type: NavigationType.Certificate,
+                id: certificate.id
             }))
 
         } else {
@@ -424,6 +461,7 @@ const storageActions = () => {
                 runList: execution.runList,
                 resultIndex: execution.resultIndex,
                 resultLists: execution.resultLists,
+                milliseconds: execution.milliseconds,
             }))
             dispatch(navigationActions.openExecution(id))
         } else {
@@ -808,6 +846,79 @@ const storageActions = () => {
         }
     }
 
+
+    // Actions for updating scenario data and state
+    const scenarioContextActions = {
+        add: (targetID?: string | null) => {
+            const id = GenerateIdentifier()
+            const scenario = {
+                id,
+                name: '',
+                variables: [] as EditableNameValuePair[]
+            } as EditableWorkbookScenario
+
+            stateStorage.scenarios.entities[scenario.id] = scenario
+            addEntity(scenario, stateStorage.scenarios, targetID)
+            activateScenario(id)
+            dispatch(workbookActions.setDirty(true))
+            dispatch(navigationActions.setScenarioList(generateScenarioNavList()))
+        },
+        delete: (id: string) => {
+            for (const entity of Object.values(stateStorage.requests.entities)) {
+                if (entity.selectedScenario?.id === id) {
+                    entity.selectedScenario = undefined
+                }
+            }
+            removeEntity(id, stateStorage.scenarios)
+            activateScenario(null)
+            activateRequestOrGroup(null)
+            dispatch(workbookActions.setDirty(true))
+            dispatch(navigationActions.setScenarioList(generateScenarioNavList()))
+        },
+        move: (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
+            moveEntity<EditableWorkbookScenario>(id, destinationID, onLowerHalf, onLeft, stateStorage.scenarios)
+            dispatch(workbookActions.setDirty(true))
+            dispatch(navigationActions.setScenarioList(generateScenarioNavList()))
+            // if (selectedScenario !== NO_SELECTION) {
+            //     activateScenario(id)
+            // }
+        },
+        copy: (id: string) => {
+            const source = getEntity(id, stateStorage.scenarios)
+            const scenario = structuredClone(source)
+            scenario.id = GenerateIdentifier()
+            scenario.name = `${GetTitle(source)} - Copy`
+            scenario.dirty = true
+            const idx = stateStorage.scenarios.topLevelIds.findIndex(id => id === source.id)
+            if (idx === -1) {
+                stateStorage.scenarios.topLevelIds.push(scenario.id)
+            } else {
+                stateStorage.scenarios.topLevelIds.splice(idx + 1, 0, scenario.id)
+            }
+            stateStorage.scenarios.entities[scenario.id] = scenario
+            dispatch(workbookActions.setDirty(true))
+            dispatch(navigationActions.setScenarioList(generateScenarioNavList()))
+            activateScenario(scenario.id)
+        },
+        setName: (id: string, value: string) => {
+            let entry = stateStorage.scenarios.entities[id]
+            entry.name = value
+            dispatch(scenarioActions.setName(value))
+            dispatch(navigationActions.setScenarioList(generateScenarioNavList()))
+        },
+        setPersistence: (id: string, value: Persistence) => {
+            let entry = stateStorage.scenarios.entities[id]
+            entry.persistence = value
+            dispatch(scenarioActions.setPersistence(value))
+        },
+        setVariables: (id: string, value: EditableNameValuePair[] | undefined) => {
+            let entry = stateStorage.scenarios.entities[id]
+            entry.variables = value
+            dispatch(scenarioActions.setVariables(value))
+            dispatch(navigationActions.setScenarioList(generateScenarioNavList()))
+        }
+    }
+
     // Actions for updating authorization data and state
     const authorizationContextActions = {
         add: (targetID?: string | null) => {
@@ -838,6 +949,11 @@ const storageActions = () => {
             dispatch(navigationActions.setAuthorizationList(generateAuthorizationNavList()))
         },
         delete: (id: string) => {
+            for (const entity of Object.values(stateStorage.requests.entities)) {
+                if (entity.selectedAuthorization?.id === id) {
+                    entity.selectedAuthorization = undefined
+                }
+            }
             removeEntity(id, stateStorage.authorizations)
             activateAuthorization(null)
             dispatch(workbookActions.setDirty(true))
@@ -926,71 +1042,99 @@ const storageActions = () => {
         },
     }
 
-    // Actions for updating scenario data and state
-    const scenarioContextActions = {
+    // Actions for updating certificate data and state
+    const certificateContextActions = {
         add: (targetID?: string | null) => {
             const id = GenerateIdentifier()
-            const scenario = {
+            const certificate = {
                 id,
                 name: '',
-                variables: [] as EditableNameValuePair[]
-            } as EditableWorkbookScenario
+                persistence: Persistence.Private,
+                type: WorkbookCertificateType.PKCS8,
+                pem: '',
+                key: '',
+            } as EditableWorkbookCertificate
 
-            stateStorage.scenarios.entities[scenario.id] = scenario
-            addEntity(scenario, stateStorage.scenarios, targetID)
-            activateScenario(id)
+            stateStorage.certificates.entities[certificate.id] = certificate
+            addEntity(certificate, stateStorage.certificates, targetID)
+            activateCertificate(id)
             dispatch(workbookActions.setDirty(true))
-            dispatch(navigationActions.setScenariosList(generateScenarioNavList()))
+            dispatch(navigationActions.setCertificateList(generateScenarioNavList()))
         },
         delete: (id: string) => {
-            removeEntity(id, stateStorage.scenarios)
-            activateScenario(null)
+            for (const entity of Object.values(stateStorage.requests.entities)) {
+                if (entity.selectedCertificate?.id === id) {
+                    entity.selectedCertificate = undefined
+                }
+            }
+            removeEntity(id, stateStorage.certificates)
+            activateCertificate(null)
             activateRequestOrGroup(null)
             dispatch(workbookActions.setDirty(true))
-            dispatch(navigationActions.setScenariosList(generateScenarioNavList()))
+            dispatch(navigationActions.setCertificateList(generateScenarioNavList()))
         },
         move: (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
-            moveEntity<EditableWorkbookScenario>(id, destinationID, onLowerHalf, onLeft, stateStorage.scenarios)
+            moveEntity<EditableWorkbookCertificate>(id, destinationID, onLowerHalf, onLeft, stateStorage.certificates)
             dispatch(workbookActions.setDirty(true))
-            dispatch(navigationActions.setScenariosList(generateScenarioNavList()))
+            dispatch(navigationActions.setCertificateList(generateScenarioNavList()))
             // if (selectedScenario !== NO_SELECTION) {
             //     activateScenario(id)
             // }
         },
         copy: (id: string) => {
-            const source = getEntity(id, stateStorage.scenarios)
-            const scenario = structuredClone(source)
-            scenario.id = GenerateIdentifier()
-            scenario.name = `${GetTitle(source)} - Copy`
-            scenario.dirty = true
-            const idx = stateStorage.scenarios.topLevelIds.findIndex(id => id === source.id)
+            const source = getEntity(id, stateStorage.certificates)
+            const certificate = structuredClone(source)
+            certificate.id = GenerateIdentifier()
+            certificate.name = `${GetTitle(source)} - Copy`
+            certificate.dirty = true
+            const idx = stateStorage.certificates.topLevelIds.findIndex(id => id === source.id)
             if (idx === -1) {
-                stateStorage.scenarios.topLevelIds.push(scenario.id)
+                stateStorage.certificates.topLevelIds.push(certificate.id)
             } else {
-                stateStorage.scenarios.topLevelIds.splice(idx + 1, 0, scenario.id)
+                stateStorage.certificates.topLevelIds.splice(idx + 1, 0, certificate.id)
             }
-            stateStorage.scenarios.entities[scenario.id] = scenario
+            stateStorage.certificates.entities[certificate.id] = certificate
             dispatch(workbookActions.setDirty(true))
-            dispatch(navigationActions.setScenariosList(generateScenarioNavList()))
-            activateAuthorization(scenario.id)
+            dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
+            activateCertificate(certificate.id)
         },
         setName: (id: string, value: string) => {
-            let entry = stateStorage.scenarios.entities[id]
+            let entry = stateStorage.certificates.entities[id]
             entry.name = value
-            dispatch(scenarioActions.setName(value))
-            dispatch(navigationActions.setScenariosList(generateScenarioNavList()))
+            dispatch(certificateActions.setName(value))
+            dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
         },
         setPersistence: (id: string, value: Persistence) => {
-            let entry = stateStorage.scenarios.entities[id]
+            let entry = stateStorage.certificates.entities[id]
             entry.persistence = value
-            dispatch(scenarioActions.setPersistence(value))
+            dispatch(certificateActions.setPersistence(value))
         },
-        setVariables: (id: string, value: EditableNameValuePair[] | undefined) => {
-            let entry = stateStorage.scenarios.entities[id]
-            entry.variables = value
-            dispatch(scenarioActions.setVariables(value))
-            dispatch(navigationActions.setScenariosList(generateScenarioNavList()))
-        }
+        setType: (id: string, value: WorkbookCertificateType) => {
+            let entry = stateStorage.certificates.entities[id]
+            entry.name = value
+            dispatch(certificateActions.setType(value))
+            dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
+        },
+        setPem: (id: string, value: string) => {
+            let entry = stateStorage.certificates.entities[id] as WorkbookPkcs8Certificate
+            entry.pem = value
+            dispatch(certificateActions.setPem(value))
+        },
+        setKey: (id: string, value: string | undefined) => {
+            let entry = stateStorage.certificates.entities[id] as WorkbookPkcs8Certificate
+            entry.key = value
+            dispatch(certificateActions.setKey(value))
+        },
+        setDer: (id: string, value: any) => {
+            let entry = stateStorage.certificates.entities[id] as WorkbookPkcs12Certificate
+            entry.der = value
+            dispatch(certificateActions.setDer(value))
+        },
+        setPassword: (id: string, value: string) => {
+            let entry = stateStorage.certificates.entities[id] as WorkbookPkcs12Certificate
+            entry.password = value
+            dispatch(certificateActions.setPassword(value))
+        },
     }
 
     // Actions for updating proxy data and state
@@ -1012,6 +1156,11 @@ const storageActions = () => {
             dispatch(navigationActions.setProxiesList(generateProxyNavList()))
         },
         delete: (id: string) => {
+            for (const entity of Object.values(stateStorage.requests.entities)) {
+                if (entity.selectedProxy?.id === id) {
+                    entity.selectedProxy = undefined
+                }
+            }
             removeEntity(id, stateStorage.proxies)
             activateProxy(null)
             activateRequestOrGroup(null)
@@ -1065,8 +1214,9 @@ const storageActions = () => {
     const workspaceContextActions = {
         clearAllActivations,
         activateRequestOrGroup,
-        activateAuthorization,
         activateScenario,
+        activateAuthorization,
+        activateCertificate,
         activateProxy
     }
 
@@ -1098,7 +1248,7 @@ const storageActions = () => {
                 id,
             }))
         },
-        runComplete: (id: string, results: ApicizeResult[][] | undefined) => {
+        runComplete: (id: string, results: ApicizeExecutionResults | undefined) => {
             const execution = requestExecutions.get(id)
             if (!execution) throw new Error(`Invalid ID ${id}`)
 
@@ -1107,7 +1257,7 @@ const storageActions = () => {
             execution.resultLists = []
             if (results) {
                 // Stop the executions
-                const workbookResults = ApicizeRunResultsToWorkbookExecutionResults(results, stateStorage.requests.entities)
+                const workbookResults = ApicizeRunResultsToWorkbookExecutionResults(results.runs, stateStorage.requests.entities)
                 for (let runIndex = 0; runIndex < workbookResults.length; runIndex++) {
                     execution.runList.push({ index: runIndex, text: `Run ${runIndex + 1} of ${workbookResults.length}` })
                     const runResults = workbookResults[runIndex]
@@ -1121,6 +1271,7 @@ const storageActions = () => {
                 execution.results = workbookResults
                 execution.runIndex = workbookResults.length > 0 ? 0 : undefined
                 execution.resultIndex = workbookResults.length > 0 && workbookResults[0].length > 0 ? -1 : undefined
+                execution.milliseconds = results.milliseconds
                 activateExecution(id, execution)
             }
         },
@@ -1192,8 +1343,9 @@ const storageActions = () => {
     return {
         request: requestContextActions,
         group: groupContextActions,
-        authorization: authorizationContextActions,
         scenario: scenarioContextActions,
+        authorization: authorizationContextActions,
+        certificate: certificateContextActions,
         proxy: proxyContextActions,
         workbook: workspaceContextActions,
         execution: executionContextActions,
@@ -1258,11 +1410,11 @@ const storageActions = () => {
     }
 }
 
-export const WorkspaceContext = createContext({} as ReturnType<typeof storageActions>)
+export const WorkspaceContext = createContext({} as ReturnType<typeof StorageActions>)
 
 export function WorkspaceProvider({ children }: { children?: ReactNode }) {
     return (
-        <WorkspaceContext.Provider value={storageActions()}>
+        <WorkspaceContext.Provider value={StorageActions()}>
             {children}
         </WorkspaceContext.Provider>
     )

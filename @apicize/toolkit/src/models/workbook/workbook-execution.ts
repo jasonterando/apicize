@@ -41,6 +41,7 @@ export interface WorkbookExecution {
      resultIndex?: number
      resultLists?: IndexedText[][]
      results?: WorkbookExecutionResult[][]
+     milliseconds?: number
 }
 
 export function ApicizeRunResultsToWorkbookExecutionResults(runs: ApicizeResult[][], requests: { [id: string]: EditableWorkbookRequestEntry }) {

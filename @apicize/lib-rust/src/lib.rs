@@ -10,8 +10,7 @@ pub mod models;
 pub mod oauth2_client_tokens;
 
 use apicize::{
-    ApicizeBody, ApicizeRequest, ApicizeResponse, ApicizeResult, ApicizeResultRuns,
-    ApicizeTestResponse,
+    ApicizeBody, ApicizeExecutionResults, ApicizeRequest, ApicizeResponse, ApicizeResult, ApicizeTestResponse
 };
 use async_recursion::async_recursion;
 use dirs::{config_dir, document_dir};
@@ -21,7 +20,7 @@ use reqwest::{Body, Client, Proxy};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 use std::{collections::HashMap, path, vec};
 use tokio::select;
 use tokio::task::JoinSet;
@@ -198,25 +197,33 @@ impl Parameters {
             None
         } else {
             any = true;
-            Some(scenarios.clone())
+            let mut cloned = scenarios.clone();
+            cloned.iter_mut().for_each(|e| e.clear_persistence());
+            Some(cloned)
         };
         let save_authorizations = if authorizations.is_empty() {
             None
         } else {
             any = true;
-            Some(authorizations.clone())
+            let mut cloned = authorizations.clone();
+            cloned.iter_mut().for_each(|e| e.clear_persistence());
+            Some(cloned)
         };
         let save_certiificates = if certificates.is_empty() {
             None
         } else {
             any = true;
-            Some(certificates.clone())
+            let mut cloned = certificates.clone();
+            cloned.iter_mut().for_each(|e| e.clear_persistence());
+            Some(cloned)
         };
         let save_proxies = if proxies.is_empty() {
             None
         } else {
             any = true;
-            Some(proxies.clone())
+            let mut cloned = proxies.clone();
+            cloned.iter_mut().for_each(|e| e.clear_persistence());
+            Some(cloned)
         };
 
         if any {
@@ -996,7 +1003,7 @@ impl Workspace {
     #[async_recursion]
     async fn run_int(
         workspace: Arc<Workspace>,
-        tests_started: SystemTime,
+        tests_started: Arc<Instant>,
         request_id: String,
         variables: Arc<HashMap<String, Value>>,
         selected_scenario: Arc<Option<Selection>>,
@@ -1018,7 +1025,7 @@ impl Workspace {
 
         match request {
             WorkbookRequestEntry::Info(info) => {
-                let now = SystemTime::now();
+                let now = Instant::now();
 
                 let mut scenario: Option<&WorkbookScenario> = None;
                 let mut authorization: Option<&WorkbookAuthorization> = None;
@@ -1095,6 +1102,7 @@ impl Workspace {
                                         }
                                         None => (None, HashMap::new()),
                                     };
+
                                 let test_result = (
                                     vec![ApicizeResult {
                                         request_id: info.id.clone(),
@@ -1103,11 +1111,8 @@ impl Workspace {
                                         request: Some(request.clone()),
                                         response: Some(response.clone()),
                                         tests: reported_test_results,
-                                        executed_at: now
-                                            .duration_since(tests_started)
-                                            .unwrap()
-                                            .as_millis(),
-                                        milliseconds: now.elapsed().unwrap().as_millis(),
+                                        executed_at: tests_started.elapsed().as_millis(),
+                                        milliseconds: now.elapsed().as_millis(),
                                         success: true,
                                         test_count: Some(test_count),
                                         failed_test_count: Some(failed_test_count),
@@ -1125,11 +1130,8 @@ impl Workspace {
                                     request: Some(request.clone()),
                                     response: Some(response.clone()),
                                     tests: None,
-                                    executed_at: now
-                                        .duration_since(tests_started)
-                                        .unwrap()
-                                        .as_millis(),
-                                    milliseconds: now.elapsed().unwrap().as_millis(),
+                                    executed_at: tests_started.elapsed().as_millis(),
+                                    milliseconds: now.elapsed().as_millis(),
                                     success: false,
                                     test_count: None,
                                     failed_test_count: None,
@@ -1147,8 +1149,8 @@ impl Workspace {
                             request: None,
                             response: None,
                             tests: None,
-                            executed_at: now.duration_since(tests_started).unwrap().as_millis(),
-                            milliseconds: now.elapsed().unwrap().as_millis(),
+                            executed_at: tests_started.elapsed().as_millis(),
+                            milliseconds: now.elapsed().as_millis(),
                             success: false,
                             test_count: None,
                             failed_test_count: None,
@@ -1199,9 +1201,10 @@ impl Workspace {
                     let mut runs = JoinSet::new();
 
                     for id in group_child_ids {
-                        let cloned_variables = variables.clone();
-                        let cloned_id = id.clone();
                         let cloned_workspace = workspace.clone();
+                        let cloned_started = tests_started.clone();
+                        let cloned_id = id.clone();
+                        let cloned_variables = variables.clone();
                         let cloned_scenario = scenario.clone();
                         let cloned_authorization = authorization.clone();
                         let cloned_certificate = certificate.clone();
@@ -1210,7 +1213,7 @@ impl Workspace {
 
                         runs.spawn(Workspace::run_int(
                             cloned_workspace,
-                            SystemTime::now(),
+                            cloned_started,
                             cloned_id,
                             cloned_variables,
                             cloned_scenario,
@@ -1230,9 +1233,10 @@ impl Workspace {
                     }
                 } else {
                     for id in group_child_ids {
-                        let cloned_variables = active_vars.clone();
-                        let cloned_id = id.clone();
                         let cloned_workspace = workspace.clone();
+                        let cloned_started = tests_started.clone();
+                        let cloned_id = id.clone();
+                        let cloned_variables = active_vars.clone();
                         let cloned_scenario = scenario.clone();
                         let cloned_authorization = authorization.clone();
                         let cloned_certificate = certificate.clone();
@@ -1242,7 +1246,7 @@ impl Workspace {
 
                         let (group_test_results, group_vars) = Workspace::run_int(
                             cloned_workspace,
-                            tests_started,
+                            cloned_started,
                             cloned_id,
                             cloned_variables,
                             cloned_scenario,
@@ -1270,7 +1274,7 @@ impl Workspace {
         workspace: Arc<Workspace>,
         request_id: &String,
         cancellation_token: Option<CancellationToken>,
-    ) -> Result<ApicizeResultRuns, RunError> {
+    ) -> Result<ApicizeExecutionResults, RunError> {
         let request_entry: &WorkbookRequestEntry;
         match workspace.requests.entities.get(request_id) {
             Some(entry) => request_entry = entry,
@@ -1303,10 +1307,12 @@ impl Workspace {
         let mut runs: JoinSet<Option<(Vec<ApicizeResult>, HashMap<String, Value>)>> =
             JoinSet::new();
 
+        let tests_started = Instant::now();
+        let arc_tests_started = Arc::new(tests_started);
+
         let mut results: Vec<ApicizeResult> = Vec::new();
         for run in 0..total_runs {
-            // All of this cloning kind of sucks, but it's required to make spawn work,
-            // need to figure out if Arc<Box> is a solution...
+            let cloned_tests_started = arc_tests_started.clone();
             let cloned_request_id = request_id.clone();
             let cloned_workspace = workspace.clone();
 
@@ -1341,7 +1347,7 @@ impl Workspace {
                     _ = cloned_token.cancelled() => None,
                     result = Workspace::run_int(
                         cloned_workspace,
-                        SystemTime::now(),
+                        cloned_tests_started,
                         cloned_request_id,
                         cloned_variables,
                         cloned_scenario,
@@ -1379,7 +1385,7 @@ impl Workspace {
         match caught {
             Some(caught_error) => Err(caught_error),
             None => {
-                let mut results_by_run: ApicizeResultRuns =
+                let mut results_by_run: Vec<Vec<ApicizeResult>> =
                     vec![vec![]; usize::try_from(total_runs).unwrap()];
 
                 results.sort_by(|a, b| {
@@ -1394,7 +1400,10 @@ impl Workspace {
                     results_by_run[usize::try_from(r.run).unwrap()].push(r);
                 });
 
-                Ok(results_by_run)
+                Ok(ApicizeExecutionResults {
+                    runs: results_by_run,
+                    milliseconds: tests_started.elapsed().as_millis()
+                })
             }
         }
     }

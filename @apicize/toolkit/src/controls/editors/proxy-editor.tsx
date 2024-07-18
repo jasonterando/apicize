@@ -40,7 +40,6 @@ export function ProxyEditor() {
         proxy.setPersistence(activeID, persistence)
     }
 
-
     return (
         <Stack direction={'column'} className='editor-panel-no-toolbar'>
             <EditorTitle icon={<AirlineStopsIcon />} name={name?.length ?? 0 > 0 ? name : '(Unnamed)'} />

@@ -30,8 +30,9 @@ export enum NavigationType {
   None,
   Request,
   Group,
-  Authorization,
   Scenario,
+  Authorization,
+  Certificate,  
   Proxy,
 }
 
@@ -42,8 +43,9 @@ const navigationSlice = createSlice({
     activeID: null as string | null,
     activeExecutionID: null as string | null,
     requestList: [] as NavigationListItem[],
-    authorizationList: [] as NavigationListItem[],
     scenarioList: [] as NavigationListItem[],
+    authorizationList: [] as NavigationListItem[],
+    certificateList: [] as NavigationListItem[],
     proxyList: [] as NavigationListItem[],
     showNavigation: false,
     appName: '',
@@ -83,11 +85,14 @@ const navigationSlice = createSlice({
     setRequestList: (state, action: PayloadAction<NavigationListItem[]>) => {
       state.requestList = action.payload
     },
+    setScenarioList: (state, action: PayloadAction<NavigationListItem[]>) => {
+      state.scenarioList = action.payload
+    },
     setAuthorizationList: (state, action: PayloadAction<NavigationListItem[]>) => {
       state.authorizationList = action.payload
     },
-    setScenariosList: (state, action: PayloadAction<NavigationListItem[]>) => {
-      state.scenarioList = action.payload
+    setCertificateList: (state, action: PayloadAction<NavigationListItem[]>) => {
+      state.certificateList = action.payload
     },
     setProxiesList: (state, action: PayloadAction<NavigationListItem[]>) => {
       state.proxyList = action.payload
@@ -409,10 +414,10 @@ const certificateSlice = createSlice({
     name: '',
     persistence: Persistence.Private,
     type: WorkbookCertificateType.None,
-    der: undefined as any | undefined,
-    password: undefined as string | undefined,
     pem: undefined as string | undefined,
     key: undefined as string | undefined,
+    der: undefined as any | undefined,
+    password: undefined as string | undefined,
   },
   reducers: {
     initialize: (state, action: PayloadAction<{
@@ -420,19 +425,19 @@ const certificateSlice = createSlice({
       name: string,
       persistence: Persistence,
       type: WorkbookCertificateType,
-      der: any | undefined,
-      password: string | undefined,
       pem: string | undefined,
       key: string | undefined,
+      der: any | undefined,
+      password: string | undefined,
     }>) => {
       state.id = action.payload.id
       state.name = action.payload.name
-      state.persistence = action.payload.persistence,
-        state.type = action.payload.type
-      state.der = action.payload.der
-      state.password = action.payload.password
+      state.persistence = action.payload.persistence
+      state.type = action.payload.type
       state.pem = action.payload.pem
       state.key = action.payload.key
+      state.der = action.payload.der
+      state.password = action.payload.password
     },
     setName: (state, action: PayloadAction<string>) => {
       state.name = action.payload
@@ -443,17 +448,17 @@ const certificateSlice = createSlice({
     setType: (state, action: PayloadAction<WorkbookCertificateType>) => {
       state.type = action.payload
     },
-    setDer: (state, action: PayloadAction<string>) => {
-      state.der = action.payload
-    },
-    setPassword: (state, action: PayloadAction<string>) => {
-      state.password = action.payload
-    },
     setPem: (state, action: PayloadAction<string>) => {
       state.pem = action.payload
     },
     setKey: (state, action: PayloadAction<string | undefined>) => {
       state.key = action.payload
+    },
+    setDer: (state, action: PayloadAction<string>) => {
+      state.der = action.payload
+    },
+    setPassword: (state, action: PayloadAction<string>) => {
+      state.password = action.payload
     },
   }
 })
@@ -541,6 +546,7 @@ const executionSlice = createSlice({
     resultIndex: undefined as number | undefined,
     resultLists: undefined as IndexedText[][] | undefined,
     currentResultSuccess: null as boolean | null,
+    milliseconds: undefined as number | undefined,
     panel: '',
   },
   reducers: {
@@ -552,7 +558,8 @@ const executionSlice = createSlice({
       runList: IndexedText[] | undefined,
       resultIndex: number | undefined,
       resultLists: IndexedText[][] | undefined,
-      longTextInResponse: boolean
+      longTextInResponse: boolean,
+      milliseconds: number | undefined,
     }>) => {
       state.id = action.payload.id
       state.running = false
@@ -566,6 +573,7 @@ const executionSlice = createSlice({
       if (state.panel === 'Info' && action.payload.resultType !== ResultType.Single && action.payload.resultType !== ResultType.Group) {
         state.panel = 'Info'
       }
+      state.milliseconds = action.payload.milliseconds
     },
     resetExecution: (state) => {
       state.id = undefined
@@ -578,6 +586,7 @@ const executionSlice = createSlice({
       state.resultLists = undefined
       state.currentResultSuccess = null
       state.panel = ''
+      state.milliseconds = undefined
     },
     runStart: (state, action: PayloadAction<string>) => {
       state.id = action.payload
@@ -610,8 +619,9 @@ export const helpActions = helpSlice.actions
 export const parametersActions = parametersSlice.actions
 export const requestActions = requestSlice.actions
 export const groupActions = groupSlice.actions
-export const authorizationActions = authorizationSlice.actions
 export const scenarioActions = scenarioSlice.actions
+export const authorizationActions = authorizationSlice.actions
+export const certificateActions = certificateSlice.actions
 export const proxyActions = proxySlice.actions
 export const executionActions = executionSlice.actions
 
@@ -623,8 +633,9 @@ export const workbookStore = configureStore({
     parameters: parametersSlice.reducer,
     request: requestSlice.reducer,
     group: groupSlice.reducer,
-    authorization: authorizationSlice.reducer,
     scenario: scenarioSlice.reducer,
+    authorization: authorizationSlice.reducer,
+    certificate: certificateSlice.reducer,
     proxy: proxySlice.reducer,
     execution: executionSlice.reducer,
   }

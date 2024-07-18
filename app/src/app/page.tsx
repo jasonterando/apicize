@@ -2,7 +2,7 @@
 
 import {
   ConfirmationServiceProvider, Navigation, workbookStore
-  } from '@apicize/toolkit'
+} from '@apicize/toolkit'
 import type { } from '@mui/x-tree-view/themeAugmentation';
 import { Stack, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui/material'
 import { ToastProvider } from '@apicize/toolkit'
@@ -13,6 +13,7 @@ import React from 'react'
 import { emit } from '@tauri-apps/api/event'
 import "typeface-open-sans"
 import Pane from './pane';
+import { fontFamily } from '@mui/system';
 
 export default function Home() {
 
@@ -48,6 +49,16 @@ export default function Home() {
         defaultProps: {
           sx: {
             minWidth: '36px'
+          }
+        }
+      },
+      // .css-18ax2bx-MuiInputBase-input-MuiOutlinedInput-input {
+      MuiInputBase: {
+        styleOverrides: {
+          input: {
+            "&.code": {
+              fontFamily: 'monospace'
+            }
           }
         }
       },

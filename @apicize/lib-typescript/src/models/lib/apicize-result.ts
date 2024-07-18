@@ -19,3 +19,7 @@ export interface ApicizeResult {
 
 export type ApicizeResults = { [id: string]: ApicizeResult }
 
+export interface ApicizeExecutionResults {
+    runs: ApicizeResult[][]
+    milliseconds: number
+}

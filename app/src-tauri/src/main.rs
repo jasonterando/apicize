@@ -6,7 +6,7 @@ use tokio_util::sync::CancellationToken;
 
 use apicize_lib::{
     models::{
-        apicize::ApicizeResultRuns, ApicizeSettings, Workspace
+        apicize::ApicizeExecutionResults, ApicizeSettings, Workspace
     },
     oauth2_client_tokens::{clear_all_oauth2_tokens, clear_oauth2_token},
 };
@@ -125,7 +125,7 @@ fn cancellation_tokens() -> &'static Mutex<HashMap<String, CancellationToken>> {
 async fn run_request(
     workspace: Workspace,
     request_id: String,
-) -> Result<ApicizeResultRuns, String> {
+) -> Result<ApicizeExecutionResults, String> {
     let arc_workspace = Arc::new(workspace);
     let cancellation = CancellationToken::new();
     

@@ -7,11 +7,11 @@ import SaveAsIcon from '@mui/icons-material/SaveAs'
 import HelpIcon from '@mui/icons-material/Help'
 import SendIcon from '@mui/icons-material/Send'
 import LockIcon from '@mui/icons-material/Lock'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
+import SecurityIcon from '@mui/icons-material/Security';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import LanguageIcon from '@mui/icons-material/Language'
 import { TreeView } from '@mui/x-tree-view/TreeView'
@@ -54,12 +54,14 @@ export function Navigation(props: {
     const authorizations = useSelector((state: WorkbookState) => state.navigation.authorizationList)
     const scenarios = useSelector((state: WorkbookState) => state.navigation.scenarioList)
     const proxies = useSelector((state: WorkbookState) => state.navigation.proxyList)
+    const certificates = useSelector((state: WorkbookState) => state.navigation.certificateList)
     const workbookFullName = useSelector((state: WorkbookState) => state.workbook.workbookFullName)
 
     const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>(undefined)
     const [reqMenu, setReqMenu] = useState<MenuPosition | undefined>(undefined)
     const [authMenu, setAuthMenu] = useState<MenuPosition | undefined>(undefined)
     const [scenarioMenu, setScenarioMenu] = useState<MenuPosition | undefined>(undefined)
+    const [certMenu, setCertMenu] = useState<MenuPosition | undefined>(undefined)
     const [proxyMenu, setProxyMenu] = useState<MenuPosition | undefined>(undefined)
 
     enum DragPosition {
@@ -162,7 +164,8 @@ export function Navigation(props: {
                             props.type === 'auth' ? (<LockIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
                                 props.type === 'scenario' ? (<LanguageIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
                                     props.type === 'proxy' ? (<AirlineStopsIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
-                                        (<></>)
+                                        props.type === 'cert' ? (<SecurityIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                                            (<></>)
                     }
                     <Box className='nav-node-text' sx={{ flexGrow: 1 }}>
                         {props.title}
@@ -315,7 +318,7 @@ export function Navigation(props: {
                                 ? <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
                                 : null
                         }
-                        <Box className='nav-node-text' sx={{verticalAlign: 'middle'}}>{GetTitle(props.item)}</Box>
+                        <Box className='nav-node-text' sx={{ verticalAlign: 'middle' }}>{GetTitle(props.item)}</Box>
                         <IconButton
                             sx={{
                                 visibility: props.item.id === activeID ? 'normal' : 'hidden'
@@ -344,12 +347,16 @@ export function Navigation(props: {
         setReqMenu(undefined)
     }
 
+    const closeScenarioMenu = () => {
+        setScenarioMenu(undefined)
+    }
+
     const closeAuthMenu = () => {
         setAuthMenu(undefined)
     }
 
-    const closeScenarioMenu = () => {
-        setScenarioMenu(undefined)
+    const closeCertMenu = () => {
+        setCertMenu(undefined)
     }
 
     const closeProxyMenu = () => {
@@ -380,6 +387,18 @@ export function Navigation(props: {
         )
     }
 
+    const handleShowScenarioMenu = (event: React.MouseEvent, id: string) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setScenarioMenu(
+            {
+                id,
+                mouseX: event.clientX - 1,
+                mouseY: event.clientY - 6,
+            }
+        )
+    }
+
     const handleShowAuthMenu = (event: React.MouseEvent, id: string) => {
         event.preventDefault()
         event.stopPropagation()
@@ -392,10 +411,10 @@ export function Navigation(props: {
         )
     }
 
-    const handleShowScenarioMenu = (event: React.MouseEvent, id: string) => {
+    const handleShowCertMenu = (event: React.MouseEvent, id: string) => {
         event.preventDefault()
         event.stopPropagation()
-        setScenarioMenu(
+        setCertMenu(
             {
                 id,
                 mouseX: event.clientX - 1,
@@ -419,8 +438,9 @@ export function Navigation(props: {
     const closeAllMenus = () => {
         closeRequestsMenu()
         closeRequestMenu()
-        closeAuthMenu()
         closeScenarioMenu()
+        closeAuthMenu()
+        closeCertMenu()
         closeProxyMenu()
     }
 
@@ -443,12 +463,16 @@ export function Navigation(props: {
         context.workbook.activateRequestOrGroup(id)
     }
 
+    const selectScenario = (id: string) => {
+        context.workbook.activateScenario(id)
+    }
+
     const selectAuthorization = (id: string) => {
         context.workbook.activateAuthorization(id)
     }
 
-    const selectScenario = (id: string) => {
-        context.workbook.activateScenario(id)
+    const selectCertificate = (id: string) => {
+        context.workbook.activateCertificate(id)
     }
 
     const selectProxy = (id: string) => {
@@ -467,14 +491,18 @@ export function Navigation(props: {
         context.group.add(targetRequestId)
     }
 
+    const handleAddScenario = (targetScenarioId?: string | null) => {
+        closeScenarioMenu()
+        context.scenario.add(targetScenarioId)
+    }
+
     const handleAddAuth = (targetAuthId?: string | null) => {
         closeAuthMenu()
         context.authorization.add(targetAuthId)
     }
-
-    const handleAddScenario = (targetScenarioId?: string | null) => {
-        closeScenarioMenu()
-        context.scenario.add(targetScenarioId)
+    const handleAddCert = (targetCertId?: string | null) => {
+        closeCertMenu()
+        context.certificate.add(targetCertId)
     }
 
     const handleAddProxy = (targetProxyId?: string | null) => {
@@ -501,24 +529,6 @@ export function Navigation(props: {
         })
     }
 
-    const handleDeleteAuth = () => {
-        closeAuthMenu()
-        if (!activeID || activeType !== NavigationType.Authorization) return
-        const id = activeID
-        confirm({
-            title: 'Delete Authorization',
-            message: `Are you are you sure you want to delete ${GetTitle(authorizations.find(a => a.id === id))}?`,
-            okButton: 'Yes',
-            cancelButton: 'No',
-            defaultToCancel: true
-        }).then((result) => {
-            if (result) {
-                clearAllSelections()
-                context.authorization.delete(id)
-            }
-        })
-    }
-
     const handleDeleteScenario = () => {
         closeScenarioMenu()
         if (!activeID || activeType !== NavigationType.Scenario) return
@@ -537,6 +547,41 @@ export function Navigation(props: {
         })
     }
 
+    const handleDeleteAuth = () => {
+        closeAuthMenu()
+        if (!activeID || activeType !== NavigationType.Authorization) return
+        const id = activeID
+        confirm({
+            title: 'Delete Authorization',
+            message: `Are you are you sure you want to delete ${GetTitle(authorizations.find(a => a.id === id))}?`,
+            okButton: 'Yes',
+            cancelButton: 'No',
+            defaultToCancel: true
+        }).then((result) => {
+            if (result) {
+                clearAllSelections()
+                context.authorization.delete(id)
+            }
+        })
+    }
+
+    const handleDeleteCert = () => {
+        closeProxyMenu()
+        if (!activeID || activeType !== NavigationType.Certificate) return
+        const id = activeID
+        confirm({
+            title: 'Delete Certificate',
+            message: `Are you are you sure you want to delete ${GetTitle(proxies.find(s => s.id === id))}?`,
+            okButton: 'Yes',
+            cancelButton: 'No',
+            defaultToCancel: true
+        }).then((result) => {
+            if (result) {
+                clearAllSelections()
+                context.certificate.delete(id)
+            }
+        })
+    }    
     const handleDeleteProxy = () => {
         closeProxyMenu()
         if (!activeID || activeType !== NavigationType.Proxy) return
@@ -561,14 +606,19 @@ export function Navigation(props: {
         if (activeType === NavigationType.Request && activeID) context.request.copy(activeID)
     }
 
+    const handleDupeScenario = () => {
+        closeScenarioMenu()
+        if (activeType === NavigationType.Scenario && activeID) context.scenario.copy(activeID)
+    }
+
     const handleDupeAuth = () => {
         closeAuthMenu()
         if (activeType === NavigationType.Authorization && activeID) context.authorization.copy(activeID)
     }
 
-    const handleDupeScenario = () => {
-        closeScenarioMenu()
-        if (activeType === NavigationType.Scenario && activeID) context.scenario.copy(activeID)
+    const handleDupeCert = () => {
+        closeCertMenu()
+        if (activeType === NavigationType.Certificate && activeID) context.certificate.copy(activeID)
     }
 
     const handleDupeProxy = () => {
@@ -581,14 +631,19 @@ export function Navigation(props: {
         context.request.move(id, destinationID, onLowerHalf, onLeft)
     }
 
+    const handleMoveScenario = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
+        selectScenario(id)
+        context.scenario.move(id, destinationID, onLowerHalf, onLeft)
+    }
+
     const handleMoveAuth = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectAuthorization(id)
         context.authorization.move(id, destinationID, onLowerHalf, onLeft)
     }
 
-    const handleMoveScenario = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
-        selectScenario(id)
-        context.scenario.move(id, destinationID, onLowerHalf, onLeft)
+    const handleMoveCert = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
+        selectCertificate(id)
+        context.certificate.move(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveProxy = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
@@ -664,6 +719,41 @@ export function Navigation(props: {
         )
     }
 
+
+    function ScenarioMenu() {
+        return (
+            <Menu
+                id='scenario-menu'
+                open={scenarioMenu !== undefined}
+                onClose={closeScenarioMenu}
+                anchorReference='anchorPosition'
+                anchorPosition={{
+                    top: scenarioMenu?.mouseY ?? 0,
+                    left: scenarioMenu?.mouseX ?? 0
+                }}
+            >
+                <MenuItem onClick={(_) => handleAddScenario(activeID)}>
+                    <ListItemIcon>
+                        <LanguageIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Add Scenario</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDupeScenario()}>
+                    <ListItemIcon>
+                        <ContentCopyOutlinedIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Duplicate Scenario</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={(e) => handleDeleteScenario()}>
+                    <ListItemIcon>
+                        <DeleteIcon fontSize='small' />
+                    </ListItemIcon>
+                    <ListItemText>Delete Scenario</ListItemText>
+                </MenuItem>
+            </Menu>
+        )
+    }
+
     function AuthMenu() {
         return (
             <Menu
@@ -698,35 +788,35 @@ export function Navigation(props: {
         )
     }
 
-    function ScenarioMenu() {
+    function CertMenu() {
         return (
             <Menu
-                id='scenario-menu'
-                open={scenarioMenu !== undefined}
-                onClose={closeScenarioMenu}
+                id='cert-menu'
+                open={certMenu !== undefined}
+                onClose={closeCertMenu}
                 anchorReference='anchorPosition'
                 anchorPosition={{
-                    top: scenarioMenu?.mouseY ?? 0,
-                    left: scenarioMenu?.mouseX ?? 0
+                    top: authMenu?.mouseY ?? 0,
+                    left: authMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddScenario(activeID)}>
+                <MenuItem onClick={(_) => handleAddCert(activeID)}>
                     <ListItemIcon>
-                        <LanguageIcon fontSize='small' />
+                        <LockIcon fontSize='small' />
                     </ListItemIcon>
-                    <ListItemText>Add Scenario</ListItemText>
+                    <ListItemText>Add Certificate</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(e) => handleDupeScenario()}>
+                <MenuItem onClick={(e) => handleDupeCert()}>
                     <ListItemIcon>
                         <ContentCopyOutlinedIcon fontSize='small' />
                     </ListItemIcon>
-                    <ListItemText>Duplicate Scenario</ListItemText>
+                    <ListItemText>Duplicate Certificate</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={(e) => handleDeleteScenario()}>
+                <MenuItem onClick={(e) => handleDeleteCert()}>
                     <ListItemIcon>
                         <DeleteIcon fontSize='small' />
                     </ListItemIcon>
-                    <ListItemText>Delete Scenario</ListItemText>
+                    <ListItemText>Delete Certificate</ListItemText>
                 </MenuItem>
             </Menu>
         )
@@ -838,7 +928,7 @@ export function Navigation(props: {
         setDragPosition(DragPosition.None)
     }
 
-    const defaultExpanded = ['hdr-request', 'hdr-auth', 'hdr-scenario', 'hdr-proxy']
+    const defaultExpanded = ['hdr-request', 'hdr-scenario', 'hdr-auth', 'hdr-cert', 'hdr-proxy']
     const expandRequestsWithChildren = (item: NavigationListItem) => {
         if (item.children && (item.children?.length ?? 0) > 0) {
             defaultExpanded.push(item.id)
@@ -850,7 +940,7 @@ export function Navigation(props: {
     return showNavigation ? (
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '4px', paddingRight: '20px', backgroundColor: '#202020' }}>
             <Box display='flex' flexDirection='row' sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '2px' }}>
-                <Box sx={{width: '100%', marginRight: '8px'}}>
+                <Box sx={{ width: '100%', marginRight: '8px' }}>
                     <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
                         <PostAddIcon />
                     </IconButton>
@@ -863,7 +953,7 @@ export function Navigation(props: {
                     <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => props.triggerSaveAs()} sx={{ marginLeft: '4px' }}>
                         <SaveAsIcon />
                     </IconButton>
-                    <IconButton aria-label='help' title='Help' sx={{float: 'right'}} onClick={() => { showHelp(); }}>
+                    <IconButton aria-label='help' title='Help' sx={{ float: 'right' }} onClick={() => { showHelp(); }}>
                         <HelpIcon />
                     </IconButton>
                 </Box>
@@ -920,6 +1010,19 @@ export function Navigation(props: {
                             />)
                         }
                     </NavTreeSection>
+                    <NavTreeSection key='nav-section-cert' type='cert' title='Certificates' helpTopic='certificates' onAdd={handleAddCert}>
+                        {
+                            certificates.map(t => <NavTreeItem
+                                item={t}
+                                depth={0}
+                                type='cert'
+                                key={`nav-section-${t.id}`}
+                                onSelect={selectCertificate}
+                                onMenu={handleShowCertMenu}
+                                onMove={handleMoveCert}
+                            />)
+                        }
+                    </NavTreeSection>
                     <NavTreeSection key='nav-section-proxy' type='proxy' title='Proxies' helpTopic='proxies' onAdd={handleAddProxy}>
                         {
                             proxies.map(t => <NavTreeItem
@@ -937,8 +1040,9 @@ export function Navigation(props: {
             </DndContext>
             <RequestsMenu />
             <RequestMenu />
-            <AuthMenu />
             <ScenarioMenu />
+            <AuthMenu />
+            <CertMenu />
             <ProxyMenu />
         </Stack>
     ) : null

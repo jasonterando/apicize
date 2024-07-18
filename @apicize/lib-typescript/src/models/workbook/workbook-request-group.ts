@@ -3,8 +3,8 @@ import { Named } from "../named";
 import { Selection } from "../selection";
 
 export enum WorkbookGroupExecution {
-    Sequential = "Sequential",
-    Concurrent= "Concurrent",
+    Sequential = "SEQUENTIAL",
+    Concurrent= "CONCURRENT",
 }
 
 export interface WorkbookRequestGroup extends Identifiable, Named {

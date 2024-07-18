@@ -58,6 +58,7 @@
     "redux": "^5.0.1",
     "remark-directive": "^3.0.0",
     "remark-rehype": "11",
+    "rimraf": "^5.0.5",
     "unist-util-visit": "^5.0.0",
     "uuid": "^9.0.1"
   }

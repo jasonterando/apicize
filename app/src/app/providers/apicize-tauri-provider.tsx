@@ -1,27 +1,26 @@
 "use client"
 
-import { ReactNode, useContext, useEffect, useRef } from "react"
+import { createContext, ReactNode, useContext, useEffect, useRef } from "react"
 import {
     ToastContext, ToastStore, ToastSeverity, WorkbookState,
     useConfirmation, WorkspaceContext, workbookStore,
     navigationActions,
     workbookActions,
     helpActions,
-    NavigationType
+    NavigationType,
+    base64Encode
 } from "@apicize/toolkit"
 import { useSelector } from 'react-redux'
-import { ApicizeResult, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
+import { ApicizeExecutionResults, ApicizeResult, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
 import { listen, Event } from "@tauri-apps/api/event"
 import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
 import clipboard from "tauri-plugin-clipboard-api"
-import { join, resourceDir } from "@tauri-apps/api/path"
+import { BaseDirectory, join, resourceDir } from "@tauri-apps/api/path"
 import { path } from "@tauri-apps/api"
 
 const EXT = 'apicize';
 
-export const ApicizeTauriProvider = (props: {
-    children?: ReactNode
-}) => {
+const ApicizeTauriActions = () => {
     const context = useContext(WorkspaceContext)
     const confirm = useConfirmation()
     const toast = useContext<ToastStore>(ToastContext)
@@ -97,9 +96,9 @@ export const ApicizeTauriProvider = (props: {
 
                 // Set up close event hook, warn user if "dirty"
                 const window = await getTauriWindow()
-                const currentWindow = window.getCurrent()
+                const currentWindow = window.Window.getCurrent()
                 currentWindow.onCloseRequested((e) => {
-                    if (_internalDirty.current && (! _forceClose.current)) {
+                    if (_internalDirty.current && (!_forceClose.current)) {
                         e.preventDefault();
                         (async () => {
                             if (await confirm({
@@ -112,7 +111,7 @@ export const ApicizeTauriProvider = (props: {
                                 _forceClose.current = true
                                 workbookStore.dispatch(workbookActions.setDirty(false))
                                 currentWindow.close()
-                            }   
+                            }
                         })()
                     }
                 })
@@ -124,7 +123,7 @@ export const ApicizeTauriProvider = (props: {
             (async () => {
                 let showTopic: string
                 let updateHistory = [...helpTopicHistory]
-                switch(topic) {
+                switch (topic) {
                     case '\nclose':
                         workbookStore.dispatch(helpActions.hideHelp())
                         return
@@ -148,7 +147,29 @@ export const ApicizeTauriProvider = (props: {
 
                 const helpFile = await join(await resourceDir(), 'help', `${helpTopic}.md`)
                 if (await exists(helpFile)) {
-                    const text = await readTextFile(helpFile)
+                    let text = await readTextFile(helpFile)
+
+                    const helpDir = await path.join(await resourceDir(), 'help', 'images')
+
+                    debugger
+
+                    let imageLink
+                    do {
+                        imageLink = text.match(/\:image\[(.*)\]/)
+                        if (imageLink && imageLink.length > 0 && imageLink.index) {
+                            const imageFile = await path.join(helpDir, imageLink[1])
+                            let replaceWith = ''
+                            try {
+                                const data = Array.from(await readFile(imageFile))
+                                const ext = await path.extname(imageFile)
+                                replaceWith = `![](data:image/${ext};base64,${base64Encode(data)})`
+                            } catch (e) {
+                                console.error(`${e} - unable to load ${imageFile}`)
+                            }
+                            text = `${text.substring(0, imageLink.index)}${replaceWith}${text.substring(imageLink.index + imageLink[0].length)}`
+                        }
+                    } while (imageLink && imageLink.length > 0)
+
                     workbookStore.dispatch(helpActions.showHelp({ topic: helpTopic, anchor: helpAnchor, text, history: updateHistory }))
                 } else {
                     throw new Error(`Help topic "${helpTopic}" not found`)
@@ -158,10 +179,17 @@ export const ApicizeTauriProvider = (props: {
             })
         }
 
+        const processHelpImage = (name: string): Promise<string> => {
+            return Promise.resolve('abcdef')
+        }
+
 
         const unlistenAction = listen('action', async (event: Event<string>) => { await doRouteAction(event.payload) })
         const unlistenHelp = listen('help', async (event: Event<string>) => {
             processHelp(event.payload)
+        })
+        const unlistenHelpImage = listen('help-image', async (event: Event<string>) => {
+            return processHelpImage(event.payload)
         })
         const unlistenCopyTextToClipboard = listen<string | undefined>('copyText', async (event) => {
             await doCopyTextToClipboard(event.payload)
@@ -173,6 +201,7 @@ export const ApicizeTauriProvider = (props: {
         return () => {
             unlistenAction.then(f => f())
             unlistenHelp.then(f => f())
+            unlistenHelpImage.then(f => f())
             unlistenCopyTextToClipboard.then(f => f())
             unlistenCopyImageToClipboard.then(f => f())
         }
@@ -194,7 +223,7 @@ export const ApicizeTauriProvider = (props: {
             _internalDirty.current = dirty
             const showDirty = dirty ? ' *' : ''
             const window = await getTauriWindow()
-            window.getCurrent().setTitle(((workbookDisplayName?.length ?? 0) > 0)
+            window.Window.getCurrent().setTitle(((workbookDisplayName?.length ?? 0) > 0)
                 ? `Apicize - ${workbookDisplayName}${showDirty}`
                 : `Apicize (New Workbook)${showDirty}`)
         })()
@@ -316,7 +345,7 @@ export const ApicizeTauriProvider = (props: {
 
             await core.invoke('save_workspace', { workspace, path: workbookFullName })
 
-            await updateSettings({ lastWorkbookFileName: workbookFullName  })
+            await updateSettings({ lastWorkbookFileName: workbookFullName })
             toast.open(`Saved ${workbookFullName}`, ToastSeverity.Success)
             context.onSaveWorkbook(
                 workbookFullName,
@@ -374,15 +403,15 @@ export const ApicizeTauriProvider = (props: {
     const doRunRequest = async () => {
         // toast.open(`Executing id ${entry.name}`, ToastSeverity.Info)
         const runInfo = activeType === NavigationType.Request
-             ? context.request.getRunInformation()
-             : context.group.getRunInformation()
-        
+            ? context.request.getRunInformation()
+            : context.group.getRunInformation()
+
         if (!runInfo) return
 
         try {
             const core = await getTauriApiCore()
             context.execution.runStart(runInfo.requestId)
-            let results = await core.invoke<ApicizeResult[][]>
+            let results = await core.invoke<ApicizeExecutionResults>
                 ('run_request', runInfo)
             context.execution.runComplete(runInfo.requestId, results)
         } catch (e) {
@@ -507,9 +536,22 @@ export const ApicizeTauriProvider = (props: {
         }
     }
 
+    const getHelpImage = (name: string): string => {
+        return '12345'
+    }
+
+    return {
+        getHelpImage
+    }
+}
+
+
+export const ApicizeTauriContext = createContext({} as ReturnType<typeof ApicizeTauriActions>)
+
+export function ApicizeTauriProvider({ children }: { children?: ReactNode }) {
     return (
-        <>
-            {props.children}
-        </>
+        <ApicizeTauriContext.Provider value={ApicizeTauriActions()}>
+            {children}
+        </ApicizeTauriContext.Provider>
     )
 }

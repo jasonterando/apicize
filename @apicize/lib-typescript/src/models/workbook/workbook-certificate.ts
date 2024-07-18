@@ -5,7 +5,7 @@ import { Persisted } from "../persistence"
 /**
  * Specifies the type of certificate used for a request
  */
-export enum WorkbookCertificateType { None = 'none', PKCS12 = 'PFX (PKCS #12)',  PKCS8 = 'PEM (PKCS #8)'};
+export enum WorkbookCertificateType { None = 'none', PKCS12 = 'PKCS12',  PKCS8 = 'PKCS8'};
 
 // export interface WorkbookAuthorization extends Named {
 //     type: WorkbookAuthorizationType

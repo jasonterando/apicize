@@ -39,15 +39,13 @@ async fn main() {
     while let Some(request_id) = iter_ids.next() {
         let run_response = Workspace::run(arc_workspace.clone(), request_id, None).await;
 
-        if let Some(r) = arc_workspace.requests.entities.get(request_id) {
-            println!("Request: {}", r);
-        }
 
         match run_response {
-            Ok(runs) => {
+            Ok(results) => {
+                println!("Total execution time: {} ms", results.milliseconds);
                 let mut run_number = 0;
-                let total_runs = runs.len();
-                runs.iter().for_each(|run| {
+                let total_runs = results.runs.len();
+                results.runs.iter().for_each(|run| {
                     if total_runs > 1 {
                         run_number = run_number + 1;
                         println!("Run {} of {}", run_number, total_runs);

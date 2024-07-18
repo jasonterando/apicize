@@ -68,6 +68,9 @@ const ResultDetail = (props: { info: ExecutionSummaryInfo }) => {
                 ? (<TestInfo text='OAuth bearer token retrieved from cache' />)
                 : (<></>)} */}
         </Box>
+        <Box>
+            ({JSON.stringify(props.info)})
+        </Box>
         {
         props.info.tests
             ? (props.info.tests.map(test => (<TestResult 
@@ -125,6 +128,7 @@ export function ResultInfoViewer(props: {
         return null
     }
 
+    const milliseconds = useSelector((state: WorkbookState) => state.execution.milliseconds)
     const execution = useContext(WorkspaceContext).execution
     const summary = execution.getSummary(executionId)
     
@@ -137,10 +141,15 @@ export function ResultInfoViewer(props: {
         // let cached = executionResult.response?.authTokenCached === true
         const allSucceeded = summary.reduce((a, r) => a && r.success, true)
         let idx = 0
+        let title = `Group Execution ${allSucceeded ? "Completed" : "Failed"}`
+        if (milliseconds) {
+            title += ` (${milliseconds} ms)`
+        }
+        
         return (
             <Box>
                 <Typography variant='h2' sx={{ marginTop: 0 }}>
-                    Group Execution {allSucceeded ? "Completed" : "Failed"}
+                    {title}
                     <IconButton
                         aria-label="Copy Group Results to Clipboard"
                         title="Copy Group Results to Clipboard"

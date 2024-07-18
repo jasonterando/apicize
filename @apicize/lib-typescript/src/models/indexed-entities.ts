@@ -62,6 +62,7 @@ export function removeEntity<T extends Identifiable>(id: string, storage: Indexe
     }
 
     if (storage.entities[id]) {
+        found = true
         delete storage.entities[id]
     }
 

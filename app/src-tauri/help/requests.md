@@ -3,6 +3,8 @@ In Apicize, Requests define the webservice endpoint you want to call and test.  
 
 Requests can optionally be *grouped*, which allows request tests to be run in sequence, and optionally pass values between them.  This can be useful, for example, when testing a sequence of API calls to create, retrieve, update and delete a record (i.e. CRUD).
 
+:image[request-overview.jpg]
+
 Requests are edited using the following panes:
 
 * [**Info**](help:requests/info)

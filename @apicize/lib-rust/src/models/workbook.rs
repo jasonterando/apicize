@@ -104,6 +104,7 @@ pub struct Selection {
 
 /// Indicator on workbook child execution order
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum WorkbookExecution {
     /// Group children execute sequentially
     Sequential,
@@ -220,6 +221,7 @@ pub struct WorkbookScenario {
     /// Name of variable to substitute (avoid using curly braces)
     pub name: String,
     /// Specifies how authorization will be saved
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub persistence: Option<Persistence>,
     /// Value of variable to substitute
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -239,6 +241,7 @@ pub enum WorkbookAuthorization {
         /// Human-readable name of authorization configuration
         name: String,
         /// Specifies how authorization will be saved
+        #[serde(skip_serializing_if = "Option::is_none")]
         persistence: Option<Persistence>,
         /// User name
         username: String,
@@ -255,6 +258,7 @@ pub enum WorkbookAuthorization {
         /// Human-readable name of authorization configuration
         name: String,
         /// Specifies how authorization will be saved
+        #[serde(skip_serializing_if = "Option::is_none")]
         persistence: Option<Persistence>,
         /// URL to retrieve access token from
         access_token_url: String,
@@ -265,7 +269,6 @@ pub enum WorkbookAuthorization {
         #[serde(skip_serializing_if = "Option::is_none")]
         /// Scope to add to token (multiple scopes should be space-delimited)
         scope: Option<String>,
-        
         // #[serde(skip_serializing_if="Option::is_none")]
         // send_credentials_in_body: Option<bool>,
     },
@@ -279,6 +282,7 @@ pub enum WorkbookAuthorization {
         /// Human-readable name of authorization configuration
         name: String,
         /// Specifies how authorization will be saved
+        #[serde(skip_serializing_if = "Option::is_none")]
         persistence: Option<Persistence>,
         /// Name of header (ex. "x-api-key")
         header: String,
@@ -300,6 +304,7 @@ pub enum WorkbookCertificate {
         /// Human-readable name of certificate
         name: String,
         /// Specifies how cetificate will be saved
+        #[serde(skip_serializing_if = "Option::is_none")]
         persistence: Option<Persistence>,
         /// Certificate
         der: Vec<u8>,
@@ -315,9 +320,10 @@ pub enum WorkbookCertificate {
         /// Human-readable name of certificate
         name: String,
         /// Specifies how cetificate will be saved
+        #[serde(skip_serializing_if = "Option::is_none")]
         persistence: Option<Persistence>,
         /// Certificate information
-        pem: Vec<String>,
+        pem: String,
         /// Optional key file, if not combining in PKCS8 format
         key: Option<String>,
     },    
@@ -332,6 +338,7 @@ pub struct WorkbookProxy {
     /// Name of proxy
     pub name: String,
     /// Specifies how proxy will be saved
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub persistence: Option<Persistence>,
     /// Location of proxy (URL for HTTP proxy, IP for SOCKS)
     pub url: String,
