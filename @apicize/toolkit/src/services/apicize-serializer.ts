@@ -1,4 +1,4 @@
-import { WorkbookRequest, StoredGlobalSettings, WorkbookBodyType, Workspace, IndexedNestedRequests, Identifiable, Selection } from "@apicize/lib-typescript";
+import { StoredGlobalSettings, WorkbookBodyType, Workspace, IndexedNestedRequests, Identifiable, Selection, WorkbookAuthorization, WorkbookCertificate, WorkbookScenario, WorkbookProxy, WorkbookCertificateType } from "@apicize/lib-typescript";
 import { GenerateIdentifier } from "./random-identifier-generator";
 import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization";
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario";
@@ -21,7 +21,7 @@ for (let i = 0; i < chars.length; i++) {
     lookup[chars.charCodeAt(i)] = i;
 }
 
-export function base64Encode(bytes: number[]): string {
+export function base64Encode(bytes: Uint8Array): string {
     let i,
         len = bytes.length,
         base64 = '';
@@ -42,7 +42,7 @@ export function base64Encode(bytes: number[]): string {
     return base64;
 }
 
-export function base64Decode(base64: string): number[] {
+export function base64Decode(base64: string): Uint8Array {
     let bufferLength = base64.length * 0.75,
         len = base64.length,
         i,
@@ -72,7 +72,7 @@ export function base64Decode(base64: string): number[] {
         bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
     }
 
-    return Array.from(bytes);
+    return bytes;
 }
 
 
@@ -92,12 +92,16 @@ function toStateStorage<S extends Identifiable, E extends S  | Editable | Hierar
  * @returns 
  */
 function stateIndexToStorage<S extends Identifiable, E extends S | Editable | Hierarchical<S>>(
-    index: IndexedEntities<E>
+    index: IndexedEntities<E>,
+    process?: (entity: E) => void
 ): IndexedEntities<S> {
     const cloned = structuredClone(index)
-    for(const entity of Object.values<Editable>(cloned.entities)) {
+    for(const entity of Object.values<E & Editable>(cloned.entities)) {
         delete entity['dirty']
         delete entity['invalid']
+        if (process) {
+            process(entity)
+        }
     }
     return cloned as IndexedEntities<S>
 }
@@ -143,7 +147,7 @@ export function workspaceToState(workspace: Workspace): EditableWorkspace {
                     break
                 case WorkbookBodyType.Raw:
                     if (typeof r.body.data === 'string') {
-                        r.body.data = base64Decode(r.body.data)
+                        r.body.data = Array.from(base64Decode(r.body.data))
                     }
                     break
             }
@@ -151,6 +155,19 @@ export function workspaceToState(workspace: Workspace): EditableWorkspace {
             r.body = {
                 type: WorkbookBodyType.None
             }
+        }
+    }
+
+    for (const certificate of Object.values(workspace.certificates.entities)) {
+        const c = certificate as any
+        if (c['pem']) {
+            c['pem'] = Array.from(base64Decode(c['pem']))
+        }
+        if (c['key']) {
+            c['key'] = Array.from(base64Decode(c['key']))
+        }
+        if (c['pfx']) {
+            c['pfx'] = Array.from(base64Decode(c['pfx']))
         }
     }
 
@@ -202,7 +219,7 @@ export function stateRequestsToStorage(index: IndexedNestedRequests<EditableWork
                         if (bodyIsValid) {
                             stored.body = {
                                 type: WorkbookBodyType.Raw,
-                                data: base64Encode(data as number[])
+                                data: base64Encode(Uint8Array.from(data))
                             }
                         }
                     } else {
@@ -224,6 +241,7 @@ export function stateRequestsToStorage(index: IndexedNestedRequests<EditableWork
         if (!bodyIsValid) {
             delete stored.body
         }
+
         if ((stored.headers?.length ?? 0) === 0) {
             delete stored.headers
         } else {
@@ -249,18 +267,40 @@ export function stateToWorkspace(
     selectedCertificate: Selection,
     selectedProxy: Selection,
 ): Workspace {
-    return {
+    const result = {
         version: 1.0,
         requests: stateRequestsToStorage(requests),
-        scenarios: stateIndexToStorage(scenarios),
-        authorizations: stateIndexToStorage(authorizations),
-        certificates: stateIndexToStorage(certificates),
-        proxies: stateIndexToStorage(proxies),
+        scenarios: stateIndexToStorage<WorkbookScenario, EditableWorkbookScenario>(scenarios),
+        authorizations: stateIndexToStorage<WorkbookAuthorization, EditableWorkbookAuthorization>(authorizations),
+        certificates: stateIndexToStorage<WorkbookCertificate, EditableWorkbookCertificate>(certificates, (c) => {
+            const c1 = c as any
+            switch (c.type) {
+                case WorkbookCertificateType.PKCS12:
+                    c1['pfx'] = c1['pfx'] ? base64Encode(Uint8Array.from(c1['pfx'])) : undefined
+                    delete c1['pem']
+                    delete c1['key']
+                    break
+                case WorkbookCertificateType.PKCS8_PEM:
+                    c1['pem'] = c1['pem'] ? base64Encode(Uint8Array.from(c1['pem'])) : undefined
+                    c1['key'] = c1['key'] ? base64Encode(Uint8Array.from(c1['key'])) : undefined
+                    delete c1['pfx']
+                    delete c1['password']
+                    break
+                case WorkbookCertificateType.PEM:
+                    c1['pem'] = c1['pem'] ? base64Encode(Uint8Array.from(c1['pem'])) : undefined
+                    delete c1['pfx']
+                    delete c1['key']
+                    delete c1['password']
+                    break
+                }
+        }),
+        proxies: stateIndexToStorage<WorkbookProxy, EditableWorkbookProxy>(proxies),
         selectedScenario: (selectedScenario === DEFAULT_SELECTION) ? undefined : selectedScenario,
         selectedAuthorization: (selectedAuthorization === DEFAULT_SELECTION) ? undefined : selectedAuthorization,
         selectedCertificate: (selectedCertificate === DEFAULT_SELECTION) ? undefined : selectedCertificate,
         selectedProxy: (selectedProxy === DEFAULT_SELECTION) ? undefined : selectedProxy,
     }
+    return result
 }
 
 

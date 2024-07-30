@@ -1,21 +1,17 @@
-import { AuthorizationEditor, CertificateEditor, HelpPanel, ProxyEditor, RequestEditor, ScenarioEditor, WorkbookState } from "@apicize/toolkit";
+import { AuthorizationEditor, CertificateEditor, ContentDestination, HelpPanel, ProxyEditor, RequestEditor, ScenarioEditor, WorkbookState } from "@apicize/toolkit";
 import { Box } from "@mui/system";
 import { emit } from "@tauri-apps/api/event";
-import { useContext } from "react";
 import { useSelector } from "react-redux";
-import { ApicizeTauriContext } from "./providers/apicize-tauri-provider";
 
 export default function Pane() {
     let showHelp = useSelector((state: WorkbookState) => state.help.showHelp)
     let helpState = useSelector((state: WorkbookState) => state.help)
 
-    let apicizeTauriContext = useContext(ApicizeTauriContext)
-
     const copyHelpState = structuredClone(helpState)
     delete (copyHelpState as any)['helpText']
 
     return showHelp
-        ? <HelpPanel showHelp={(topic) => emit('help', topic)} hideHelp={() => emit('help', '\nclose')} onGetImage={(name: string) => apicizeTauriContext.getHelpImage(name)} />
+        ? <HelpPanel showHelp={(topic) => emit('help', topic)} hideHelp={() => emit('help', '\nclose')} />
         : <Box sx={{
             // height: '100vh',
             display: 'flex',
@@ -31,7 +27,8 @@ export default function Pane() {
                 triggerCopyImageToClipboard={(base64?: string) => {
                     emit('copyImage', base64)
                 }}
-                triggerSetBodyFromFile={() => emit('action', 'bodyFromFile')}
+                triggerOpenFile={(destination: ContentDestination, id: string) => emit('openFile', {destination, id})}
+                triggerPasteFromClipboard={(destination: ContentDestination, id: string) => emit('pasteFromClipboard', {destination, id})} 
             />
             <AuthorizationEditor triggerClearToken={() => {
                 emit('action', 'clearToken')
@@ -39,6 +36,9 @@ export default function Pane() {
             } />
             <ScenarioEditor />
             <ProxyEditor />
-            <CertificateEditor />
+            <CertificateEditor
+                triggerOpenFile={(destination: ContentDestination, id: string) => emit('openFile', {destination, id})} 
+                triggerPasteFromClipboard={(destination: ContentDestination, id: string) => emit('pasteFromClipboard', {destination, id})} 
+            />
         </Box>
 }

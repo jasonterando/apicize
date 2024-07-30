@@ -566,12 +566,12 @@ export function Navigation(props: {
     }
 
     const handleDeleteCert = () => {
-        closeProxyMenu()
+        closeCertMenu()
         if (!activeID || activeType !== NavigationType.Certificate) return
         const id = activeID
         confirm({
             title: 'Delete Certificate',
-            message: `Are you are you sure you want to delete ${GetTitle(proxies.find(s => s.id === id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(certificates.find(s => s.id === id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
@@ -796,8 +796,8 @@ export function Navigation(props: {
                 onClose={closeCertMenu}
                 anchorReference='anchorPosition'
                 anchorPosition={{
-                    top: authMenu?.mouseY ?? 0,
-                    left: authMenu?.mouseX ?? 0
+                    top: certMenu?.mouseY ?? 0,
+                    left: certMenu?.mouseX ?? 0
                 }}
             >
                 <MenuItem onClick={(_) => handleAddCert(activeID)}>

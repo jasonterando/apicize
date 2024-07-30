@@ -1,10 +1,18 @@
 .help {
-  margin: 1rem;
+  /* margin: 1rem; */
   overflow: auto;
   display: flex;
   width: 100%;
   padding: 1em;
   background-color: #03021f;
+}
+
+.help h1:first {
+  background-color: #1d1d24;
+}
+
+.help p {
+  margin-bottom: 1em;
 }
 
 .help-text {
@@ -18,16 +26,14 @@
 }
 
 .help-toolbar {
-  position: absolute;
-  top: 16px;
-  right: 0;
-  margin-right: 36px;
-  min-height: 48px;
+  display: inline-block;
+  margin-right: 1em;
 }
 
 .help-toolbar button {
   font-size: 32px;
 }
+
 
 h1 .help-icon {
   margin-right: 0.25em;
@@ -79,3 +85,4 @@ pre {
   display: inline-block;
   vertical-align: middle;
 }
+

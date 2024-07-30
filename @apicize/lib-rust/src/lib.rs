@@ -10,13 +10,14 @@ pub mod models;
 pub mod oauth2_client_tokens;
 
 use apicize::{
-    ApicizeBody, ApicizeExecutionResults, ApicizeRequest, ApicizeResponse, ApicizeResult, ApicizeTestResponse
+    ApicizeBody, ApicizeExecutionResults, ApicizeRequest, ApicizeResponse, ApicizeResult,
+    ApicizeTestResponse,
 };
 use async_recursion::async_recursion;
 use dirs::{config_dir, document_dir};
 use encoding_rs::{Encoding, UTF_8};
 use mime::Mime;
-use reqwest::{Body, Client, Proxy};
+use reqwest::{Body, Client, ClientBuilder, Error, Identity, Proxy};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
@@ -169,7 +170,7 @@ impl Parameters {
         credential_file_name: PathBuf,
     ) -> Result<SerializationOpenSuccess<Parameters>, SerializationFailure> {
         if Path::new(&credential_file_name).is_file() {
-            open_data_file(&credential_file_name)
+            open_data_file::<Parameters>(&credential_file_name)
         } else {
             Ok(SerializationOpenSuccess {
                 file_name: String::from(credential_file_name.to_string_lossy()),
@@ -338,23 +339,26 @@ impl WorkspaceEntity<WorkbookAuthorization> for WorkbookAuthorization {
 impl WorkspaceEntity<WorkbookCertificate> for WorkbookCertificate {
     fn get_id_and_name(&self) -> (String, String) {
         match self {
-            WorkbookCertificate::PKCS8 { id, name, .. } => (id.to_string(), name.to_string()),
+            WorkbookCertificate::PKCS8PEM { id, name, .. } => (id.to_string(), name.to_string()),
+            WorkbookCertificate::PEM { id, name, .. } => (id.to_string(), name.to_string()),
             WorkbookCertificate::PKCS12 { id, name, .. } => (id.to_string(), name.to_string()),
         }
     }
 
     fn get_persistence(&self) -> Option<Persistence> {
         match self {
-            WorkbookCertificate::PKCS8 { persistence, .. } => *persistence,
+            WorkbookCertificate::PKCS8PEM { persistence, .. } => *persistence,
+            WorkbookCertificate::PEM { persistence, .. } => *persistence,
             WorkbookCertificate::PKCS12 { persistence, .. } => *persistence,
         }
     }
 
     fn set_persistence(&mut self, persistence_to_set: Persistence) {
         match self {
-            WorkbookCertificate::PKCS8 { persistence, .. } => {
+            WorkbookCertificate::PKCS8PEM { persistence, .. } => {
                 *persistence = Some(persistence_to_set)
             }
+            WorkbookCertificate::PEM { persistence, .. } => *persistence = Some(persistence_to_set),
             WorkbookCertificate::PKCS12 { persistence, .. } => {
                 *persistence = Some(persistence_to_set)
             }
@@ -363,7 +367,8 @@ impl WorkspaceEntity<WorkbookCertificate> for WorkbookCertificate {
 
     fn clear_persistence(&mut self) {
         match self {
-            WorkbookCertificate::PKCS8 { persistence, .. } => *persistence = None,
+            WorkbookCertificate::PKCS8PEM { persistence, .. } => *persistence = None,
+            WorkbookCertificate::PEM { persistence, .. } => *persistence = None,
             WorkbookCertificate::PKCS12 { persistence, .. } => *persistence = None,
         }
     }
@@ -652,8 +657,8 @@ impl Workspace {
                 Persistence::Private,
             );
             Self::populate_indexes(
-                &mut private.proxies,
-                &mut wkspc_proxies,
+                &mut private.certificates,
+                &mut wkspc_certificates,
                 Persistence::Private,
             );
             Self::populate_indexes(
@@ -693,6 +698,8 @@ impl Workspace {
             &mut wkspc_certificates,
             Persistence::Workbook,
         );
+
+        Self::populate_indexes(&mut wkbk.proxies, &mut wkspc_proxies, Persistence::Workbook);
 
         Self::populate_indexes(&mut wkbk.proxies, &mut wkspc_proxies, Persistence::Workbook);
 
@@ -1035,13 +1042,32 @@ impl Workspace {
                 let mut done = false;
                 let mut current = request;
 
+                let mut auth_certificate: Option<&WorkbookCertificate> = None;
+                let mut auth_proxy: Option<&WorkbookProxy> = None;
+
                 while !done {
                     // Set the credential values at the current request value
                     if let Some(selected) = current.get_selected_scenario() {
-                        scenario = workspace.scenarios.entities.get(&selected.id)
+                        scenario = workspace.scenarios.entities.get(&selected.id);
                     };
                     if let Some(selected) = current.get_selected_authorization() {
-                        authorization = workspace.authorizations.entities.get(&selected.id)
+                        authorization = workspace.authorizations.entities.get(&selected.id);
+                        if let Some(matching_auth) = authorization {
+                            if let WorkbookAuthorization::OAuth2Client {
+                                selected_certificate,
+                                selected_proxy,
+                                ..
+                            } = matching_auth
+                            {
+                                if let Some(cert) = selected_certificate {
+                                    auth_certificate =
+                                        workspace.certificates.entities.get(&cert.id);
+                                }
+                                if let Some(proxy) = selected_proxy {
+                                    auth_proxy = workspace.proxies.entities.get(&proxy.id);
+                                }
+                            }
+                        }
                     };
                     if let Some(selected) = current.get_selected_certificate() {
                         certificate = workspace.certificates.entities.get(&selected.id)
@@ -1076,9 +1102,19 @@ impl Workspace {
                     }
                 }
 
+                let executed_at = tests_started.elapsed().as_millis();
+
                 let dispatch_response = info
-                    .dispatch(&variables, authorization, certificate, proxy)
+                    .dispatch(
+                        &variables,
+                        authorization,
+                        certificate,
+                        proxy,
+                        auth_certificate,
+                        auth_proxy,
+                    )
                     .await;
+                let milliseconds = now.elapsed().as_millis();
 
                 match &dispatch_response {
                     Ok((request, response)) => {
@@ -1111,8 +1147,8 @@ impl Workspace {
                                         request: Some(request.clone()),
                                         response: Some(response.clone()),
                                         tests: reported_test_results,
-                                        executed_at: tests_started.elapsed().as_millis(),
-                                        milliseconds: now.elapsed().as_millis(),
+                                        executed_at,
+                                        milliseconds,
                                         success: true,
                                         test_count: Some(test_count),
                                         failed_test_count: Some(failed_test_count),
@@ -1130,8 +1166,8 @@ impl Workspace {
                                     request: Some(request.clone()),
                                     response: Some(response.clone()),
                                     tests: None,
-                                    executed_at: tests_started.elapsed().as_millis(),
-                                    milliseconds: now.elapsed().as_millis(),
+                                    executed_at,
+                                    milliseconds,
                                     success: false,
                                     test_count: None,
                                     failed_test_count: None,
@@ -1149,8 +1185,8 @@ impl Workspace {
                             request: None,
                             response: None,
                             tests: None,
-                            executed_at: tests_started.elapsed().as_millis(),
-                            milliseconds: now.elapsed().as_millis(),
+                            executed_at,
+                            milliseconds,
                             success: false,
                             test_count: None,
                             failed_test_count: None,
@@ -1242,7 +1278,6 @@ impl Workspace {
                         let cloned_certificate = certificate.clone();
                         let cloned_proxy = proxy.clone();
                         let cloned_request_name = request_name.clone();
-
 
                         let (group_test_results, group_vars) = Workspace::run_int(
                             cloned_workspace,
@@ -1402,7 +1437,7 @@ impl Workspace {
 
                 Ok(ApicizeExecutionResults {
                     runs: results_by_run,
-                    milliseconds: tests_started.elapsed().as_millis()
+                    milliseconds: tests_started.elapsed().as_millis(),
                 })
             }
         }
@@ -1416,8 +1451,10 @@ impl WorkbookRequest {
         variables: &HashMap<String, Value>,
         // scenario: Option<&WorkbookScenario>,
         authorization: Option<&WorkbookAuthorization>,
-        _certificate: Option<&WorkbookCertificate>,
+        certificate: Option<&WorkbookCertificate>,
         proxy: Option<&WorkbookProxy>,
+        auth_certificate: Option<&WorkbookCertificate>,
+        auth_proxy: Option<&WorkbookProxy>,
     ) -> Result<(ApicizeRequest, ApicizeResponse), ExecutionError> {
         let method: reqwest::Method;
         match self.method {
@@ -1445,7 +1482,7 @@ impl WorkbookRequest {
         //     keep_alive = true;
         // }
 
-        let subs = variables
+        let subs = &variables
             .iter()
             .map(|(name, value)| {
                 let v = if let Some(s) = value.as_str() {
@@ -1460,254 +1497,288 @@ impl WorkbookRequest {
             .collect();
 
         // Build the reqwest client and request
-        let mut builder = Client::builder()
+        let mut reqwest_builder = Client::builder()
             // .http2_keep_alive_while_idle(keep_alive)
             .timeout(timeout);
 
-        if let Some(active_proxy) = &proxy {
-            let url = &active_proxy.url;
-            builder = builder.proxy(Proxy::all(url).expect("Proxy unavailable"));
+        // Add certificate to builder if configured
+        let request_certificate: Option<WorkbookCertificate>;
+        if let Some(active_cert) = certificate {
+            request_certificate = Some(active_cert.clone());
+            match active_cert.append_to_builder(reqwest_builder) {
+                Ok(updated_builder) => reqwest_builder = updated_builder,
+                Err(err) => return Err(err),
+            }
+        } else {
+            request_certificate = None;
         }
 
-        let client = builder.build()?;
-
-        let mut request_builder = client.request(
-            method,
-            WorkbookRequestEntry::clone_and_sub(self.url.as_str(), &subs),
-        );
-
-        // Add headers, including authorization if applicable
-        let mut headers = reqwest::header::HeaderMap::new();
-        if let Some(h) = &self.headers {
-            for nvp in h {
-                if nvp.disabled != Some(true) {
-                    headers.insert(
-                        reqwest::header::HeaderName::try_from(WorkbookRequestEntry::clone_and_sub(
-                            &nvp.name, &subs,
-                        ))
-                        .unwrap(),
-                        reqwest::header::HeaderValue::try_from(
-                            WorkbookRequestEntry::clone_and_sub(&nvp.value, &subs),
-                        )
-                        .unwrap(),
-                    );
-                }
+        // Add proxy to builder if configured
+        if let Some(active_proxy) = proxy {
+            match active_proxy.append_to_builder(reqwest_builder) {
+                Ok(updated_builder) => reqwest_builder = updated_builder,
+                Err(err) => return Err(ExecutionError::Reqwest(err)),
             }
         }
 
-        let mut auth_token_cached: Option<bool> = None;
-        match authorization {
-            Some(WorkbookAuthorization::Basic {
-                username, password, ..
-            }) => {
-                request_builder = request_builder.basic_auth(username, Some(password));
-            }
-            Some(WorkbookAuthorization::ApiKey { header, value, .. }) => {
-                headers.append(
-                    reqwest::header::HeaderName::try_from(header).unwrap(),
-                    reqwest::header::HeaderValue::try_from(value).unwrap(),
+        let builder_result = reqwest_builder.build();
+        match builder_result {
+            Ok(client) => {
+                let mut request_builder = client.request(
+                    method,
+                    WorkbookRequestEntry::clone_and_sub(self.url.as_str(), &subs),
                 );
-            }
-            Some(WorkbookAuthorization::OAuth2Client {
-                id,
-                access_token_url,
-                client_id,
-                client_secret,
-                scope, // send_credentials_in_body: _,
-                ..
-            }) => {
-                match get_oauth2_client_credentials(
-                    id,
-                    access_token_url,
-                    client_id,
-                    client_secret,
-                    scope,
-                )
-                .await
-                {
-                    Ok((token, cached)) => {
-                        auth_token_cached = Some(cached);
-                        request_builder = request_builder.bearer_auth(token);
+
+                // Add headers, including authorization if applicable
+                let mut headers = reqwest::header::HeaderMap::new();
+                if let Some(h) = &self.headers {
+                    for nvp in h {
+                        if nvp.disabled != Some(true) {
+                            headers.insert(
+                                reqwest::header::HeaderName::try_from(
+                                    WorkbookRequestEntry::clone_and_sub(&nvp.name, &subs),
+                                )
+                                .unwrap(),
+                                reqwest::header::HeaderValue::try_from(
+                                    WorkbookRequestEntry::clone_and_sub(&nvp.value, &subs),
+                                )
+                                .unwrap(),
+                            );
+                        }
                     }
-                    Err(err) => return Err(err),
                 }
-            }
-            None => {}
-        }
 
-        if !headers.is_empty() {
-            request_builder = request_builder.headers(headers);
-        }
-
-        // Add query string parameters, if applicable
-        if let Some(q) = &self.query_string_params {
-            let mut query: Vec<(String, String)> = vec![];
-            for nvp in q {
-                if nvp.disabled != Some(true) {
-                    query.push((
-                        WorkbookRequestEntry::clone_and_sub(&nvp.name, &subs),
-                        WorkbookRequestEntry::clone_and_sub(&nvp.value, &subs),
-                    ));
+                let mut auth_token_cached: Option<bool> = None;
+                match authorization {
+                    Some(WorkbookAuthorization::Basic {
+                        username, password, ..
+                    }) => {
+                        request_builder = request_builder.basic_auth(username, Some(password));
+                    }
+                    Some(WorkbookAuthorization::ApiKey { header, value, .. }) => {
+                        headers.append(
+                            reqwest::header::HeaderName::try_from(header).unwrap(),
+                            reqwest::header::HeaderValue::try_from(value).unwrap(),
+                        );
+                    }
+                    Some(WorkbookAuthorization::OAuth2Client {
+                        id,
+                        access_token_url,
+                        client_id,
+                        client_secret,
+                        scope, // send_credentials_in_body: _,
+                        ..
+                    }) => {
+                        match get_oauth2_client_credentials(
+                            id,
+                            access_token_url,
+                            client_id,
+                            client_secret,
+                            scope,
+                            auth_certificate,
+                            auth_proxy,
+                        )
+                        .await
+                        {
+                            Ok((token, cached)) => {
+                                auth_token_cached = Some(cached);
+                                request_builder = request_builder.bearer_auth(token);
+                            }
+                            Err(err) => return Err(err),
+                        }
+                    }
+                    None => {}
                 }
-            }
-            request_builder = request_builder.query(&query);
-        }
 
-        // Add body, if applicable
-        match &self.body {
-            Some(WorkbookRequestBody::Text { data }) => {
-                let s = WorkbookRequestEntry::clone_and_sub(&data, &subs);
-                request_builder = request_builder.body(Body::from(s.clone()));
-            }
-            Some(WorkbookRequestBody::JSON { data }) => {
-                let s = WorkbookRequestEntry::clone_and_sub(
-                    serde_json::to_string(&data).unwrap().as_str(),
-                    &subs,
-                );
-                request_builder = request_builder.body(Body::from(s.clone()));
-            }
-            Some(WorkbookRequestBody::XML { data }) => {
-                let s = WorkbookRequestEntry::clone_and_sub(&data, &subs);
-                request_builder = request_builder.body(Body::from(s.clone()));
-            }
-            Some(WorkbookRequestBody::Form { data }) => {
-                let form_data = data
+                if !headers.is_empty() {
+                    request_builder = request_builder.headers(headers);
+                }
+
+                // Add query string parameters, if applicable
+                if let Some(q) = &self.query_string_params {
+                    let mut query: Vec<(String, String)> = vec![];
+                    for nvp in q {
+                        if nvp.disabled != Some(true) {
+                            query.push((
+                                WorkbookRequestEntry::clone_and_sub(&nvp.name, &subs),
+                                WorkbookRequestEntry::clone_and_sub(&nvp.value, &subs),
+                            ));
+                        }
+                    }
+                    request_builder = request_builder.query(&query);
+                }
+
+                // Add body, if applicable
+                match &self.body {
+                    Some(WorkbookRequestBody::Text { data }) => {
+                        let s = WorkbookRequestEntry::clone_and_sub(&data, &subs);
+                        request_builder = request_builder.body(Body::from(s.clone()));
+                    }
+                    Some(WorkbookRequestBody::JSON { data }) => {
+                        let s = WorkbookRequestEntry::clone_and_sub(
+                            serde_json::to_string(&data).unwrap().as_str(),
+                            &subs,
+                        );
+                        request_builder = request_builder.body(Body::from(s.clone()));
+                    }
+                    Some(WorkbookRequestBody::XML { data }) => {
+                        let s = WorkbookRequestEntry::clone_and_sub(&data, &subs);
+                        request_builder = request_builder.body(Body::from(s.clone()));
+                    }
+                    Some(WorkbookRequestBody::Form { data }) => {
+                        let form_data = data
+                            .iter()
+                            .map(|pair| {
+                                (
+                                    String::from(pair.name.as_str()),
+                                    String::from(pair.value.as_str()),
+                                )
+                            })
+                            .collect::<HashMap<String, String>>();
+                        request_builder = request_builder.form(&form_data);
+                    }
+                    Some(WorkbookRequestBody::Raw { data }) => {
+                        request_builder = request_builder.body(Body::from(data.clone()));
+                    }
+                    None => {}
+                }
+
+                let mut web_request = request_builder.build()?;
+
+                // Copy value generated for the request so that we can include in the function results
+                let request_url = web_request.url().to_string();
+                let request_headers = web_request
+                    .headers()
                     .iter()
-                    .map(|pair| {
+                    .map(|(h, v)| {
                         (
-                            String::from(pair.name.as_str()),
-                            String::from(pair.value.as_str()),
+                            String::from(h.as_str()),
+                            String::from(v.to_str().unwrap_or("(Header Contains Non-ASCII Data)")),
                         )
                     })
                     .collect::<HashMap<String, String>>();
-                request_builder = request_builder.form(&form_data);
-            }
-            Some(WorkbookRequestBody::Raw { data }) => {
-                request_builder = request_builder.body(Body::from(data.clone()));
-            }
-            None => {}
-        }
+                let request_body: Option<ApicizeBody>;
+                let ref_body = web_request.body_mut();
+                match ref_body {
+                    Some(data) => {
+                        let bytes = data.as_bytes().unwrap();
+                        if bytes.len() > 0 {
+                            let request_encoding = UTF_8;
 
-        let mut web_request = request_builder.build()?;
-
-        // Copy value generated for the request so that we can include in the function results
-        let request_url = web_request.url().to_string();
-        let request_headers = web_request
-            .headers()
-            .iter()
-            .map(|(h, v)| {
-                (
-                    String::from(h.as_str()),
-                    String::from(v.to_str().unwrap_or("(Header Contains Non-ASCII Data)")),
-                )
-            })
-            .collect::<HashMap<String, String>>();
-        let request_body: Option<ApicizeBody>;
-        let ref_body = web_request.body_mut();
-        match ref_body {
-            Some(data) => {
-                let bytes = data.as_bytes().unwrap();
-                if bytes.len() > 0 {
-                    let request_encoding = UTF_8;
-
-                    let data = bytes.to_vec();
-                    let (decoded, _, malformed) = request_encoding.decode(&data);
-                    request_body = Some(ApicizeBody {
-                        data: Some(data.clone()),
-                        text: if malformed {
-                            None
-                        } else {
-                            Some(decoded.to_string())
-                        },
-                    })
-                } else {
-                    request_body = None;
-                }
-            }
-            None => {
-                request_body = None;
-            }
-        }
-
-        // Execute the request
-        let client_response = client.execute(web_request).await;
-        match client_response {
-            Err(error) => return Err(ExecutionError::Reqwest(error)),
-            Ok(response) => {
-                // Collect headers for response
-                let response_headers = response.headers();
-                let headers: Option<HashMap<String, String>>;
-                if response_headers.is_empty() {
-                    headers = None;
-                } else {
-                    headers = Some(HashMap::from_iter(
-                        response_headers
-                            .iter()
-                            .map(|(h, v)| {
-                                (
-                                    String::from(h.as_str()),
-                                    String::from(
-                                        v.to_str().unwrap_or("(Header Contains Non-ASCII Data)"),
-                                    ),
-                                )
+                            let data = bytes.to_vec();
+                            let (decoded, _, malformed) = request_encoding.decode(&data);
+                            request_body = Some(ApicizeBody {
+                                data: Some(data.clone()),
+                                text: if malformed {
+                                    None
+                                } else {
+                                    Some(decoded.to_string())
+                                },
                             })
-                            .collect::<HashMap<String, String>>(),
-                    ));
-                }
-
-                // Determine the default text encoding
-                let response_content_type = response_headers
-                    .get(reqwest::header::CONTENT_TYPE)
-                    .and_then(|value| value.to_str().ok())
-                    .and_then(|value| value.parse::<Mime>().ok());
-
-                let response_encoding_name = response_content_type
-                    .as_ref()
-                    .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
-                    .unwrap_or("utf-8");
-
-                let response_encoding =
-                    Encoding::for_label(response_encoding_name.as_bytes()).unwrap_or(UTF_8);
-
-                // Collect status for response
-                let status = response.status();
-                let status_text = String::from(status.canonical_reason().unwrap_or("Unknown"));
-
-                // Retrieve response bytes and convert raw data to string
-                let bytes = response.bytes().await?;
-
-                let response_body: Option<ApicizeBody>;
-                if bytes.len() > 0 {
-                    let data = Vec::from(bytes.as_ref());
-                    let (decoded, _, malformed) = response_encoding.decode(&data);
-
-                    response_body = Some(ApicizeBody {
-                        data: Some(data.clone()),
-                        text: if malformed {
-                            None
                         } else {
-                            Some(decoded.to_string())
-                        },
-                    });
-                } else {
-                    response_body = None;
+                            request_body = None;
+                        }
+                    }
+                    None => {
+                        request_body = None;
+                    }
                 }
 
-                return Ok((
-                    ApicizeRequest {
-                        url: request_url,
-                        method: self.method.as_ref().unwrap().as_str().to_string(),
-                        headers: request_headers,
-                        body: request_body,
-                    },
-                    ApicizeResponse {
-                        status: status.as_u16(),
-                        status_text,
-                        headers,
-                        body: response_body,
-                        auth_token_cached,
-                    },
-                ));
+                // Execute the request
+                let client_response = client.execute(web_request).await;
+                match client_response {
+                    Err(error) => return Err(ExecutionError::Reqwest(error)),
+                    Ok(response) => {
+                        // Collect headers for response
+                        let response_headers = response.headers();
+                        let headers: Option<HashMap<String, String>>;
+                        if response_headers.is_empty() {
+                            headers = None;
+                        } else {
+                            headers = Some(HashMap::from_iter(
+                                response_headers
+                                    .iter()
+                                    .map(|(h, v)| {
+                                        (
+                                            String::from(h.as_str()),
+                                            String::from(
+                                                v.to_str()
+                                                    .unwrap_or("(Header Contains Non-ASCII Data)"),
+                                            ),
+                                        )
+                                    })
+                                    .collect::<HashMap<String, String>>(),
+                            ));
+                        }
+
+                        // Determine the default text encoding
+                        let response_content_type = response_headers
+                            .get(reqwest::header::CONTENT_TYPE)
+                            .and_then(|value| value.to_str().ok())
+                            .and_then(|value| value.parse::<Mime>().ok());
+
+                        let response_encoding_name = response_content_type
+                            .as_ref()
+                            .and_then(|mime| {
+                                mime.get_param("charset").map(|charset| charset.as_str())
+                            })
+                            .unwrap_or("utf-8");
+
+                        let response_encoding =
+                            Encoding::for_label(response_encoding_name.as_bytes()).unwrap_or(UTF_8);
+
+                        // Collect status for response
+                        let status = response.status();
+                        let status_text =
+                            String::from(status.canonical_reason().unwrap_or("Unknown"));
+
+                        // Retrieve response bytes and convert raw data to string
+                        let bytes = response.bytes().await?;
+
+                        let response_body: Option<ApicizeBody>;
+                        if bytes.len() > 0 {
+                            let data = Vec::from(bytes.as_ref());
+                            let (decoded, _, malformed) = response_encoding.decode(&data);
+
+                            response_body = Some(ApicizeBody {
+                                data: Some(data.clone()),
+                                text: if malformed {
+                                    None
+                                } else {
+                                    Some(decoded.to_string())
+                                },
+                            });
+                        } else {
+                            response_body = None;
+                        }
+
+                        return Ok((
+                            ApicizeRequest {
+                                url: request_url,
+                                method: self.method.as_ref().unwrap().as_str().to_string(),
+                                headers: request_headers,
+                                body: request_body,
+                                certificate: request_certificate,
+                                variables: if variables.len() > 0 {
+                                    Some(variables.clone())
+                                } else {
+                                    None
+                                },
+                            },
+                            ApicizeResponse {
+                                status: status.as_u16(),
+                                status_text,
+                                headers,
+                                body: response_body,
+                                auth_token_cached,
+                            },
+                        ));
+                    }
+                }
+            }
+            Err(err) => {
+                println!("{}", &err);
+                Err(ExecutionError::Reqwest(err))
             }
         }
     }
@@ -1715,7 +1786,7 @@ impl WorkbookRequest {
 
 impl WorkbookRequestEntry {
     /// Utility function to perform string substitution based upon search/replace values in "subs"
-    fn clone_and_sub(text: &str, subs: &HashMap<String, String>) -> String {
+    pub fn clone_and_sub(text: &str, subs: &HashMap<String, String>) -> String {
         if subs.is_empty() {
             text.to_string()
         } else {
@@ -1728,21 +1799,24 @@ impl WorkbookRequestEntry {
         }
     }
 
-    fn get_id(&self) -> &String {
+    /// Retrieve request entry ID
+    pub fn get_id(&self) -> &String {
         match self {
             WorkbookRequestEntry::Info(info) => &info.id,
             WorkbookRequestEntry::Group(group) => &group.id,
         }
     }
 
-    fn get_name(&self) -> &String {
+    /// Retrieve request entry name
+    pub fn get_name(&self) -> &String {
         match self {
             WorkbookRequestEntry::Info(info) => &info.name,
             WorkbookRequestEntry::Group(group) => &group.name,
         }
     }
 
-    fn get_runs(&self) -> u32 {
+    /// REtrieve request entry number of runs
+    pub fn get_runs(&self) -> u32 {
         match self {
             WorkbookRequestEntry::Info(info) => info.runs,
             WorkbookRequestEntry::Group(group) => group.runs,
@@ -1783,6 +1857,52 @@ impl WorkbookRequestEntry {
                     ));
                 }
             }
+        }
+    }
+}
+
+impl WorkbookCertificate {
+    /// Append certificate to builder
+    pub fn append_to_builder(
+        &self,
+        builder: ClientBuilder,
+    ) -> Result<ClientBuilder, ExecutionError> {
+        let identity_result: Result<Identity, Error>;
+        match self {
+            WorkbookCertificate::PKCS12 { pfx, password, .. } => {
+                identity_result = Identity::from_pkcs12_der(
+                    pfx,
+                    password.clone().unwrap_or(String::from("")).as_str(),
+                );
+            }
+            WorkbookCertificate::PKCS8PEM { pem, key, .. } => {
+                identity_result = Identity::from_pkcs8_pem(pem, key);
+            }
+            WorkbookCertificate::PEM { pem, .. } => {
+                identity_result = Identity::from_pem(pem);
+            }
+        }
+
+        match identity_result {
+            Ok(identity) => {
+                // request_certificate = Some(cert.clone());
+                Ok(builder
+                    .identity(identity)
+                    .connection_verbose(true)
+                    .use_native_tls()
+                    .tls_info(true))
+            }
+            Err(err) => Err(ExecutionError::Reqwest(err)),
+        }
+    }
+}
+
+impl WorkbookProxy {
+    /// Append proxy to builder
+    pub fn append_to_builder(&self, builder: ClientBuilder) -> Result<ClientBuilder, Error> {
+        match Proxy::all(&self.url) {
+            Ok(proxy) => Ok(builder.proxy(proxy)),
+            Err(err) => Err(err),
         }
     }
 }

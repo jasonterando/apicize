@@ -10,6 +10,8 @@ use serde_with::base64::{Base64, Standard};
 use serde_with::formats::Unpadded;
 use serde_with::serde_as;
 
+use crate::workbook::WorkbookCertificate;
+
 // use crate::WorkbookScenario;
 
 /// Body information used when dispatching an Apicize Request
@@ -39,6 +41,12 @@ pub struct ApicizeRequest {
     /// Body
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<ApicizeBody>,
+    /// Certificate / key used to establish identity
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub certificate: Option<WorkbookCertificate>,
+    /// Variables passed into request
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<HashMap<String, Value>>,
 }
 
 /// Information about the response to a dispatched Apicize request

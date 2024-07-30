@@ -1,11 +1,11 @@
-import { Button, Grid, TextField } from '@mui/material'
+import { Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material'
 import { WorkbookState } from '../../../models/store'
 import { useContext, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { EditableWorkbookOAuth2ClientAuthorization } from '../../../models/workbook/editable-workbook-authorization'
 import { WorkspaceContext } from '../../../contexts/workspace-context'
+import { EntitySelection } from '../../../models/workbook/entity-selection'
 
-export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {}}) {
+export function AuthorizationOAuth2ClientPanel(props = { triggerClearToken: () => { } }) {
     const auth = useContext(WorkspaceContext).authorization
 
     const id = useSelector((state: WorkbookState) => state.authorization.id)
@@ -13,6 +13,11 @@ export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {
     const clientId = useSelector((state: WorkbookState) => state.authorization.clientId ?? '')
     const clientSecret = useSelector((state: WorkbookState) => state.authorization.clientSecret ?? '')
     const scope = useSelector((state: WorkbookState) => state.authorization.scope ?? '')
+    const certificates = useSelector((state: WorkbookState) => state.authorization.certificates)
+    const certificateId = useSelector((state: WorkbookState) => state.authorization.certificateId)
+    const proxies = useSelector((state: WorkbookState) => state.authorization.proxies)
+    const proxyId = useSelector((state: WorkbookState) => state.authorization.proxyId)
+
     // const [sendCredentialsInBody, setSendCredentialsInBody] = useState<string>((authorization?.sendCredentialsInBody ?? false) ? 'yes' : 'no')
 
     if (!id) {
@@ -35,6 +40,14 @@ export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {
         auth.setScope(id, updatedScope)
     }
 
+    const updateCertificateId = (updatedId: string) => {
+        auth.setSelectedCertificateId(id, updatedId)
+    }
+
+    const updatedProxyId = (updatedId: string) => {
+        auth.setSelectedProxyId(id, updatedId)
+    }
+
     // const updateSendCredentialsInBody = (updatedSendCredentialsInBody: string) => {
     //     setSendCredentialsInBody(updatedSendCredentialsInBody)
     //     dispatch(updateAuthorization({
@@ -42,6 +55,13 @@ export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {
     //         sendCredentialsInBody: updatedSendCredentialsInBody === 'yes'
     //     }))
     // }
+
+    let credIndex = 0
+    const itemsFromSelections = (selections: EntitySelection[]) => {
+        return selections.map(s => (
+            <MenuItem key={`creds-${credIndex++}`} value={s.id}>{s.name}</MenuItem>
+        ))
+    }
 
     return (<Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
         <Grid item>
@@ -85,9 +105,39 @@ export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {
             />
         </Grid>
         <Grid item>
+            <FormControl>
+                <InputLabel id='cred-cert-label'>Certificate</InputLabel>
+                <Select
+                    labelId='cred-cert-label'
+                    id='cred-cert'
+                    label='Certificate'
+                    value={certificateId}
+                    onChange={(e) => updateCertificateId(e.target.value)}
+                    fullWidth
+                >
+                    {itemsFromSelections(certificates)}
+                </Select>
+            </FormControl>
+        </Grid>
+        <Grid item>
+            <FormControl>
+                <InputLabel id='cred-proxy-label'>Proxy</InputLabel>
+                <Select
+                    labelId='cred-proxy-label'
+                    id='cred-proxy'
+                    label='Proxy'
+                    value={proxyId}
+                    onChange={(e) => updatedProxyId(e.target.value)}
+                    fullWidth
+                >
+                    {itemsFromSelections(proxies)}
+                </Select>
+            </FormControl>
+        </Grid>
+        <Grid item>
             <Button
                 color='warning'
-                variant='outlined' 
+                variant='outlined'
                 // startIcon={<ClearIcon />}
                 onClick={() => props.triggerClearToken()}>
                 Clear Any Cached Token
@@ -110,5 +160,5 @@ export function AuthorizationOAuth2ClientPanel(props={triggerClearToken: () => {
             //     </FormControl>
             // </Grid>
         }
-    </Grid>)
+    </Grid >)
 }

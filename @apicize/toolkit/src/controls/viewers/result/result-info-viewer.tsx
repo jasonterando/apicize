@@ -50,6 +50,7 @@ const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
 
 const ResultDetail = (props: { info: ExecutionSummaryInfo }) => {
     let idx = 0
+    const executedAt = props.info.executedAt > 0 ? `${props.info.executedAt.toLocaleString()}` : '(Start)'
     return (<Box sx={{marginBottom: '2rem'}}>
         <Box sx={{ marginBottom: '1rem' }}>
             {((props.info.errorMessage?.length ?? 0) == 0)
@@ -58,18 +59,13 @@ const ResultDetail = (props: { info: ExecutionSummaryInfo }) => {
             {props.info.status === undefined
                 ? (<></>)
                 : (<TestInfo text={`Status: ${props.info.status} ${props.info.statusText}`} />)}
-            {(props.info.executedAt > 0)
-                ? (<TestInfo text={`Exeucted At: ${props.info.executedAt.toLocaleString()} ms`} />)
-                : (<></>)}
+            <TestInfo text={`Executed At: ${executedAt}`} />
             {(props.info.milliseconds && props.info.milliseconds > 0)
                 ? (<TestInfo text={`Duration: ${props.info.milliseconds.toLocaleString()} ms`} />)
                 : (<></>)}
             {/* {props.tokenCached
                 ? (<TestInfo text='OAuth bearer token retrieved from cache' />)
                 : (<></>)} */}
-        </Box>
-        <Box>
-            ({JSON.stringify(props.info)})
         </Box>
         {
         props.info.tests
@@ -171,7 +167,7 @@ export function ResultInfoViewer(props: {
         return (
             <Box>
                 <Typography variant='h2' sx={{ marginTop: 0 }}>
-                    Request Execution {summary.success ? "Completed" : "Failed"}
+                    Request Execution {summary.success ? "Completed xxx" : "Failed"}
                     <IconButton
                         aria-label="Copy Results to Clipboard"
                         title="Copy Results to Clipboard"

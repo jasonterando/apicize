@@ -1,7 +1,7 @@
 {
   "name": "app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@apicize/toolkit": "^0.0.1",
+    "@apicize/toolkit": "^0.2.0",
     "@dnd-kit/core": "^6.1.0",
     "@mui/material": "^5.14.20",
     "@mui/system": "^5.14.20",
@@ -26,13 +26,15 @@
     "redux": "^5.0.0",
     "remark-directive": "^3.0.0",
     "tauri-plugin-clipboard-api": "^2.0.0-beta.1",
-    "typeface-open-sans": "^1.1.13"
+    "typeface-open-sans": "^1.1.13",
+    "valibot": "^0.36.0"
   },
   "devDependencies": {
     "@types/react-redux": "^7.1.33",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "mdast-util-directive": "^3.0.0",
-    "mdast-util-to-hast": "^13.1.0"
+    "mdast-util-to-hast": "^13.1.0",
+    "typescript": "^5"
   }
 }

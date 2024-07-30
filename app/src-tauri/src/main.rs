@@ -3,6 +3,7 @@
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
+use tauri_plugin_log::{Target, TargetKind};
 
 use apicize_lib::{
     models::{
@@ -10,7 +11,7 @@ use apicize_lib::{
     },
     oauth2_client_tokens::{clear_all_oauth2_tokens, clear_oauth2_token},
 };
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use std::sync::{OnceLock, Mutex};
 
@@ -29,6 +30,15 @@ fn main() {
         ])
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    // Target::new(TargetKind::LogDir { file_name: None }),
+                    // Target::new(TargetKind::Webview),                ])
+                ])
+                .build(),
+        )        
         // .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {

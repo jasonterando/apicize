@@ -1,3 +1,3 @@
-# Authorizations
+# :toolbar Authorizations
 
 Testing 1 2 3

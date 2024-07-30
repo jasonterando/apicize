@@ -3,9 +3,17 @@ import { ReactNode, createContext } from "react"
 import { EditableWorkbookApiKeyAuthorization, EditableWorkbookAuthorization, EditableWorkbookBasicAuthorization, EditableWorkbookOAuth2ClientAuthorization } from "../models/workbook/editable-workbook-authorization"
 import { castEntryAsGroup, castEntryAsRequest, EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request-entry"
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario"
-import { WorkbookBodyData, GetTitle, WorkbookAuthorizationType, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization, WorkbookApiKeyAuthorization, StoredGlobalSettings, WorkbookMethod, WorkbookBodyType, Persistence, removeEntity, moveEntity, addNestedEntity, moveNestedEntity, getNestedEntity, getEntity, Workspace, addEntity, removeNestedEntity, findParentEntity, IndexedEntities, Identifiable, Selection, Named, WorkbookRequestGroup, WorkbookGroupExecution, ApicizeExecutionResults, WorkbookCertificateType, WorkbookPkcs12Certificate, WorkbookPkcs8Certificate } from "@apicize/lib-typescript"
-import { newStateStorage, stateToGlobalSettingsStorage, stateToWorkspace, workspaceToState } from "../services/apicize-serializer"
-import { WorkbookState, requestActions, navigationActions, authorizationActions, scenarioActions, groupActions, workbookActions, executionActions, ResultType, NavigationType, helpActions, proxyActions, NO_SELECTION, NO_SELECTION_ID, parametersActions, DEFAULT_SELECTION_ID, certificateActions } from "../models/store"
+import {
+    WorkbookBodyData, GetTitle, WorkbookAuthorizationType, WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization, WorkbookApiKeyAuthorization, StoredGlobalSettings, WorkbookMethod, WorkbookBodyType, Persistence, removeEntity, moveEntity, addNestedEntity, moveNestedEntity, getNestedEntity, getEntity, Workspace, addEntity, removeNestedEntity, findParentEntity, IndexedEntities, Identifiable, Selection, Named, WorkbookRequestGroup, WorkbookGroupExecution, ApicizeExecutionResults,
+    WorkbookCertificateType, WorkbookPkcs12Certificate, WorkbookPkcs8PemCertificate, WorkbookPemCertificate
+} from "@apicize/lib-typescript"
+import { base64Decode, base64Encode, newStateStorage, stateToGlobalSettingsStorage, stateToWorkspace, workspaceToState } from "../services/apicize-serializer"
+import {
+    WorkbookState, requestActions, navigationActions, authorizationActions, scenarioActions, groupActions, workbookActions, executionActions,
+    ResultType, NavigationType, helpActions, proxyActions, NO_SELECTION, NO_SELECTION_ID, parametersActions, DEFAULT_SELECTION_ID, certificateActions,
+    ClipboardContentType,
+    clipboardActions
+} from "../models/store"
 import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request"
 import { GenerateIdentifier } from "../services/random-identifier-generator"
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair"
@@ -29,6 +37,7 @@ const StorageActions = () => {
 
     let activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
     let activeID = useSelector((state: WorkbookState) => state.navigation.activeID)
+    let activeFileName = useSelector((state: WorkbookState) => state.workbook.workbookFullName)
 
     const encodeFormData = (data: EditableNameValuePair[]) =>
         (data.length === 0)
@@ -109,6 +118,12 @@ const StorageActions = () => {
     const helpContextActions = {
         setNextHelpTopic: (topic: string) => {
             dispatch(helpActions.setNextHelpTopic(topic))
+        },
+        hideHelp: () => {
+            dispatch(helpActions.hideHelp())
+        },
+        showHelp: (topic: string, text: string, history: string[]) => {
+            dispatch(helpActions.showHelp({topic, text, history}))
         }
     };
 
@@ -120,16 +135,16 @@ const StorageActions = () => {
      */
     const buildEntityList = <T extends Identifiable & Named>(
         entityList: IndexedEntities<T>,
-        defaultName: string): EntitySelection[] => {
-        const list: EntitySelection[] = [
-            { id: DEFAULT_SELECTION_ID, name: `Default (${defaultName})` },
-            { id: NO_SELECTION_ID, name: `Off` },
-        ]
+        defaultName?: string): EntitySelection[] => {
+        const list: EntitySelection[] = []
+        if (defaultName !== undefined) {
+            list.push({ id: DEFAULT_SELECTION_ID, name: `Default (${defaultName})` })
+        }
+        list.push({ id: NO_SELECTION_ID, name: `Off` })
         for (const id of entityList.topLevelIds) {
             const e = entityList.entities[id]
             list.push({ id: e.id, name: GetTitle(e) })
         }
-
         return list
     }
 
@@ -236,8 +251,6 @@ const StorageActions = () => {
             dispatch(helpActions.hideHelp())
             dispatch(helpActions.setNextHelpTopic('requests'))
 
-            console.log('Request selected scenario', request.selectedScenario)
-
             dispatch(requestActions.initialize({
                 id: request.id,
                 name: request.name ?? '',
@@ -328,6 +341,10 @@ const StorageActions = () => {
         }
 
         if (authorization) {
+
+            const certificates = buildEntityList(stateStorage.certificates)
+            const proxies = buildEntityList(stateStorage.proxies)
+
             dispatch(helpActions.hideHelp())
             dispatch(helpActions.setNextHelpTopic('authorizations'))
             dispatch(authorizationActions.initialize({
@@ -340,6 +357,10 @@ const StorageActions = () => {
                 accessTokenUrl: (authorization as EditableWorkbookOAuth2ClientAuthorization)?.accessTokenUrl,
                 clientId: (authorization as EditableWorkbookOAuth2ClientAuthorization).clientId,
                 clientSecret: (authorization as EditableWorkbookOAuth2ClientAuthorization).clientSecret,
+                certificateId: (authorization as EditableWorkbookOAuth2ClientAuthorization).selectedCertificate?.id ?? NO_SELECTION_ID,
+                certificates,
+                proxyId: (authorization as EditableWorkbookOAuth2ClientAuthorization).selectedProxy?.id ?? NO_SELECTION_ID,
+                proxies,
                 scope: (authorization as EditableWorkbookOAuth2ClientAuthorization).scope,
                 header: (authorization as EditableWorkbookApiKeyAuthorization).header,
                 value: (authorization as EditableWorkbookApiKeyAuthorization).value
@@ -364,6 +385,10 @@ const StorageActions = () => {
         }
 
         if (certificate) {
+            const pkcs8pem = certificate as WorkbookPkcs8PemCertificate
+            const pem = certificate as WorkbookPemCertificate
+            const pkcs12 = certificate as WorkbookPkcs12Certificate
+
             dispatch(helpActions.hideHelp())
             dispatch(helpActions.setNextHelpTopic('scenarios'))
             dispatch(certificateActions.initialize({
@@ -371,10 +396,10 @@ const StorageActions = () => {
                 name: certificate.name ?? '',
                 persistence: certificate.persistence,
                 type: certificate.type,
-                der: (certificate as WorkbookPkcs12Certificate)?.der,
-                password: (certificate as WorkbookPkcs12Certificate)?.password,
-                pem: (certificate as WorkbookPkcs8Certificate)?.pem,
-                key: (certificate as WorkbookPkcs8Certificate)?.key,
+                pem: pkcs8pem?.pem,
+                key: pkcs8pem?.key,
+                pfx: pkcs12?.pfx,
+                password: pkcs12?.password,
             }))
             dispatch(navigationActions.openEditor({
                 type: NavigationType.Certificate,
@@ -423,6 +448,7 @@ const StorageActions = () => {
             let longTextInResponse
             let resultType
             let result
+
             if (execution.runIndex === undefined || execution.results === undefined || (execution.results?.length ?? 0) === 0) {
                 resultType = ResultType.None
                 longTextInResponse = false
@@ -935,6 +961,8 @@ const StorageActions = () => {
                     clientID: '',
                     clientSecret: '',
                     scope: '',
+                    certificateId: NO_SELECTION_ID,
+                    proxyId: NO_SELECTION_ID,
                     // sendCredentialsInBody: false,
                     header: 'x-api-key',
                     value: ''
@@ -1017,13 +1045,33 @@ const StorageActions = () => {
         },
         setClientSecret: (id: string, value: string) => {
             let entry = stateStorage.authorizations.entities[id] as WorkbookOAuth2ClientAuthorization
-            entry.clientId = value
+            entry.clientSecret = value
             dispatch(authorizationActions.setClientSecret(value))
         },
         setScope: (id: string, value: string) => {
             let entry = stateStorage.authorizations.entities[id] as WorkbookOAuth2ClientAuthorization
             entry.scope = value
             dispatch(authorizationActions.setScope(value))
+        },
+        setSelectedCertificateId: (id: string, entityId: string) => {
+            let entry = stateStorage.authorizations.entities[id] as WorkbookOAuth2ClientAuthorization
+            entry.selectedCertificate = entityId === DEFAULT_SELECTION_ID
+                ? undefined
+                : entityId == NO_SELECTION_ID
+                    ? NO_SELECTION
+                    : { id: entityId, name: GetTitle(stateStorage.certificates.entities[entityId]) }
+            dispatch(workbookActions.setDirty(true))
+            dispatch(authorizationActions.setSelectedCertificateId(entityId))
+        },
+        setSelectedProxyId: (id: string, entityId: string) => {
+            let entry = stateStorage.authorizations.entities[id] as WorkbookOAuth2ClientAuthorization
+            entry.selectedProxy = entityId === DEFAULT_SELECTION_ID
+                ? undefined
+                : entityId == NO_SELECTION_ID
+                    ? NO_SELECTION
+                    : { id: entityId, name: GetTitle(stateStorage.proxies.entities[entityId]) }
+            dispatch(workbookActions.setDirty(true))
+            dispatch(authorizationActions.setSelectedProxyId(entityId))
         },
         setHeader: (id: string, value: string) => {
             let entry = stateStorage.authorizations.entities[id] as WorkbookApiKeyAuthorization
@@ -1050,16 +1098,17 @@ const StorageActions = () => {
                 id,
                 name: '',
                 persistence: Persistence.Private,
-                type: WorkbookCertificateType.PKCS8,
-                pem: '',
-                key: '',
+                type: WorkbookCertificateType.PKCS8_PEM,
+                pem: undefined,
+                key: undefined,
+                pfx: undefined,
             } as EditableWorkbookCertificate
 
             stateStorage.certificates.entities[certificate.id] = certificate
             addEntity(certificate, stateStorage.certificates, targetID)
             activateCertificate(id)
             dispatch(workbookActions.setDirty(true))
-            dispatch(navigationActions.setCertificateList(generateScenarioNavList()))
+            dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
         },
         delete: (id: string) => {
             for (const entity of Object.values(stateStorage.requests.entities)) {
@@ -1071,12 +1120,12 @@ const StorageActions = () => {
             activateCertificate(null)
             activateRequestOrGroup(null)
             dispatch(workbookActions.setDirty(true))
-            dispatch(navigationActions.setCertificateList(generateScenarioNavList()))
+            dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
         },
         move: (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
             moveEntity<EditableWorkbookCertificate>(id, destinationID, onLowerHalf, onLeft, stateStorage.certificates)
             dispatch(workbookActions.setDirty(true))
-            dispatch(navigationActions.setCertificateList(generateScenarioNavList()))
+            dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
             // if (selectedScenario !== NO_SELECTION) {
             //     activateScenario(id)
             // }
@@ -1103,37 +1152,44 @@ const StorageActions = () => {
             entry.name = value
             dispatch(certificateActions.setName(value))
             dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
+            dispatch(workbookActions.setDirty(true))
         },
         setPersistence: (id: string, value: Persistence) => {
             let entry = stateStorage.certificates.entities[id]
             entry.persistence = value
             dispatch(certificateActions.setPersistence(value))
+            dispatch(workbookActions.setDirty(true))
         },
         setType: (id: string, value: WorkbookCertificateType) => {
             let entry = stateStorage.certificates.entities[id]
-            entry.name = value
+            entry.type = value
             dispatch(certificateActions.setType(value))
             dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
+            dispatch(workbookActions.setDirty(true))
         },
-        setPem: (id: string, value: string) => {
-            let entry = stateStorage.certificates.entities[id] as WorkbookPkcs8Certificate
+        setPem: (id: string, value: number[]) => {
+            let entry = stateStorage.certificates.entities[id] as WorkbookPkcs8PemCertificate
             entry.pem = value
-            dispatch(certificateActions.setPem(value))
+            dispatch(certificateActions.setPem(entry.pem))
+            dispatch(workbookActions.setDirty(true))
         },
-        setKey: (id: string, value: string | undefined) => {
-            let entry = stateStorage.certificates.entities[id] as WorkbookPkcs8Certificate
+        setKey: (id: string, value: number[] | undefined) => {
+            let entry = stateStorage.certificates.entities[id] as WorkbookPkcs8PemCertificate
             entry.key = value
-            dispatch(certificateActions.setKey(value))
+            dispatch(certificateActions.setKey(entry.key))
+            dispatch(workbookActions.setDirty(true))
         },
-        setDer: (id: string, value: any) => {
+        setPfx: (id: string, value: number[]) => {
             let entry = stateStorage.certificates.entities[id] as WorkbookPkcs12Certificate
-            entry.der = value
-            dispatch(certificateActions.setDer(value))
+            entry.pfx = value
+            dispatch(certificateActions.setPfx(entry.pfx))
+            dispatch(workbookActions.setDirty(true))
         },
         setPassword: (id: string, value: string) => {
             let entry = stateStorage.certificates.entities[id] as WorkbookPkcs12Certificate
             entry.password = value
             dispatch(certificateActions.setPassword(value))
+            dispatch(workbookActions.setDirty(true))
         },
     }
 
@@ -1217,7 +1273,10 @@ const StorageActions = () => {
         activateScenario,
         activateAuthorization,
         activateCertificate,
-        activateProxy
+        activateProxy,
+        setDirty: (onOff: boolean) => {
+            dispatch(workbookActions.setDirty(onOff))
+        },
     }
 
     const executionContextActions = {
@@ -1340,6 +1399,21 @@ const StorageActions = () => {
         },
     }
 
+    const navigationContextActions = {
+        setApplicationInfo: (name: string, version: string) => {
+            dispatch(navigationActions.setApplicationInfo({name, version}))
+        },
+        setShowNavigation: (onOff: boolean) => {
+            dispatch(navigationActions.setShowNavigation(onOff))
+        }
+    }
+
+    const clipboardContextActions = {
+        setTypes: (types: ClipboardContentType[]) => {
+            dispatch(clipboardActions.setTypes(types))
+        }
+    }
+
     return {
         request: requestContextActions,
         group: groupContextActions,
@@ -1349,8 +1423,13 @@ const StorageActions = () => {
         proxy: proxyContextActions,
         workbook: workspaceContextActions,
         execution: executionContextActions,
+        navigation: navigationContextActions,
+        clipboard: clipboardContextActions,
         help: helpContextActions,
 
+        getWorkbookFileName: () => {
+            return activeFileName
+        },
         newWorkbook: (globalSettings: StoredGlobalSettings) => {
             stateStorage = newStateStorage()
             requestExecutions.clear()
@@ -1358,9 +1437,10 @@ const StorageActions = () => {
             dispatch(navigationActions.closeEditor())
             dispatch(navigationActions.setLists({
                 requests: [],
-                authorizations: [],
                 scenarios: [],
-                proxies: generateProxyNavList(),
+                authorizations: [],
+                certificates: [],
+                proxies: [],
             }))
             dispatch(executionActions.resetExecution())
             dispatch(workbookActions.initializeWorkbook({
@@ -1375,8 +1455,9 @@ const StorageActions = () => {
             dispatch(navigationActions.closeEditor())
             dispatch(navigationActions.setLists({
                 requests: generateRequestNavList(),
-                authorizations: generateAuthorizationNavList(),
                 scenarios: generateScenarioNavList(),
+                authorizations: generateAuthorizationNavList(),
+                certificates: generateCertificateNavList(),
                 proxies: generateProxyNavList(),
             }))
             dispatch(executionActions.resetExecution())

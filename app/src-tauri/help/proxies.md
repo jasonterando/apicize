@@ -1,4 +1,4 @@
-# :icon[proxy] Proxies
+# :toolbar :icon[proxy] Proxies
 Apicize supports http/s and SOCKS 5 proxies when executing tests.
 
 ## Configuration

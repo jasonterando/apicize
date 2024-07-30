@@ -1,26 +1,26 @@
 "use client"
 
-import { createContext, ReactNode, useContext, useEffect, useRef } from "react"
+import { ReactNode, useContext, useEffect, useRef, useState } from "react"
 import {
     ToastContext, ToastStore, ToastSeverity, WorkbookState,
-    useConfirmation, WorkspaceContext, workbookStore,
-    navigationActions,
-    workbookActions,
-    helpActions,
+    useConfirmation, WorkspaceContext,
     NavigationType,
-    base64Encode
+    base64Encode,
+    CertificateFileType,
+    ClipboardContentType,
+    ContentDestination
 } from "@apicize/toolkit"
 import { useSelector } from 'react-redux'
-import { ApicizeExecutionResults, ApicizeResult, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
-import { listen, Event } from "@tauri-apps/api/event"
+import { ApicizeExecutionResults, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
+import { listen, Event, UnlistenFn } from "@tauri-apps/api/event"
 import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
-import clipboard from "tauri-plugin-clipboard-api"
-import { BaseDirectory, join, resourceDir } from "@tauri-apps/api/path"
+import clipboard, { writeImageBase64, writeText } from "tauri-plugin-clipboard-api"
+import { join, resourceDir } from "@tauri-apps/api/path"
 import { path } from "@tauri-apps/api"
 
 const EXT = 'apicize';
 
-const ApicizeTauriActions = () => {
+export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const context = useContext(WorkspaceContext)
     const confirm = useConfirmation()
     const toast = useContext<ToastStore>(ToastContext)
@@ -39,6 +39,9 @@ const ApicizeTauriActions = () => {
 
     const nextHelpTopic = useSelector((state: WorkbookState) => state.help.nextHelpTopic)
     const helpTopicHistory = useSelector((state: WorkbookState) => state.help.helpTopicHistory)
+
+    const [sshPath, setSshPath] = useState('')
+    const [bodyDataPath, setBodyDataPath] = useState('')
 
     let _settings = useRef<StoredGlobalSettings | undefined>()
     let _loaded = useRef(false)
@@ -79,9 +82,7 @@ const ApicizeTauriActions = () => {
                     app.getName(),
                     app.getVersion()
                 ])
-                workbookStore.dispatch(navigationActions.setApplicationInfo({
-                    name: info[0], version: info[1]
-                }))
+                context.navigation.setApplicationInfo(info[0], info[1])
                 try {
                     let settings = await loadSettings()
                     if ((settings?.lastWorkbookFileName?.length ?? 0) > 0) {
@@ -90,7 +91,7 @@ const ApicizeTauriActions = () => {
                 } catch (e) {
                     toast.open(`${e}`, ToastSeverity.Error)
                 } finally {
-                    workbookStore.dispatch(navigationActions.setShowNavigation(true))
+                    context.navigation.setShowNavigation(true)
                     // workbookStore.dispatch(navigationActions.setShowLanding(true))
                 }
 
@@ -109,7 +110,7 @@ const ApicizeTauriActions = () => {
                                 defaultToCancel: true
                             })) {
                                 _forceClose.current = true
-                                workbookStore.dispatch(workbookActions.setDirty(false))
+                                context.workbook.setDirty(false)
                                 currentWindow.close()
                             }
                         })()
@@ -125,7 +126,7 @@ const ApicizeTauriActions = () => {
                 let updateHistory = [...helpTopicHistory]
                 switch (topic) {
                     case '\nclose':
-                        workbookStore.dispatch(helpActions.hideHelp())
+                        context.help.hideHelp()
                         return
                     case '\nback':
                         updateHistory.pop()
@@ -139,20 +140,18 @@ const ApicizeTauriActions = () => {
                         showTopic = topic
                 }
 
-                const [helpTopic, helpAnchor] = showTopic.split('#')
                 const historyLength = updateHistory.length
                 if (historyLength < 25 && (historyLength === 0 || updateHistory[historyLength - 1] !== showTopic)) {
                     updateHistory.push(showTopic)
                 }
 
-                const helpFile = await join(await resourceDir(), 'help', `${helpTopic}.md`)
+                const helpFile = await join(await resourceDir(), 'help', `${showTopic}.md`)
                 if (await exists(helpFile)) {
                     let text = await readTextFile(helpFile)
 
                     const helpDir = await path.join(await resourceDir(), 'help', 'images')
 
-                    debugger
-
+                    // This is cheesy, but I can't think of another way to inject images from the React client
                     let imageLink
                     do {
                         imageLink = text.match(/\:image\[(.*)\]/)
@@ -160,7 +159,7 @@ const ApicizeTauriActions = () => {
                             const imageFile = await path.join(helpDir, imageLink[1])
                             let replaceWith = ''
                             try {
-                                const data = Array.from(await readFile(imageFile))
+                                const data = await readFile(imageFile)
                                 const ext = await path.extname(imageFile)
                                 replaceWith = `![](data:image/${ext};base64,${base64Encode(data)})`
                             } catch (e) {
@@ -169,27 +168,19 @@ const ApicizeTauriActions = () => {
                             text = `${text.substring(0, imageLink.index)}${replaceWith}${text.substring(imageLink.index + imageLink[0].length)}`
                         }
                     } while (imageLink && imageLink.length > 0)
-
-                    workbookStore.dispatch(helpActions.showHelp({ topic: helpTopic, anchor: helpAnchor, text, history: updateHistory }))
+                    context.help.showHelp(showTopic, text, updateHistory)
                 } else {
-                    throw new Error(`Help topic "${helpTopic}" not found`)
+                    throw new Error(`Help topic "${showTopic}" not found`)
                 }
             })().catch((e) => {
                 toast.open(`${e}`, ToastSeverity.Error)
             })
         }
 
-        const processHelpImage = (name: string): Promise<string> => {
-            return Promise.resolve('abcdef')
-        }
-
-
+        const unlistenOpenFile = listen('openFile', async (event: Event<{ destination: ContentDestination, id: string }>) => { await doOpenFile(event.payload.destination, event.payload.id) })
         const unlistenAction = listen('action', async (event: Event<string>) => { await doRouteAction(event.payload) })
         const unlistenHelp = listen('help', async (event: Event<string>) => {
             processHelp(event.payload)
-        })
-        const unlistenHelpImage = listen('help-image', async (event: Event<string>) => {
-            return processHelpImage(event.payload)
         })
         const unlistenCopyTextToClipboard = listen<string | undefined>('copyText', async (event) => {
             await doCopyTextToClipboard(event.payload)
@@ -198,12 +189,28 @@ const ApicizeTauriActions = () => {
             await doCopyImageToClipboard(event.payload)
         })
 
+        const unlistenPastFromClipboard = listen<{ destination: ContentDestination, id: string }>('pasteFromClipboard', async (event) => {
+            await doPasteTextFromClipboard(event.payload.destination, event.payload.id)
+        })
+
+        let unlistenClipboardUpdate: Promise<UnlistenFn> | null = null
+        clipboard.startListening().then(async () => {
+            unlistenClipboardUpdate = clipboard.onSomethingUpdate((types) => {
+                const ctypes: ClipboardContentType[] = []
+                if (types.text) ctypes.push(ClipboardContentType.Text)
+                if (types.imageBinary) ctypes.push(ClipboardContentType.Image)
+                context.clipboard.setTypes(ctypes)
+            })
+        })
+
         return () => {
+            if (unlistenClipboardUpdate) unlistenClipboardUpdate.then(f => f())
+            unlistenOpenFile.then(f => f())
             unlistenAction.then(f => f())
             unlistenHelp.then(f => f())
-            unlistenHelpImage.then(f => f())
             unlistenCopyTextToClipboard.then(f => f())
             unlistenCopyImageToClipboard.then(f => f())
+            unlistenPastFromClipboard.then(f => f())
         }
     })
 
@@ -253,14 +260,200 @@ const ApicizeTauriActions = () => {
             case 'clearToken':
                 await doClearToken()
                 break
-            case 'bodyFromFile':
-                await doSetBodyFromFile()
-                break
             default:
                 console.warn(`Invalid action: ${action}`)
         }
     }
 
+    // Return SSH path if available, otherwise, fall back to settins
+    const getSshPath = async () => {
+        if (sshPath.length > 0) {
+            if (await exists(sshPath)) {
+                return sshPath
+            }
+        }
+        const settings = await loadSettings()
+        const path = await getTauriPath()
+        const home = await path.homeDir()
+        const openSshPath = await path.join(home, '.ssh')
+        if (await exists(openSshPath)) {
+            return openSshPath
+        } else {
+            return settings.workbookDirectory
+        }
+    }
+
+    const getBodyDataPath = async () => {
+        if (bodyDataPath.length > 0) {
+            if (await exists(bodyDataPath)) {
+                return bodyDataPath
+            }
+        }
+
+        const fileName = context.getWorkbookFileName()
+        if (fileName && fileName.length > 0) {
+            const base = await path.basename(fileName)
+            let i = fileName.indexOf(base)
+            if (i != -1) {
+                return fileName.substring(0, i)
+            }
+        }
+        const settings = await loadSettings()
+        return settings.workbookDirectory
+    }
+
+    const doOpenFile = async (destination: ContentDestination, id: string) => {
+        const dialog = await getTauriDialog()
+
+        let defaultPath: string
+        let title: string
+        let extensions: string[]
+        let extensionName: string
+
+        switch (destination) {
+            case ContentDestination.PEM:
+                defaultPath = await getSshPath()
+                title = 'Open Public Key (.pem)'
+                extensions = ['pem']
+                extensionName = 'Privacy Enhanced Mail Format (.pem)'
+                break
+            case ContentDestination.Key:
+                defaultPath = await getSshPath()
+                title = 'Open Private Key (.key)'
+                extensions = ['key']
+                extensionName = 'Private Key Files (*.key)'
+                break
+            case ContentDestination.PFX:
+                defaultPath = await getSshPath()
+                title = 'Open PFX Key (.pfx, .p12)'
+                extensions = ['pfx', 'p12']
+                extensionName = 'Personal Information Exchange Format (*.pfx, *.pfx)'
+                break
+            case ContentDestination.BodyBinary:
+                defaultPath = await getBodyDataPath()
+                title = 'Open Posted Body Content'
+                extensions = []
+                extensionName = ''
+                break
+            default:
+                toast.open('Invalid destination type', ToastSeverity.Error)
+                return
+        }
+
+        const selected = (await dialog.open({
+            multiple: false,
+            title,
+            defaultPath,
+            directory: false,
+            filters: extensions.length > 0
+                ? [{
+                    name: extensionName,
+                    extensions
+                }, {
+                    name: 'All Files',
+                    extensions: ['*']
+                }]
+                : [
+                    {
+                        name: 'All Files',
+                        extensions: ['*']
+                    }
+                ]
+        })) as any
+
+        if (!selected) return
+
+        const fileName = selected['path'] as string
+        try {
+            const baseName = await path.basename(fileName)
+            let pathName = ''
+            let i = fileName.indexOf(baseName)
+            if (i !== -1) {
+                pathName = (await path.dirname(fileName)).substring(0, i)
+            }
+
+            const data = Array.from(await readFile(fileName))
+            switch (destination) {
+                case ContentDestination.PEM:
+                    context.certificate.setPem(id, data)
+                    if (pathName.length > 0) setSshPath(pathName)
+                    break
+                case ContentDestination.Key:
+                    context.certificate.setKey(id, data)
+                    if (pathName.length > 0) setSshPath(pathName)
+                    break
+                case ContentDestination.PFX:
+                    context.certificate.setPfx(id, data)
+                    if (pathName.length > 0) setSshPath(pathName)
+                    break
+                case ContentDestination.BodyBinary:
+                    context.request.setBodyData(id, data)
+                    if (pathName.length > 0) setBodyDataPath(pathName)
+                    break
+            }
+            toast.open(`Data read from from ${fileName}`, ToastSeverity.Success)
+
+        } catch (e) {
+            toast.open(`Unable to open ${fileName}, ${e}`, ToastSeverity.Error)
+        }
+    }
+
+
+
+
+    const doPasteTextFromClipboard = async (destination: ContentDestination, id: string) => {
+        const getClipboardText = async () => {
+            try {
+                if (await clipboard.hasText()) {
+                    return await clipboard.readText()
+                } else {
+                    return null
+                }
+            } catch (e) {
+                toast.open(`${e}`, ToastSeverity.Error)
+                return null
+            }
+        }
+        const getClipboardImage = async () => {
+            try {
+                if (await clipboard.hasImage()) {
+                    const result = await clipboard.readImageBinary('int_array')
+                    if (Array.isArray(result)) {
+                        return result as number[]
+                    }
+                }
+                return null
+            } catch (e) {
+                toast.open(`${e}`, ToastSeverity.Error)
+                return null
+            }
+        }
+
+
+        let text: string | null
+        let data: number[] | null
+        switch (destination) {
+            case ContentDestination.PEM:
+                text = await getClipboardText()
+                if (text) context.certificate.setPem(id, Array.from((new TextEncoder).encode(text)))
+                break
+            case ContentDestination.Key:
+                text = await getClipboardText()
+                if (text) context.certificate.setKey(id, Array.from((new TextEncoder).encode(text)))
+                break
+            case ContentDestination.BodyBinary:
+                data = await getClipboardImage()
+                if (data) {
+                    context.request.setBodyData(id, data)
+                } else {
+                    text = await getClipboardText()
+                    if (text) {
+                        context.request.setBodyData(id, Array.from((new TextEncoder()).encode(text)))
+                    }
+                }
+                break
+        }
+    }
 
     // Triggers the start of a new workbook
     const doNewWorkbook = async () => {
@@ -337,12 +530,6 @@ const ApicizeTauriActions = () => {
             const core = await getTauriApiCore()
             const workspace = context.getWorkspaceFromStore()
 
-            console.log('Requests')
-            for (const [id, r] of Object.entries(workspace.requests.entities)) {
-                console.log(`ID: ${id} - ${r.name ?? '(Unnamed)'}`)
-            }
-
-
             await core.invoke('save_workspace', { workspace, path: workbookFullName })
 
             await updateSettings({ lastWorkbookFileName: workbookFullName })
@@ -363,9 +550,9 @@ const ApicizeTauriActions = () => {
             const path = await getTauriPath()
             const settings = await loadSettings()
 
-            const fileName = await dialog.save({
+            let fileName = await dialog.save({
                 title: 'Save Apicize Workbook',
-                defaultPath: workbookFullName ?? settings.workbookDirectory,
+                defaultPath: ((workbookFullName?.length ?? 0) > 0) ? workbookFullName : settings.workbookDirectory,
                 filters: [{
                     name: 'Apicize Files',
                     extensions: [EXT]
@@ -374,6 +561,10 @@ const ApicizeTauriActions = () => {
 
             if ((typeof fileName !== 'string') || ((fileName?.length ?? 0) === 0)) {
                 return
+            }
+
+            if (!fileName.endsWith(`.${EXT}`)) {
+                fileName += `.${EXT}`
             }
 
             const workspace = context.getWorkspaceFromStore()
@@ -454,7 +645,7 @@ const ApicizeTauriActions = () => {
     const doCopyImageToClipboard = async (base64?: string) => {
         try {
             if (base64 && (base64.length > 0)) {
-                await clipboard.writeImageBase64(base64)
+                await writeImageBase64(base64)
                 toast.open('Image copied to clipboard', ToastSeverity.Success)
             }
         } catch (e) {
@@ -465,7 +656,7 @@ const ApicizeTauriActions = () => {
     const doCopyTextToClipboard = async (text?: string) => {
         try {
             if (text && (text.length ?? 0) > 0) {
-                await clipboard.writeText(text)
+                await writeText(text)
                 toast.open('Text copied to clipboard', ToastSeverity.Success)
             }
         } catch (e) {
@@ -513,45 +704,9 @@ const ApicizeTauriActions = () => {
         }
     }
 
-    const doSetBodyFromFile = async () => {
-
-        if (!requestId) return
-
-        const dialog = await getTauriDialog()
-        const settings = await loadSettings()
-        const selected = (await dialog.open({
-            multiple: false,
-            title: 'Set Body From File',
-            defaultPath: settings?.workbookDirectory,
-            directory: false
-        })) as any
-        if (!selected) return
-        const fileName = selected['path']
-        try {
-            const data = await readFile(fileName)
-            context.request.setBodyData(requestId, Array.from(data))
-            toast.open(`Data set from ${fileName}`, ToastSeverity.Success)
-        } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
-        }
-    }
-
-    const getHelpImage = (name: string): string => {
-        return '12345'
-    }
-
-    return {
-        getHelpImage
-    }
-}
-
-
-export const ApicizeTauriContext = createContext({} as ReturnType<typeof ApicizeTauriActions>)
-
-export function ApicizeTauriProvider({ children }: { children?: ReactNode }) {
     return (
-        <ApicizeTauriContext.Provider value={ApicizeTauriActions()}>
-            {children}
-        </ApicizeTauriContext.Provider>
+        <>
+            {props.children}
+        </>
     )
 }

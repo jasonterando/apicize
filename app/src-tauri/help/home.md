@@ -1,6 +1,8 @@
-::logo
+# :toolbar 
 
-This is :info[name], version :info[version]
+:logo 
+Apicize is a utility to test HTTP calls.  It's primary interface is a desktop application, but it also comes with a CLI  
+
 
 # Contents
 

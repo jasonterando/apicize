@@ -41,6 +41,7 @@ export interface WorkbookExecution {
      resultIndex?: number
      resultLists?: IndexedText[][]
      results?: WorkbookExecutionResult[][]
+     executedAt?: number
      milliseconds?: number
 }
 

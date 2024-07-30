@@ -26,6 +26,13 @@ export default function Home() {
       ].join(',')
     },
     components: {
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            minWidth: '120px'
+          }
+        }
+      },
       MuiTreeItem: {
         styleOverrides: {
           root: {

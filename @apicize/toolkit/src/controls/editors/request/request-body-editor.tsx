@@ -1,12 +1,13 @@
 import * as React from 'react'
 import Box from '@mui/material/Box'
 import { useSelector } from 'react-redux'
-import { WorkbookState } from '../../../models/store'
+import { ContentDestination, WorkbookState } from '../../../models/store'
 import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
+import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import { useContext } from 'react'
 import { WorkspaceContext } from '../../../contexts/workspace-context'
 
@@ -17,7 +18,10 @@ import "ace-builds/src-noconflict/theme-monokai"
 import "ace-builds/src-noconflict/ext-language_tools"
 import { WorkbookBodyType, WorkbookBodyTypes } from '@apicize/lib-typescript'
 
-export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void }) {
+export function RequestBodyEditor(props: {
+  triggerOpenFile: (destination: ContentDestination, id: string) => {},
+  triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
+}) {
   const context = useContext(WorkspaceContext)
   const request = context.request
 
@@ -49,7 +53,7 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
         return 'application/octet-stream'
     }
   }
-  
+
   const id = useSelector((state: WorkbookState) => state.request.id)
   const headers = useSelector((state: WorkbookState) => state.request.headers)
   const bodyType = useSelector((state: WorkbookState) => state.request.bodyType)
@@ -107,7 +111,7 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
 
   let mode
 
-  switch(bodyType) {
+  switch (bodyType) {
     case WorkbookBodyType.JSON:
       mode = 'json'
       break
@@ -115,7 +119,7 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
       mode = 'xml'
       break
   }
-  
+
   return (
     <Stack direction='column' spacing={3}>
       <Stack direction='row' sx={{ justifyContent: 'space-between' }}>
@@ -145,38 +149,42 @@ export function RequestBodyEditor(props: { triggerSetBodyFromFile: () => void })
               direction='row'
               sx={{
                 borderRadius: '4px',
-                overflow: 'auto',
+                overflow: 'hidden',
                 border: '1px solid #444!important',
+                width: 'fit-content',
               }}
             >
-              <IconButton aria-label='from-file' title='Set Body from File' onClick={() => props.triggerSetBodyFromFile()} sx={{ marginRight: '4px' }}>
+              <IconButton aria-label='from-file' title='Load Body from File' onClick={() => props.triggerOpenFile(ContentDestination.BodyBinary, id)} sx={{ marginRight: '4px' }}>
                 <FileOpenIcon />
+              </IconButton>
+              <IconButton aria-label='from-clipboard' title='Paste Body from Clipboard' onClick={() => props.triggerPasteFromClipboard(ContentDestination.BodyBinary, id)} sx={{ marginRight: '4px' }}>
+                <ContentPasteGoIcon />
               </IconButton>
               <Box padding='10px'>{bodyData.length.toLocaleString()} Bytes</Box>
             </Stack>
             :
-              <AceEditor
-                mode={mode}
-                theme='monokai'
-                fontSize='1rem'
-                lineHeight='1rem'
-                width='100%'
-                height='10rem'
-                showGutter={true}
-                showPrintMargin={false}
-                tabSize={3}
-                setOptions={{
-                  useWorker: false,
-                  foldStyle: "markbegin",
-                  displayIndentGuides: true,
-                  enableAutoIndent: true,
-                  fixedWidthGutter: true,
-                  showLineNumbers: true,
-                }}
-                onChange={updateBodyAsText}
-                name='code-editor'
-                value={bodyData}
-              />
+            <AceEditor
+              mode={mode}
+              theme='monokai'
+              fontSize='1rem'
+              lineHeight='1rem'
+              width='100%'
+              height='10rem'
+              showGutter={true}
+              showPrintMargin={false}
+              tabSize={3}
+              setOptions={{
+                useWorker: false,
+                foldStyle: "markbegin",
+                displayIndentGuides: true,
+                enableAutoIndent: true,
+                fixedWidthGutter: true,
+                showLineNumbers: true,
+              }}
+              onChange={updateBodyAsText}
+              name='code-editor'
+              value={bodyData}
+            />
       }
     </Stack>
   )

@@ -16,7 +16,7 @@ import { RequestBodyEditor } from './request/request-body-editor'
 import { RequestTestEditor } from './request/request-test-editor'
 import { RequestTestContext } from './request/request-test-context'
 import { ResultsViewer } from '../viewers/results-viewer'
-import { NavigationType, WorkbookState } from '../../models/store'
+import { ContentDestination, NavigationType, WorkbookState } from '../../models/store'
 import { RequestGroupEditor } from './request/request-group-editor';
 import { EditorTitle } from '../editor-title';
 import { WorkspaceContext } from '../../contexts/workspace-context';
@@ -28,7 +28,8 @@ export function RequestEditor(props: {
     triggerCancel: () => {},
     triggerCopyTextToClipboard: (text?: string) => void
     triggerCopyImageToClipboard: (base64?: string) => void,
-    triggerSetBodyFromFile: () => void,
+    triggerOpenFile: (destination: ContentDestination, id: string) => {},
+    triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
 }) {
     const help = useContext(WorkspaceContext).help
     const activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
@@ -71,6 +72,8 @@ export function RequestEditor(props: {
             if (helpTopic) {
                 help.setNextHelpTopic(helpTopic)
             }
+        } else {
+            help.setNextHelpTopic('groups')
         }
     }, [panel, activeType])
 
@@ -80,7 +83,7 @@ export function RequestEditor(props: {
 
     const isRequest = activeType === NavigationType.Request
 
-    if (! isRequest && (! ['Info', 'Parameters'].includes(panel))) {
+    if (!isRequest && (!['Info', 'Parameters'].includes(panel))) {
         setPanel('Info')
     }
 
@@ -111,7 +114,7 @@ export function RequestEditor(props: {
                                     {panel === 'Info' ? <RequestInfoEditor />
                                         : panel === 'Headers' ? <RequestHeadersEditor />
                                             : panel === 'Query String' ? <RequestQueryStringEditor />
-                                                : panel === 'Body' ? <RequestBodyEditor triggerSetBodyFromFile={props.triggerSetBodyFromFile} />
+                                                : panel === 'Body' ? <RequestBodyEditor triggerOpenFile={props.triggerOpenFile} triggerPasteFromClipboard={props.triggerPasteFromClipboard} />
                                                     : panel === 'Test' ? <RequestTestEditor />
                                                         : panel === 'Parameters' ? <RequestParametersEditor />
                                                             : null}

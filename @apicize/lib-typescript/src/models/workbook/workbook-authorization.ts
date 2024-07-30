@@ -1,6 +1,7 @@
 import { Identifiable } from "../identifiable"
 import { Named } from "../named"
 import { Persisted } from "../persistence"
+import { Selection } from "../selection"
 
 /**
  * Specifies the type of authorization used for a request
@@ -35,6 +36,8 @@ export interface WorkbookOAuth2ClientAuthorization extends WorkbookBaseAuthoriza
     clientId: string
     clientSecret: string
     scope: string
+    selectedCertificate?: Selection
+    selectedProxy?: Selection
     // sendCredentialsInBody: boolean
 }
 

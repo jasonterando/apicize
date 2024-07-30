@@ -42,9 +42,7 @@ pub struct WorkbookNameValuePair {
 }
 
 
-/// Apicize Request body.  
-/// Note: we have to have structs as variants to get serde_as
-/// support for Base64
+/// Apicize Request body
 #[serde_as]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(tag = "type")]
@@ -269,6 +267,12 @@ pub enum WorkbookAuthorization {
         #[serde(skip_serializing_if = "Option::is_none")]
         /// Scope to add to token (multiple scopes should be space-delimited)
         scope: Option<String>,
+        /// Selected certificate, if applicable
+        #[serde(skip_serializing_if = "Option::is_none")]
+        selected_certificate: Option<Selection>,
+        /// Selected proxy, if applicable
+        #[serde(skip_serializing_if = "Option::is_none")]
+        selected_proxy: Option<Selection>,
         // #[serde(skip_serializing_if="Option::is_none")]
         // send_credentials_in_body: Option<bool>,
     },
@@ -288,15 +292,19 @@ pub enum WorkbookAuthorization {
         header: String,
         /// Value of key to include as header value
         value: String,
+        /// Selected certificate, if applicable
+        #[serde(skip_serializing_if = "Option::is_none")]
+        selected_certificate: Option<Selection>,
     },
 }
 
 /// Client certificate used to identify caller
+#[serde_as]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum WorkbookCertificate {
     /// PKCS 12 certificate and and password (.p12 or .pfx)
-    #[serde(rename_all = "camelCase")]
+    #[serde(rename = "PKCS12")]
     PKCS12 {
         /// Uniquely identifies certificate
         #[serde(default = "generate_uuid")]
@@ -307,13 +315,15 @@ pub enum WorkbookCertificate {
         #[serde(skip_serializing_if = "Option::is_none")]
         persistence: Option<Persistence>,
         /// Certificate
-        der: Vec<u8>,
+        #[serde_as(as = "Base64<Standard, Unpadded>")]
+        pfx: Vec<u8>,
         /// Password
-        password: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        password: Option<String>,
     },
-    /// PEM-encoded private key and certificate (.pem)
-    #[serde(rename_all = "camelCase")]
-    PKCS8 {
+    /// PEM-encoded certificate and PKCS8 encoded private key files
+    #[serde(rename = "PKCS8_PEM")]
+    PKCS8PEM {
         /// Uniquely identifies certificate
         #[serde(default = "generate_uuid")]
         id: String,
@@ -323,10 +333,27 @@ pub enum WorkbookCertificate {
         #[serde(skip_serializing_if = "Option::is_none")]
         persistence: Option<Persistence>,
         /// Certificate information
-        pem: String,
+        #[serde_as(as = "Base64<Standard, Unpadded>")]
+        pem: Vec<u8>,
         /// Optional key file, if not combining in PKCS8 format
-        key: Option<String>,
+        #[serde_as(as = "Base64<Standard, Unpadded>")]
+        key: Vec<u8>,
     },    
+    /// PEM encoded certificate and key file
+    #[serde(rename = "PEM")]
+    PEM {
+        /// Uniquely identifies certificate
+        #[serde(default = "generate_uuid")]
+        id: String,
+        /// Human-readable name of certificate
+        name: String,
+        /// Specifies how cetificate will be saved
+        #[serde(skip_serializing_if = "Option::is_none")]
+        persistence: Option<Persistence>,
+        /// Certificate information
+        #[serde_as(as = "Base64<Standard, Unpadded>")]
+        pem: Vec<u8>,
+    },        
 }
 
 /// An HTTP or SOCKS5 proxy that can be used to tunnel requests

@@ -1,4 +1,4 @@
-# :icon[request] Requests
+# :toolbar :icon[request] Requests
 
 ## Test Pane :icon[test]
 

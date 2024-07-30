@@ -1,4 +1,4 @@
-# :icon[request] Requests
+# :toolbar icon[request] Requests
 
 ## Body Pane :icon[body]
 

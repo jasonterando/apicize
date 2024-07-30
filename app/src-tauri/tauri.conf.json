@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/@tauri-apps/cli/schema.json",
   "identifier": "apicize.app",
   "productName": "Apicize",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "app": {
     "security": {
       "csp": null
@@ -74,29 +74,17 @@
     "fs": {
       "scope": {
         "allow": [
+          "$HOME",
+          "$HOME/**",
+          "$HOME/.ssh",
+          "$HOME/.ssh/**",
           "$CONFIG",
           "$CONFIG/**",
           "$APP_CONFIG",
           "$APP_CONFIG/**"
-        ],
-        "requireLiteralLeadingDot": false
+        ]
       },
-      "fs:exist": true,
-      "fs:copyFile": true,
-      "scope-appconfig": true,
-      "scope-appconfig-index": true,
-      "allow-appconfig-meta": true,
-      "allow-appconfig-read": true,
-      "allow-appconfig-write": true,
-      "scope-appconfig-recursive": true,
-      "allow-appconfig-index-recursive": true,
-      "allow-appconfig-meta-recursive": true,
-      "allow-appconfig-read-recursive": true,
-      "allow-appconfig-write-recursive": true,
-      "allow-applocaldata-read-recursive": true,
-      "allow-applocaldata-write-recursive": true,
-      "allow-document-read-recursive": true,
-      "allow-document-write-recursive": true
+      "requireLiteralLeadingDot": false
     }
   }
 }

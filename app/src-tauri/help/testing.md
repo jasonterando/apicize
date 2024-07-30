@@ -1,4 +1,4 @@
-# Authoring Apicize Tests
+# :toolbar Authoring Apicize Tests
 
 Your tests have access to the following variables:
 
@@ -57,6 +57,7 @@ it is deleted by attempting to retrieve the deleted record and checking for a 40
 * **query_string_params**: Query string parameters, organized as array of key-value pairs (with scenario values substituted, if applicable)
 * **body**: Body submitted with request, this is an object containing data and/or text
 * **test**: Test script used to validate request response
+* **variables**: Variables set based upon Scenario or previous test(s)
 
 ### Response
 

@@ -1,10 +1,13 @@
-import { WorkbookBaseCertificate, WorkbookPkcs12Certificate, WorkbookPkcs8Certificate } from "@apicize/lib-typescript"
+import { WorkbookBaseCertificate, WorkbookPkcs12Certificate, WorkbookPkcs8PemCertificate, WorkbookPemCertificate } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 
 export interface EditableWorkbookCertificate extends Editable, WorkbookBaseCertificate {
 }
 
-export interface EditableWorkbookPkcs8Certificate extends Editable, WorkbookPkcs8Certificate {
+export interface EditableWorkbookPkcs8PemCertificate extends Editable, WorkbookPkcs8PemCertificate {
+}
+
+export interface EditableWorkbookPPemCertificate extends Editable, WorkbookPemCertificate {
 }
 
 export interface EditableWorkbookPkcs12Certificate extends Editable, WorkbookPkcs12Certificate {    
@@ -20,4 +23,13 @@ export function EditableWorkbookCertificateToCertificate(certificate: EditableWo
     delete cloned.dirty
     delete cloned.invalid
     return cloned
+}
+
+/**
+ * Type of certificate file to open
+ */
+export enum CertificateFileType {
+    PEM,
+    Key,
+    PFX
 }

@@ -37,18 +37,21 @@ async fn main() {
 
     let mut iter_ids = arc_workspace.requests.top_level_ids.iter();
     while let Some(request_id) = iter_ids.next() {
+
+        if let Some(request) = arc_workspace.requests.entities.get(&request_id.clone()) {
+            println!("{}", request.get_name());
+        }
+
         let run_response = Workspace::run(arc_workspace.clone(), request_id, None).await;
-
-
         match run_response {
             Ok(results) => {
-                println!("Total execution time: {} ms", results.milliseconds);
+                println!("   Total execution time: {} ms", results.milliseconds);
                 let mut run_number = 0;
                 let total_runs = results.runs.len();
                 results.runs.iter().for_each(|run| {
                     if total_runs > 1 {
                         run_number = run_number + 1;
-                        println!("Run {} of {}", run_number, total_runs);
+                        println!("      Run {} of {}", run_number, total_runs);
                     }
 
                     run.iter().for_each(|result| {
@@ -59,15 +62,15 @@ async fn main() {
                                     // println!("{}", serde_json::to_string(r).unwrap());
                                     tests.iter().for_each(|tr| {
                                         if tr.success {
-                                            println!(" - {} [PASS]", tr.test_name.join(" "));
+                                            println!("       - {} [PASS]", tr.test_name.join(" "));
                                             pass_count += 1;
                                         } else {
                                             println!(
-                                                " - {} [FAIL] {}",
+                                                "       - {} [FAIL] {}",
                                                 tr.test_name.join(", "),
                                                 tr.error
                                                     .as_ref()
-                                                    .unwrap_or(&String::from("Unknown Error"))
+                                                    .unwrap_or(&String::from("       Unknown Error"))
                                             );
                                             fail_count += 1;
                                         }

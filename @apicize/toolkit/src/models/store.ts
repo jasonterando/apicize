@@ -36,6 +36,18 @@ export enum NavigationType {
   Proxy,
 }
 
+export enum ClipboardContentType {
+  Text,
+  Image,
+}
+
+export enum ContentDestination {
+  PEM,
+  Key,
+  PFX,
+  BodyBinary,
+}
+
 const navigationSlice = createSlice({
   name: 'navigation',
   initialState: {
@@ -73,13 +85,15 @@ const navigationSlice = createSlice({
     },
     setLists: (state, action: PayloadAction<{
       requests: NavigationListItem[],
-      authorizations: NavigationListItem[],
       scenarios: NavigationListItem[],
+      authorizations: NavigationListItem[],
+      certificates: NavigationListItem[],
       proxies: NavigationListItem[],
     }>) => {
       state.requestList = action.payload.requests
-      state.authorizationList = action.payload.authorizations
       state.scenarioList = action.payload.scenarios
+      state.authorizationList = action.payload.authorizations
+      state.certificateList = action.payload.certificates
       state.proxyList = action.payload.proxies
     },
     setRequestList: (state, action: PayloadAction<NavigationListItem[]>) => {
@@ -109,21 +123,36 @@ const navigationSlice = createSlice({
   }
 })
 
+const clipboardSlice = createSlice({
+  name: 'clipboard',
+  initialState: {
+    hasText: false,
+    hasImage: false,
+    text: null as string | null
+  },
+  reducers: {
+    setTypes: (state, action: PayloadAction<ClipboardContentType[]>) => {
+      state.hasText = action.payload.includes(ClipboardContentType.Text)
+      state.hasImage = action.payload.includes(ClipboardContentType.Image)
+    },
+    setText: (state, action: PayloadAction<string>) => {
+      state.text = action.payload
+    }
+  }
+})
+
 const helpSlice = createSlice({
   name: 'help',
   initialState: {
     showHelp: false,
     helpTopic: null as string | null,
     nextHelpTopic: '',
-    helpAnchor: '',
     helpText: '',
     helpTopicHistory: [] as string[]
   },
   reducers: {
-    showHelp: (state, action: PayloadAction<{ topic: string, anchor?: string, text: string, history: string[] }>) => {
-      const histLen = state.helpTopicHistory.length
+    showHelp: (state, action: PayloadAction<{ topic: string, text: string, history: string[] }>) => {
       state.helpTopic = action.payload.topic
-      state.helpAnchor = action.payload.anchor ?? ''
       state.helpText = action.payload.text
       state.helpTopicHistory = action.payload.history
       state.showHelp = true
@@ -137,7 +166,7 @@ const helpSlice = createSlice({
   }
 })
 
-// Manage state of selectable credential dentities
+// Manage state of selectable credential identities
 const parametersSlice = createSlice({
   name: 'parameters',
   initialState: {
@@ -161,7 +190,6 @@ const parametersSlice = createSlice({
       proxies: EntitySelection[],
       proxyId: string,
     }>) => {
-      console.log(`group set scenario ID to ${action.payload.scenarioId}`)
       state.scenarios = action.payload.scenarios
       state.scenarioId = action.payload.scenarioId
       state.authorizations = action.payload.authorizations
@@ -172,7 +200,6 @@ const parametersSlice = createSlice({
       state.proxyId = action.payload.proxyId
     },
     setSelectedScenarioId: (state, action: PayloadAction<string>) => {
-      console.log(`individual set scenario ID to ${action.payload}`)
       state.scenarioId = action.payload
     },
     setSelectedAuthorizationId: (state, action: PayloadAction<string>) => {
@@ -339,6 +366,10 @@ const authorizationSlice = createSlice({
     accessTokenUrl: undefined as string | undefined,
     clientId: undefined as string | undefined,
     clientSecret: undefined as string | undefined,
+    certificates: [] as EntitySelection[],
+    certificateId: undefined as string | undefined,
+    proxies: [] as EntitySelection[],
+    proxyId: undefined as string | undefined,
     scope: undefined as string | undefined,
     header: undefined as string | undefined,
     value: undefined as string | undefined
@@ -354,6 +385,10 @@ const authorizationSlice = createSlice({
       accessTokenUrl: string | undefined,
       clientId: string | undefined,
       clientSecret: string | undefined,
+      certificateId: string | undefined,
+      certificates: EntitySelection[],
+      proxyId: string | undefined,
+      proxies: EntitySelection[],
       scope: string | undefined,
       header: string | undefined,
       value: string | undefined
@@ -367,6 +402,10 @@ const authorizationSlice = createSlice({
       state.accessTokenUrl = action.payload.accessTokenUrl
       state.clientId = action.payload.clientId
       state.clientSecret = action.payload.clientSecret
+      state.certificateId = action.payload.certificateId
+      state.certificates = action.payload.certificates
+      state.proxyId = action.payload.proxyId
+      state.proxies = action.payload.proxies
       state.scope = action.payload.scope
       state.header = action.payload.header
       state.value = action.payload.value
@@ -395,6 +434,12 @@ const authorizationSlice = createSlice({
     setClientSecret: (state, action: PayloadAction<string>) => {
       state.clientSecret = action.payload
     },
+    setSelectedCertificateId: (state, action: PayloadAction<string>) => {
+      state.certificateId = action.payload
+    },
+    setSelectedProxyId: (state, action: PayloadAction<string>) => {
+      state.proxyId = action.payload
+    },
     setScope: (state, action: PayloadAction<string>) => {
       state.scope = action.payload
     },
@@ -414,9 +459,9 @@ const certificateSlice = createSlice({
     name: '',
     persistence: Persistence.Private,
     type: WorkbookCertificateType.None,
-    pem: undefined as string | undefined,
-    key: undefined as string | undefined,
-    der: undefined as any | undefined,
+    pem: undefined as number[] | undefined,
+    key: undefined as number[] | undefined,
+    pfx: undefined as number[] | undefined,
     password: undefined as string | undefined,
   },
   reducers: {
@@ -425,9 +470,9 @@ const certificateSlice = createSlice({
       name: string,
       persistence: Persistence,
       type: WorkbookCertificateType,
-      pem: string | undefined,
-      key: string | undefined,
-      der: any | undefined,
+      pem: number[] | undefined,
+      key: number[] | undefined,
+      pfx: number[] | undefined,
       password: string | undefined,
     }>) => {
       state.id = action.payload.id
@@ -436,7 +481,7 @@ const certificateSlice = createSlice({
       state.type = action.payload.type
       state.pem = action.payload.pem
       state.key = action.payload.key
-      state.der = action.payload.der
+      state.pfx = action.payload.pfx
       state.password = action.payload.password
     },
     setName: (state, action: PayloadAction<string>) => {
@@ -448,16 +493,16 @@ const certificateSlice = createSlice({
     setType: (state, action: PayloadAction<WorkbookCertificateType>) => {
       state.type = action.payload
     },
-    setPem: (state, action: PayloadAction<string>) => {
+    setPem: (state, action: PayloadAction<number[]>) => {
       state.pem = action.payload
     },
-    setKey: (state, action: PayloadAction<string | undefined>) => {
+    setKey: (state, action: PayloadAction<number[] | undefined>) => {
       state.key = action.payload
     },
-    setDer: (state, action: PayloadAction<string>) => {
-      state.der = action.payload
+    setPfx: (state, action: PayloadAction<number[]>) => {
+      state.pfx = action.payload
     },
-    setPassword: (state, action: PayloadAction<string>) => {
+    setPassword: (state, action: PayloadAction<string | undefined>) => {
       state.password = action.payload
     },
   }
@@ -615,6 +660,7 @@ const executionSlice = createSlice({
 
 export const workbookActions = workbookSlice.actions
 export const navigationActions = navigationSlice.actions
+export const clipboardActions = clipboardSlice.actions
 export const helpActions = helpSlice.actions
 export const parametersActions = parametersSlice.actions
 export const requestActions = requestSlice.actions
@@ -629,6 +675,7 @@ export const workbookStore = configureStore({
   reducer: {
     workbook: workbookSlice.reducer,
     navigation: navigationSlice.reducer,
+    clipboard: clipboardSlice.reducer,
     help: helpSlice.reducer,
     parameters: parametersSlice.reducer,
     request: requestSlice.reducer,

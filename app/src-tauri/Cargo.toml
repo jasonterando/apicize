@@ -1,7 +1,7 @@
 [package]
 name = "apicize"
-version = "0.1.0"
-description = "Apicize"
+version = "0.2.0"
+description = "Apicize HTTP call testing application"
 authors = ["Jason Terando"]
 license = ""
 repository = ""
@@ -26,6 +26,8 @@ tauri-plugin-global-shortcut = "2.0.0-beta"
 tauri-plugin-dialog = "2.0.0-beta"
 tauri-plugin-window-state = "2.0.0-beta"
 tauri-plugin-clipboard = { git = "https://github.com/CrossCopy/tauri-plugin-clipboard", branch = "v2" }
+env_logger = "0.10.2"
+tauri-plugin-log = "2.0.0-beta"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

@@ -10,9 +10,8 @@ use oauth2::basic::BasicClient;
 use oauth2::reqwest;
 use oauth2::{ClientId, ClientSecret, Scope, TokenResponse, TokenUrl};
 use tokio::sync::Mutex;
-use tokio::task::spawn_blocking;
 
-use crate::ExecutionError;
+use crate::{ExecutionError, WorkbookCertificate, WorkbookProxy};
 
 lazy_static! {
     /// Static cache of retrieved OAuth2 client tokens
@@ -27,6 +26,8 @@ pub async fn get_oauth2_client_credentials(
     client_id: &String,
     client_secret: &String,
     scope: &Option<String>,
+    certificate: Option<&WorkbookCertificate>,
+    proxy: Option<&WorkbookProxy>,
 ) -> Result<(String, bool), ExecutionError> {
     let cloned_id = id.clone();
     let cloned_token_url = token_url.clone();
@@ -51,48 +52,66 @@ pub async fn get_oauth2_client_credentials(
         return Ok((token, true));
     }
 
-    // We have to create a blocked span when using oauth because some error types 
+    // We have to create a blocked span when using oauth because some error types
     // in oauth2 library dependencies do not implement Copy
-    match spawn_blocking(move || {
+    // match spawn_blocking(move || {
         // Retrieve an access token
-        let mut client = BasicClient::new(ClientId::new(cloned_client_id))
-            .set_token_uri(
-                TokenUrl::new(cloned_token_url).expect("Unable to parse OAuth token URL"),
-            );
+    let mut client = BasicClient::new(ClientId::new(cloned_client_id)).set_token_uri(
+        TokenUrl::new(cloned_token_url).expect("Unable to parse OAuth token URL"),
+    );
 
-        if ! cloned_client_secret.trim().is_empty() {
-            client = client.set_client_secret(ClientSecret::new(cloned_client_secret));
+    if !cloned_client_secret.trim().is_empty() {
+        client = client.set_client_secret(ClientSecret::new(cloned_client_secret));
+    }
+
+    let mut token_request = client.exchange_client_credentials();
+    if let Some(scope_value) = cloned_scope {
+        token_request = token_request.add_scope(Scope::new(scope_value.clone()));
+    }
+
+    let mut reqwest_builder =
+        reqwest::ClientBuilder::new().redirect(reqwest::redirect::Policy::none());
+
+    // let cert1 = fs::read("/home/jason/projects/warehouse/adp-extract/certs/test.pem").unwrap();
+    // let key1 = fs::read("/home/jason/projects/warehouse/adp-extract/certs/test.key").unwrap();
+    // let identity_result = reqwest::Identity::from_pkcs8_pem(&cert1, &key1);
+    // reqwest_builder = reqwest_builder
+    //     .identity(identity_result.unwrap())
+    //     .connection_verbose(true)
+    //     .use_native_tls()
+    //     .tls_info(true);
+
+    // Add certificate to builder if configured
+    if let Some(active_cert) = certificate {
+        match active_cert.append_to_builder(reqwest_builder) {
+            Ok(updated_builder) => reqwest_builder = updated_builder,
+            Err(err) => return Err(err),
         }
+    }
 
-        let mut token_request = client.exchange_client_credentials();
-        if let Some(scope_value) = cloned_scope {
-            token_request = token_request.add_scope(Scope::new(scope_value.clone()));
+    // Add proxy to builder if configured
+    if let Some(active_proxy) = proxy {
+        match active_proxy.append_to_builder(reqwest_builder) {
+            Ok(updated_builder) => reqwest_builder = updated_builder,
+            Err(err) => return Err(ExecutionError::Reqwest(err))
         }
+    }
 
-        let http_client = reqwest::blocking::ClientBuilder::new()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .expect("Unable to build OAuth HTTP client");
+    let http_client = reqwest_builder
+        .build()
+        .expect("Unable to build OAuth HTTP client");
 
-        token_request.request(&http_client)
-    })
-    .await
-    {
-        Ok(token_result) => {
-            match token_result {
-                Ok(token_response) => {
-                    let expiration = match token_response.expires_in() {
-                        Some(token_expires_in) => Instant::now().add(token_expires_in),
-                        None => Instant::now(),
-                    };
-                    let token = token_response.access_token().secret().clone();
-                    tokens.insert(cloned_id, (expiration, token.clone()));
-                    Ok((token, false))
-                }
-                Err(err) => Err(ExecutionError::OAuth2(err)),
-            }
-        },
-        Err(err) => Err(ExecutionError::Join(err)),
+    match token_request.request_async(&http_client).await {
+        Ok(token_response) => {
+            let expiration = match token_response.expires_in() {
+                Some(token_expires_in) => Instant::now().add(token_expires_in),
+                None => Instant::now(),
+            };
+            let token = token_response.access_token().secret().clone();
+            tokens.insert(cloned_id, (expiration, token.clone()));
+            Ok((token, false))
+        }
+        Err(err) => Err(ExecutionError::OAuth2(err)),
     }
 }
 
