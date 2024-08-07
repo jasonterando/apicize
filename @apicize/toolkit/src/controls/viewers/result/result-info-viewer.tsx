@@ -167,7 +167,7 @@ export function ResultInfoViewer(props: {
         return (
             <Box>
                 <Typography variant='h2' sx={{ marginTop: 0 }}>
-                    Request Execution {summary.success ? "Completed xxx" : "Failed"}
+                    Request Execution {summary.success ? "Completed" : "Failed"}
                     <IconButton
                         aria-label="Copy Results to Clipboard"
                         title="Copy Results to Clipboard"

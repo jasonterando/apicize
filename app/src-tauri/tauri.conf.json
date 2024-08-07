@@ -72,18 +72,6 @@
   },
   "plugins": {
     "fs": {
-      "scope": {
-        "allow": [
-          "$HOME",
-          "$HOME/**",
-          "$HOME/.ssh",
-          "$HOME/.ssh/**",
-          "$CONFIG",
-          "$CONFIG/**",
-          "$APP_CONFIG",
-          "$APP_CONFIG/**"
-        ]
-      },
       "requireLiteralLeadingDot": false
     }
   }

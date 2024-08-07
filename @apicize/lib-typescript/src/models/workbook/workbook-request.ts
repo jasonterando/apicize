@@ -48,7 +48,7 @@ export enum WorkbookBodyType {
     Raw = 'Raw',
 }
 
-export type WorkbookBodyData = any | WorkbookNameValuePair[]
+export type WorkbookBodyData = string | WorkbookNameValuePair[]
 
 export const WorkbookBodyTypes = [WorkbookBodyType.None, WorkbookBodyType.Text, WorkbookBodyType.JSON, WorkbookBodyType.XML, WorkbookBodyType.Form, WorkbookBodyType.Raw]
 

@@ -18,7 +18,10 @@ export interface WorkbookBaseCertificate extends Identifiable, Named, Persisted 
  */
 export interface WorkbookPkcs12Certificate extends WorkbookBaseCertificate {
     type: WorkbookCertificateType.PKCS12
-    pfx: number[]
+    /**
+     * Base 64 representation of PFX
+     */
+    pfx: string
     password: string
 }
 
@@ -27,8 +30,14 @@ export interface WorkbookPkcs12Certificate extends WorkbookBaseCertificate {
  */
 export interface WorkbookPkcs8PemCertificate extends WorkbookBaseCertificate {
     type: WorkbookCertificateType.PKCS8_PEM
-    pem: number[]
-    key?: number[]
+    /**
+     * Base 64 representation of PEM
+     */
+    pem: string
+    /**
+     * Base 64 representation of key
+     */
+    key?: string
 }
 
 /**
@@ -36,6 +45,9 @@ export interface WorkbookPkcs8PemCertificate extends WorkbookBaseCertificate {
  */
 export interface WorkbookPemCertificate extends WorkbookBaseCertificate {
     type: WorkbookCertificateType.PEM
-    pem: number[]
+    /**
+     * Base 64 representation of PEM
+     */
+    pem: string
 }
 

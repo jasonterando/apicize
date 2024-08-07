@@ -9,7 +9,7 @@ import { EditorTitle } from '../editor-title';
 import { Persistence, WorkbookCertificateType } from '@apicize/lib-typescript';
 import { PersistenceEditor } from './persistence-editor';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
-import { base64Encode } from '../../services/apicize-serializer';
+import { base64Decode, base64Encode } from '../../services/apicize-serializer';
 
 export function CertificateEditor(props: {
     triggerOpenFile: (destination: ContentDestination, id: string) => {},
@@ -56,20 +56,20 @@ export function CertificateEditor(props: {
     }
 
     let pemToView: string = ''
-    if (pem) {
+    if (pem && (pem.length > 0)) {
         try {
-            pemToView = new TextDecoder('ascii').decode(Uint8Array.from(pem))
+            pemToView = (new TextDecoder('ascii')).decode(base64Decode(pem))
         } catch {
-            pemToView = base64Encode(Buffer.from(pem))
+            pemToView = '(Invalid)'
         }
     }
 
     let keyToView: string = ''
     if (key) {
         try {
-            keyToView = new TextDecoder('ascii').decode(Uint8Array.from(key))
+            keyToView = (new TextDecoder('ascii')).decode(base64Decode(key))
         } catch {
-            keyToView = base64Encode(Buffer.from(key))
+            keyToView = '(Invalid)'
         }
     }
 
@@ -133,9 +133,10 @@ export function CertificateEditor(props: {
                                     <Stack direction={'row'} spacing={3} position='relative'>
                                         <Typography variant='h6'>SSL Key</Typography>
                                         <IconButton color='primary' size='medium' aria-label='open-key' title='Open Certificate Key File' onClick={() => {
-                                            props.triggerOpenFile(ContentDestination.PEM, activeID)
+                                            props.triggerOpenFile(ContentDestination.Key, activeID)
                                         }}><FileOpenIcon fontSize='inherit' /></IconButton>
                                         <IconButton color='primary' disabled={!clipboardHasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard' onClick={() => {
+                                            window.alert('fo!')
                                             props.triggerPasteFromClipboard(ContentDestination.Key, activeID)
                                         }}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                     </Stack>

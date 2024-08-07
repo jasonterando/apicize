@@ -6,20 +6,29 @@ import {
     useConfirmation, WorkspaceContext,
     NavigationType,
     base64Encode,
-    CertificateFileType,
     ClipboardContentType,
     ContentDestination
 } from "@apicize/toolkit"
 import { useSelector } from 'react-redux'
 import { ApicizeExecutionResults, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
+import { join, resourceDir } from "@tauri-apps/api/path"
+
+import * as app from '@tauri-apps/api/app'
+import * as core from '@tauri-apps/api/core'
+import * as path from '@tauri-apps/api/path'
+import * as window from '@tauri-apps/api/window'
 import { listen, Event, UnlistenFn } from "@tauri-apps/api/event"
 import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
+import * as dialog from '@tauri-apps/plugin-dialog'
 import clipboard, { writeImageBase64, writeText } from "tauri-plugin-clipboard-api"
-import { join, resourceDir } from "@tauri-apps/api/path"
-import { path } from "@tauri-apps/api"
 
 const EXT = 'apicize';
 
+/**
+ * This provider is the "glue" between React and Tauri
+ * @param props 
+ * @returns element including children (if any)
+ */
 export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const context = useContext(WorkspaceContext)
     const confirm = useConfirmation()
@@ -46,43 +55,79 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     let _settings = useRef<StoredGlobalSettings | undefined>()
     let _loaded = useRef(false)
 
-    let _app: typeof import('@tauri-apps/api/app') | undefined
-    const getTauriApiApp = async () => {
-        if (_app) return _app
-        _app = await import('@tauri-apps/api/app')
-        return _app
+    const processHelp = (topic: string) => {
+        (async () => {
+            let showTopic: string
+            let updateHistory = [...helpTopicHistory]
+            switch (topic) {
+                case '\nclose':
+                    context.help.hideHelp()
+                    return
+                case '\nback':
+                    updateHistory.pop()
+                    showTopic = updateHistory.pop() ?? ''
+                    if (showTopic.length === 0) return
+                    break
+                case '':
+                    showTopic = nextHelpTopic.length > 0 ? nextHelpTopic : 'home'
+                    break
+                default:
+                    showTopic = topic
+            }
+
+            const historyLength = updateHistory.length
+            if (historyLength < 25 && (historyLength === 0 || updateHistory[historyLength - 1] !== showTopic)) {
+                updateHistory.push(showTopic)
+            }
+
+            const helpFile = await join(await resourceDir(), 'help', `${showTopic}.md`)
+            if (await exists(helpFile)) {
+                let text = await readTextFile(helpFile)
+
+                const helpDir = await path.join(await resourceDir(), 'help', 'images')
+
+                // This is cheesy, but I can't think of another way to inject images from the React client
+                let imageLink
+                do {
+                    imageLink = text.match(/\:image\[(.*)\]/)
+                    if (imageLink && imageLink.length > 0 && imageLink.index) {
+                        const imageFile = await path.join(helpDir, imageLink[1])
+                        let replaceWith = ''
+                        try {
+                            const data = await readFile(imageFile)
+                            const ext = await path.extname(imageFile)
+                            replaceWith = `![](data:image/${ext};base64,${base64Encode(data)})`
+                        } catch (e) {
+                            console.error(`${e} - unable to load ${imageFile}`)
+                        }
+                        text = `${text.substring(0, imageLink.index)}${replaceWith}${text.substring(imageLink.index + imageLink[0].length)}`
+                    }
+                } while (imageLink && imageLink.length > 0)
+                context.help.showHelp(showTopic, text, updateHistory)
+            } else {
+                throw new Error(`Help topic "${showTopic}" not found`)
+            }
+        })().catch((e) => {
+            toast.open(`${e}`, ToastSeverity.Error)
+        })
     }
 
-    let _core: typeof import('@tauri-apps/api/core') | undefined
-    const getTauriApiCore = async () => {
-        if (_core) return _core
-        _core = await import('@tauri-apps/api/core')
-        return _core
-    }
-
-    let _path: typeof import('@tauri-apps/api/path') | undefined
-    const getTauriPath = async () => {
-        if (_path) return _path
-        _path = await import('@tauri-apps/api/path')
-        return _path
-    }
-
-    let _dialog: typeof import('@tauri-apps/plugin-dialog') | undefined
-    const getTauriDialog = async () => {
-        if (_dialog) return _dialog
-        _dialog = await import('@tauri-apps/plugin-dialog')
-        return _dialog
-    }
     useEffect(() => {
         if (!_loaded.current) {
             _loaded.current = true;
+
             (async () => {
-                const app = await getTauriApiApp()
-                const info = await Promise.all([
+                const [name, version, isReleaseMode] = await Promise.all([
                     app.getName(),
-                    app.getVersion()
+                    app.getVersion(),
+                    core.invoke<boolean>('is_release_mode')
                 ])
-                context.navigation.setApplicationInfo(info[0], info[1])
+
+                if (isReleaseMode) {
+                    document.addEventListener('contextmenu', event => event.preventDefault())
+                }
+
+                context.navigation.setApplicationInfo(name, version)
                 try {
                     let settings = await loadSettings()
                     if ((settings?.lastWorkbookFileName?.length ?? 0) > 0) {
@@ -96,7 +141,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 }
 
                 // Set up close event hook, warn user if "dirty"
-                const window = await getTauriWindow()
                 const currentWindow = window.Window.getCurrent()
                 currentWindow.onCloseRequested((e) => {
                     if (_internalDirty.current && (!_forceClose.current)) {
@@ -118,63 +162,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 })
 
             })()
-        }
-
-        const processHelp = (topic: string) => {
-            (async () => {
-                let showTopic: string
-                let updateHistory = [...helpTopicHistory]
-                switch (topic) {
-                    case '\nclose':
-                        context.help.hideHelp()
-                        return
-                    case '\nback':
-                        updateHistory.pop()
-                        showTopic = updateHistory.pop() ?? ''
-                        if (showTopic.length === 0) return
-                        break
-                    case '':
-                        showTopic = nextHelpTopic.length > 0 ? nextHelpTopic : 'home'
-                        break
-                    default:
-                        showTopic = topic
-                }
-
-                const historyLength = updateHistory.length
-                if (historyLength < 25 && (historyLength === 0 || updateHistory[historyLength - 1] !== showTopic)) {
-                    updateHistory.push(showTopic)
-                }
-
-                const helpFile = await join(await resourceDir(), 'help', `${showTopic}.md`)
-                if (await exists(helpFile)) {
-                    let text = await readTextFile(helpFile)
-
-                    const helpDir = await path.join(await resourceDir(), 'help', 'images')
-
-                    // This is cheesy, but I can't think of another way to inject images from the React client
-                    let imageLink
-                    do {
-                        imageLink = text.match(/\:image\[(.*)\]/)
-                        if (imageLink && imageLink.length > 0 && imageLink.index) {
-                            const imageFile = await path.join(helpDir, imageLink[1])
-                            let replaceWith = ''
-                            try {
-                                const data = await readFile(imageFile)
-                                const ext = await path.extname(imageFile)
-                                replaceWith = `![](data:image/${ext};base64,${base64Encode(data)})`
-                            } catch (e) {
-                                console.error(`${e} - unable to load ${imageFile}`)
-                            }
-                            text = `${text.substring(0, imageLink.index)}${replaceWith}${text.substring(imageLink.index + imageLink[0].length)}`
-                        }
-                    } while (imageLink && imageLink.length > 0)
-                    context.help.showHelp(showTopic, text, updateHistory)
-                } else {
-                    throw new Error(`Help topic "${showTopic}" not found`)
-                }
-            })().catch((e) => {
-                toast.open(`${e}`, ToastSeverity.Error)
-            })
         }
 
         const unlistenOpenFile = listen('openFile', async (event: Event<{ destination: ContentDestination, id: string }>) => { await doOpenFile(event.payload.destination, event.payload.id) })
@@ -215,21 +202,12 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     })
 
     // Keep track of the current window
-    var _window = useRef<typeof import('@tauri-apps/api/window') | undefined>()
-    const getTauriWindow = async () => {
-        if (!_window.current) {
-            _window.current = await import('@tauri-apps/api/window')
-        }
-        return _window.current
-    }
-
     // Called by provider when opened workbook is opened or saved
     useEffect(() => {
         (async () => {
             // Monitor store's stateful dirty, set internal ref variable to value
             _internalDirty.current = dirty
             const showDirty = dirty ? ' *' : ''
-            const window = await getTauriWindow()
             window.Window.getCurrent().setTitle(((workbookDisplayName?.length ?? 0) > 0)
                 ? `Apicize - ${workbookDisplayName}${showDirty}`
                 : `Apicize (New Workbook)${showDirty}`)
@@ -273,7 +251,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             }
         }
         const settings = await loadSettings()
-        const path = await getTauriPath()
         const home = await path.homeDir()
         const openSshPath = await path.join(home, '.ssh')
         if (await exists(openSshPath)) {
@@ -303,12 +280,12 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     }
 
     const doOpenFile = async (destination: ContentDestination, id: string) => {
-        const dialog = await getTauriDialog()
-
         let defaultPath: string
         let title: string
         let extensions: string[]
         let extensionName: string
+
+        debugger
 
         switch (destination) {
             case ContentDestination.PEM:
@@ -372,7 +349,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 pathName = (await path.dirname(fileName)).substring(0, i)
             }
 
-            const data = Array.from(await readFile(fileName))
+            const data = base64Encode(await readFile(fileName))
             switch (destination) {
                 case ContentDestination.PEM:
                     context.certificate.setPem(id, data)
@@ -398,9 +375,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         }
     }
 
-
-
-
     const doPasteTextFromClipboard = async (destination: ContentDestination, id: string) => {
         const getClipboardText = async () => {
             try {
@@ -416,30 +390,24 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         }
         const getClipboardImage = async () => {
             try {
-                if (await clipboard.hasImage()) {
-                    const result = await clipboard.readImageBinary('int_array')
-                    if (Array.isArray(result)) {
-                        return result as number[]
-                    }
-                }
-                return null
+                return await core.invoke<string>('get_clipboard_image_base64')
+                // return await clipboard.readImageBase64()
             } catch (e) {
-                toast.open(`${e}`, ToastSeverity.Error)
+                toast.open(`Unable to copy image from clipboard: ${e}`, ToastSeverity.Error)
                 return null
             }
         }
 
-
         let text: string | null
-        let data: number[] | null
+        let data: string | null
         switch (destination) {
             case ContentDestination.PEM:
                 text = await getClipboardText()
-                if (text) context.certificate.setPem(id, Array.from((new TextEncoder).encode(text)))
+                if (text) context.certificate.setPem(id, base64Encode((new TextEncoder).encode(text)))
                 break
             case ContentDestination.Key:
                 text = await getClipboardText()
-                if (text) context.certificate.setKey(id, Array.from((new TextEncoder).encode(text)))
+                if (text) context.certificate.setKey(id, base64Encode((new TextEncoder).encode(text)))
                 break
             case ContentDestination.BodyBinary:
                 data = await getClipboardImage()
@@ -448,7 +416,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 } else {
                     text = await getClipboardText()
                     if (text) {
-                        context.request.setBodyData(id, Array.from((new TextEncoder()).encode(text)))
+                        context.request.setBodyData(id, base64Encode((new TextEncoder()).encode(text)))
                     }
                 }
                 break
@@ -476,7 +444,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
     // Triggers opening a workbook
     const doOpenWorkbook = async (fileName?: string, doUpdateSettings = true) => {
-        const dialog = await getTauriDialog()
         const settings = await loadSettings()
 
         if (dirty) {
@@ -508,7 +475,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
         if (!fileName) return
 
-        const core = await getTauriApiCore()
         try {
             const data: Workspace = await core.invoke('open_workspace', { path: fileName })
             const displayName = await getDisplayName(fileName)
@@ -527,7 +493,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             if (!(workbookFullName && workbookFullName.length > 0)) {
                 return
             }
-            const core = await getTauriApiCore()
             const workspace = context.getWorkspaceFromStore()
 
             await core.invoke('save_workspace', { workspace, path: workbookFullName })
@@ -545,9 +510,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
     const doSaveWorkbookAs = async () => {
         try {
-            const core = await getTauriApiCore()
-            const dialog = await getTauriDialog()
-            const path = await getTauriPath()
             const settings = await loadSettings()
 
             let fileName = await dialog.save({
@@ -582,7 +544,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     }
 
     const getDisplayName = async (fileName: string) => {
-        const path = await getTauriPath()
         let base = await path.basename(fileName);
         const i = base.lastIndexOf('.');
         if (i !== -1) {
@@ -600,7 +561,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         if (!runInfo) return
 
         try {
-            const core = await getTauriApiCore()
             context.execution.runStart(runInfo.requestId)
             let results = await core.invoke<ApicizeExecutionResults>
                 ('run_request', runInfo)
@@ -615,7 +575,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const doCancelRequest = async () => {
         if (!requestId) return
         try {
-            const core = await getTauriApiCore()
             await core.invoke('cancel_request', {
                 id: requestId
             })
@@ -627,7 +586,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const doClearToken = async () => {
         try {
             if (authorizationId) {
-                const core = await getTauriApiCore()
                 const result = await core.invoke('clear_cached_authorization', {
                     authorization_id: authorizationId
                 })
@@ -645,6 +603,10 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const doCopyImageToClipboard = async (base64?: string) => {
         try {
             if (base64 && (base64.length > 0)) {
+                const m = base64.length % 4
+                if (m) {
+                    base64 += '==='.substring(0, 4 - m)
+                }
                 await writeImageBase64(base64)
                 toast.open('Image copied to clipboard', ToastSeverity.Success)
             }
@@ -667,7 +629,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const loadSettings = async () => {
         if (_settings.current) return _settings.current
 
-        const core = await getTauriApiCore()
         let settings: StoredGlobalSettings
         try {
             settings = await core.invoke<StoredGlobalSettings>('open_settings')
@@ -696,7 +657,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             updates.lastWorkbookFileName === undefined ? _settings.current.lastWorkbookFileName : updates.lastWorkbookFileName
         )
 
-        const core = await getTauriApiCore()
         try {
             await core.invoke<StoredGlobalSettings>('save_settings', { settings: newSettings })
         } catch (e) {

@@ -11,12 +11,22 @@
 			// change this to your `beforeDevCommand`:
 			"command": "yarn",
 			"args": [
-				"ui"
+				"dev"
 			],
 			"problemMatcher": {
 				"base": "$rustc",
 				"fileLocation": "autoDetect"
-			}
+			},
+			// "dependsOn": ["ui:deps"],
+		},
+		{ 
+			"label": "ui:deps",
+			"type": "shell",
+			"isBackground": false,
+			"command": "yarn",
+			"args": [
+				"build-deps"
+			]
 		},
 		{
 			"label": "ui:build",
@@ -24,7 +34,7 @@
 			// change this to your `beforeBuildCommand`:
 			"command": "yarn",
 			"args": [
-				"build-deps"
+				"build"
 			]
 		},
 		{

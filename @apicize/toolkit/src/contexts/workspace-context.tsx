@@ -692,9 +692,6 @@ const StorageActions = () => {
 
             if (newBodyType !== oldBodyType) {
                 switch (newBodyType) {
-                    case WorkbookBodyType.Raw:
-                        newBodyData = Array.from((new TextEncoder()).encode(newBodyData?.toString() ?? ''))
-                        break
                     case WorkbookBodyType.Form:
                         const formData = decodeFormData(newBodyData as string)
                         formData.forEach(d => (d as EditableNameValuePair).id = GenerateIdentifier())
@@ -722,7 +719,7 @@ const StorageActions = () => {
                 data: newBodyData
             }
             dispatch(workbookActions.setDirty(true))
-            dispatch(requestActions.setBody({ type: newBodyType, data: newBodyData }))
+            dispatch(requestActions.setBody({ type: newBodyType, data: newBodyData ?? '' }))
         },
         setBodyData: (id: string, value: WorkbookBodyData | undefined) => {
             let entry = stateStorage.requests.entities[id] as EditableWorkbookRequest
@@ -732,7 +729,7 @@ const StorageActions = () => {
                 entry.body = { data: value }
             }
             dispatch(workbookActions.setDirty(true))
-            dispatch(requestActions.setBody({ type: entry.body?.type || WorkbookBodyType.None, data: value }))
+            dispatch(requestActions.setBody({ type: entry.body?.type || WorkbookBodyType.None, data: value ?? '' }))
         },
         setRuns: (id: string, value: number) => {
             let entry = stateStorage.requests.entities[id] as EditableWorkbookRequest
@@ -1167,19 +1164,19 @@ const StorageActions = () => {
             dispatch(navigationActions.setCertificateList(generateCertificateNavList()))
             dispatch(workbookActions.setDirty(true))
         },
-        setPem: (id: string, value: number[]) => {
+        setPem: (id: string, value: string) => {
             let entry = stateStorage.certificates.entities[id] as WorkbookPkcs8PemCertificate
             entry.pem = value
             dispatch(certificateActions.setPem(entry.pem))
             dispatch(workbookActions.setDirty(true))
         },
-        setKey: (id: string, value: number[] | undefined) => {
+        setKey: (id: string, value: string | undefined) => {
             let entry = stateStorage.certificates.entities[id] as WorkbookPkcs8PemCertificate
             entry.key = value
             dispatch(certificateActions.setKey(entry.key))
             dispatch(workbookActions.setDirty(true))
         },
-        setPfx: (id: string, value: number[]) => {
+        setPfx: (id: string, value: string) => {
             let entry = stateStorage.certificates.entities[id] as WorkbookPkcs12Certificate
             entry.pfx = value
             dispatch(certificateActions.setPfx(entry.pfx))

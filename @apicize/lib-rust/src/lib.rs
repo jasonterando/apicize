@@ -1006,6 +1006,117 @@ impl Workspace {
         Ok(Some(test_response))
     }
 
+
+    // xxx
+    fn retrieve_parameters(
+        &self,
+        request: &WorkbookRequestEntry,
+        variables: &HashMap<String, Value>,
+    ) -> (
+        HashMap<String, Value>,
+        Option<&WorkbookAuthorization>,
+        Option<&WorkbookCertificate>,
+        Option<&WorkbookProxy>,
+        Option<&WorkbookCertificate>,
+        Option<&WorkbookProxy>
+    ) {
+        let mut done = false;
+
+        let mut current = request;
+
+        let mut scenario: Option<&WorkbookScenario> = None;
+        let mut authorization: Option<&WorkbookAuthorization> = None;
+        let mut certificate: Option<&WorkbookCertificate> = None;
+        let mut proxy: Option<&WorkbookProxy> = None;
+
+        let mut auth_certificate: Option<&WorkbookCertificate> = None;
+        let mut auth_proxy: Option<&WorkbookProxy> = None;
+
+
+        while !done {
+            // Set the credential values at the current request value
+            if let Some(selected) = current.get_selected_scenario() {
+                scenario = self.scenarios.entities.get(&selected.id);
+            };
+            if let Some(selected) = current.get_selected_authorization() {
+                authorization = self.authorizations.entities.get(&selected.id);
+                if let Some(matching_auth) = authorization {
+                    if let WorkbookAuthorization::OAuth2Client {
+                        selected_certificate,
+                        selected_proxy,
+                        ..
+                    } = matching_auth
+                    {
+                        if let Some(cert) = selected_certificate {
+                            auth_certificate = self.certificates.entities.get(&cert.id);
+                        }
+                        if let Some(proxy) = selected_proxy {
+                            auth_proxy = self.proxies.entities.get(&proxy.id);
+                        }
+                    }
+                }
+            };
+            if let Some(selected) = current.get_selected_certificate() {
+                certificate = self.certificates.entities.get(&selected.id)
+            };
+            if let Some(selected) = current.get_selected_proxy() {
+                proxy = self.proxies.entities.get(&selected.id)
+            };
+
+            done = scenario.is_some()
+                && authorization.is_some()
+                && certificate.is_some()
+                && proxy.is_some();
+
+            if !done {
+                // Get the parent
+                let id = current.get_id();
+                let mut parent: Option<&WorkbookRequestEntry> = None;
+                if let Some(child_ids) = &self.requests.child_ids {
+                    for (parent_id, children) in child_ids.iter() {
+                        if children.contains(&id) {
+                            parent = self.requests.entities.get(&parent_id.clone());
+                            break;
+                        }
+                    }
+                }
+
+                if let Some(found_parent) = parent {
+                    current = found_parent;
+                } else {
+                    done = true;
+                }
+            }
+        }
+
+        let mut result_variables = if let Some(active_scenario) = scenario {
+            if let Some(variables) = &active_scenario.variables {
+                HashMap::from_iter(
+                    variables
+                        .iter()
+                        .map(|pair| (pair.name.clone(), Value::from(pair.value.clone()))),
+                )
+            } else {
+                HashMap::new()
+            }
+        } else {
+            HashMap::new()
+        };
+
+        variables.iter().for_each(|(key, value)| {
+            result_variables.insert(key.clone(), value.clone());
+        });
+
+        return (
+            result_variables,
+            authorization,
+            certificate,
+            proxy,
+            auth_certificate,
+            auth_proxy
+        )
+    }
+
     /// Run the specified request entry recursively
     #[async_recursion]
     async fn run_int(
@@ -1013,10 +1124,6 @@ impl Workspace {
         tests_started: Arc<Instant>,
         request_id: String,
         variables: Arc<HashMap<String, Value>>,
-        selected_scenario: Arc<Option<Selection>>,
-        selected_authorization: Arc<Option<Selection>>,
-        selected_certificate: Arc<Option<Selection>>,
-        selected_proxy: Arc<Option<Selection>>,
         parent_name: Arc<Option<Vec<String>>>,
         run: u32,
         total_runs: u32,
@@ -1034,73 +1141,8 @@ impl Workspace {
             WorkbookRequestEntry::Info(info) => {
                 let now = Instant::now();
 
-                let mut scenario: Option<&WorkbookScenario> = None;
-                let mut authorization: Option<&WorkbookAuthorization> = None;
-                let mut certificate: Option<&WorkbookCertificate> = None;
-                let mut proxy: Option<&WorkbookProxy> = None;
-
-                let mut done = false;
-                let mut current = request;
-
-                let mut auth_certificate: Option<&WorkbookCertificate> = None;
-                let mut auth_proxy: Option<&WorkbookProxy> = None;
-
-                while !done {
-                    // Set the credential values at the current request value
-                    if let Some(selected) = current.get_selected_scenario() {
-                        scenario = workspace.scenarios.entities.get(&selected.id);
-                    };
-                    if let Some(selected) = current.get_selected_authorization() {
-                        authorization = workspace.authorizations.entities.get(&selected.id);
-                        if let Some(matching_auth) = authorization {
-                            if let WorkbookAuthorization::OAuth2Client {
-                                selected_certificate,
-                                selected_proxy,
-                                ..
-                            } = matching_auth
-                            {
-                                if let Some(cert) = selected_certificate {
-                                    auth_certificate =
-                                        workspace.certificates.entities.get(&cert.id);
-                                }
-                                if let Some(proxy) = selected_proxy {
-                                    auth_proxy = workspace.proxies.entities.get(&proxy.id);
-                                }
-                            }
-                        }
-                    };
-                    if let Some(selected) = current.get_selected_certificate() {
-                        certificate = workspace.certificates.entities.get(&selected.id)
-                    };
-                    if let Some(selected) = current.get_selected_proxy() {
-                        proxy = workspace.proxies.entities.get(&selected.id)
-                    };
-
-                    done = scenario.is_some()
-                        && authorization.is_some()
-                        && certificate.is_some()
-                        && proxy.is_some();
-
-                    if !done {
-                        // Get the parent
-                        let id = current.get_id();
-                        let mut parent: Option<&WorkbookRequestEntry> = None;
-                        if let Some(child_ids) = &workspace.requests.child_ids {
-                            for (parent_id, children) in child_ids.iter() {
-                                if children.contains(&id) {
-                                    parent = workspace.requests.entities.get(&parent_id.clone());
-                                    break;
-                                }
-                            }
-                        }
-
-                        if let Some(found_parent) = parent {
-                            current = found_parent;
-                        } else {
-                            done = true;
-                        }
-                    }
-                }
+                let (variables, authorization, certificate, proxy, auth_certificate, auth_proxy) =
+                    workspace.retrieve_parameters(request, &variables);
 
                 let executed_at = tests_started.elapsed().as_millis();
 
@@ -1200,28 +1242,6 @@ impl Workspace {
                 // Recursively run requests located in groups...
                 let mut results: Vec<ApicizeResult> = Vec::new();
 
-                // Set the selections for nested calls
-                let scenario = if group.selected_scenario.is_some() {
-                    Arc::new(group.selected_scenario.clone())
-                } else {
-                    selected_scenario
-                };
-                let authorization = if group.selected_authorization.is_some() {
-                    Arc::new(group.selected_authorization.clone())
-                } else {
-                    selected_authorization
-                };
-                let certificate = if group.selected_certificate.is_some() {
-                    Arc::new(group.selected_certificate.clone())
-                } else {
-                    selected_certificate
-                };
-                let proxy = if group.selected_proxy.is_some() {
-                    Arc::new(group.selected_proxy.clone())
-                } else {
-                    selected_proxy
-                };
-
                 let mut active_vars = variables.clone();
                 let fake = Vec::<String>::new();
                 let group_child_ids = workspace
@@ -1241,10 +1261,6 @@ impl Workspace {
                         let cloned_started = tests_started.clone();
                         let cloned_id = id.clone();
                         let cloned_variables = variables.clone();
-                        let cloned_scenario = scenario.clone();
-                        let cloned_authorization = authorization.clone();
-                        let cloned_certificate = certificate.clone();
-                        let cloned_proxy = proxy.clone();
                         let cloned_request_name = request_name.clone();
 
                         runs.spawn(Workspace::run_int(
@@ -1252,10 +1268,6 @@ impl Workspace {
                             cloned_started,
                             cloned_id,
                             cloned_variables,
-                            cloned_scenario,
-                            cloned_authorization,
-                            cloned_certificate,
-                            cloned_proxy,
                             cloned_request_name,
                             run,
                             total_runs,
@@ -1273,10 +1285,6 @@ impl Workspace {
                         let cloned_started = tests_started.clone();
                         let cloned_id = id.clone();
                         let cloned_variables = active_vars.clone();
-                        let cloned_scenario = scenario.clone();
-                        let cloned_authorization = authorization.clone();
-                        let cloned_certificate = certificate.clone();
-                        let cloned_proxy = proxy.clone();
                         let cloned_request_name = request_name.clone();
 
                         let (group_test_results, group_vars) = Workspace::run_int(
@@ -1284,10 +1292,6 @@ impl Workspace {
                             cloned_started,
                             cloned_id,
                             cloned_variables,
-                            cloned_scenario,
-                            cloned_authorization,
-                            cloned_certificate,
-                            cloned_proxy,
                             cloned_request_name,
                             run,
                             total_runs,
@@ -1334,11 +1338,6 @@ impl Workspace {
 
         // Set up defaults
         let total_runs = request_entry.get_runs();
-        let selected_scenario = request_entry.get_selected_scenario();
-        let selected_authorization = request_entry.get_selected_authorization();
-        let selected_certificate = request_entry.get_selected_certificate();
-        let selected_proxy = request_entry.get_selected_proxy();
-
         let mut runs: JoinSet<Option<(Vec<ApicizeResult>, HashMap<String, Value>)>> =
             JoinSet::new();
 
@@ -1352,29 +1351,6 @@ impl Workspace {
             let cloned_workspace = workspace.clone();
 
             let cloned_token = cancellation.clone();
-            let cloned_scenario = Arc::new(selected_scenario.clone());
-            let cloned_authorization = Arc::new(selected_authorization.clone());
-            let cloned_certificate = Arc::new(selected_certificate.clone());
-            let cloned_proxy = Arc::new(selected_proxy.clone());
-
-            let cloned_variables = Arc::new(if let Some(selection) = &selected_scenario {
-                if let Some(scenario) = workspace.find_scenario(&selection) {
-                    if let Some(variables) = &scenario.variables {
-                        HashMap::from_iter(
-                            variables
-                                .iter()
-                                .map(|pair| (pair.name.clone(), Value::from(pair.value.clone()))),
-                        )
-                    } else {
-                        HashMap::new()
-                    }
-                } else {
-                    HashMap::new()
-                }
-            } else {
-                HashMap::new()
-            });
-
             let no_name = Arc::new(None);
 
             runs.spawn(async move {
@@ -1384,11 +1360,7 @@ impl Workspace {
                         cloned_workspace,
                         cloned_tests_started,
                         cloned_request_id,
-                        cloned_variables,
-                        cloned_scenario,
-                        cloned_authorization,
-                        cloned_certificate,
-                        cloned_proxy,
+                        Arc::new(HashMap::new()),
                         no_name,
                         run,
                         total_runs,
@@ -1888,9 +1860,10 @@ impl WorkbookCertificate {
                 // request_certificate = Some(cert.clone());
                 Ok(builder
                     .identity(identity)
-                    .connection_verbose(true)
+                    // .connection_verbose(true)
                     .use_native_tls()
-                    .tls_info(true))
+                    // .tls_info(true)
+                )
             }
             Err(err) => Err(ExecutionError::Reqwest(err)),
         }

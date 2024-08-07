@@ -136,38 +136,18 @@ export function workspaceToState(workspace: Workspace): EditableWorkspace {
         r.queryStringParams?.forEach(p => p.id = p.id ?? GenerateIdentifier())
         if (r.body && r.body.data) {
             switch (r.body.type) {
+                case WorkbookBodyType.JSON:
+                    r.body.data = JSON.stringify(r.body.data)
+                    break
                 case WorkbookBodyType.Form:
                     (r.body.data as EditableNameValuePair[])
                         .forEach(h => h.id = h.id ?? GenerateIdentifier())
-                    break
-                case WorkbookBodyType.JSON:
-                    if (r.body.data) {
-                        r.body.data = JSON.stringify(r.body.data)
-                    }
-                    break
-                case WorkbookBodyType.Raw:
-                    if (typeof r.body.data === 'string') {
-                        r.body.data = Array.from(base64Decode(r.body.data))
-                    }
                     break
             }
         } else {
             r.body = {
                 type: WorkbookBodyType.None
             }
-        }
-    }
-
-    for (const certificate of Object.values(workspace.certificates.entities)) {
-        const c = certificate as any
-        if (c['pem']) {
-            c['pem'] = Array.from(base64Decode(c['pem']))
-        }
-        if (c['key']) {
-            c['key'] = Array.from(base64Decode(c['key']))
-        }
-        if (c['pfx']) {
-            c['pfx'] = Array.from(base64Decode(c['pfx']))
         }
     }
 
@@ -202,28 +182,13 @@ export function stateRequestsToStorage(index: IndexedNestedRequests<EditableWork
                     }
                     break
                 case WorkbookBodyType.JSON:
-                    try {
-                        stored.body = {
-                            type: stored.body.type,
-                            data: JSON.parse(stored.body.data)
+                    if (typeof stored.body.data === 'string') {
+                        try {
+                            stored.body.data = JSON.parse(stored.body.data)
+                            bodyIsValid = true
+                        } catch(e) {
+                            throw new Error(`Invalid JSON data - ${(e as Error).message}`)
                         }
-                        bodyIsValid = true
-                    } catch {
-                        bodyIsValid = false
-                    }
-                    break
-                case WorkbookBodyType.Raw:
-                    if (Array.isArray(stored.body.data)) {
-                        const data = stored.body.data
-                        bodyIsValid = data.length > 0
-                        if (bodyIsValid) {
-                            stored.body = {
-                                type: WorkbookBodyType.Raw,
-                                data: base64Encode(Uint8Array.from(data))
-                            }
-                        }
-                    } else {
-                        bodyIsValid = false
                     }
                     break
                 default:
@@ -276,18 +241,14 @@ export function stateToWorkspace(
             const c1 = c as any
             switch (c.type) {
                 case WorkbookCertificateType.PKCS12:
-                    c1['pfx'] = c1['pfx'] ? base64Encode(Uint8Array.from(c1['pfx'])) : undefined
                     delete c1['pem']
                     delete c1['key']
                     break
                 case WorkbookCertificateType.PKCS8_PEM:
-                    c1['pem'] = c1['pem'] ? base64Encode(Uint8Array.from(c1['pem'])) : undefined
-                    c1['key'] = c1['key'] ? base64Encode(Uint8Array.from(c1['key'])) : undefined
                     delete c1['pfx']
                     delete c1['password']
                     break
                 case WorkbookCertificateType.PEM:
-                    c1['pem'] = c1['pem'] ? base64Encode(Uint8Array.from(c1['pem'])) : undefined
                     delete c1['pfx']
                     delete c1['key']
                     delete c1['password']

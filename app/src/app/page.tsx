@@ -1,19 +1,17 @@
 'use client'
 
 import {
-  ConfirmationServiceProvider, Navigation, workbookStore
+  ConfirmationServiceProvider, Navigation, workbookStore, ToastProvider, WorkspaceProvider
 } from '@apicize/toolkit'
 import type { } from '@mui/x-tree-view/themeAugmentation';
 import { Stack, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui/material'
-import { ToastProvider } from '@apicize/toolkit'
+import {  } from '@apicize/toolkit'
 import { ApicizeTauriProvider } from './providers/apicize-tauri-provider';
-import { WorkspaceProvider } from '@apicize/toolkit';
 import { Provider } from 'react-redux';
 import React from 'react'
 import { emit } from '@tauri-apps/api/event'
 import "typeface-open-sans"
 import Pane from './pane';
-import { fontFamily } from '@mui/system';
 
 export default function Home() {
 

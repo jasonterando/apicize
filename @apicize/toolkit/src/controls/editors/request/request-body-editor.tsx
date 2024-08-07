@@ -160,7 +160,7 @@ export function RequestBodyEditor(props: {
               <IconButton aria-label='from-clipboard' title='Paste Body from Clipboard' onClick={() => props.triggerPasteFromClipboard(ContentDestination.BodyBinary, id)} sx={{ marginRight: '4px' }}>
                 <ContentPasteGoIcon />
               </IconButton>
-              <Box padding='10px'>{bodyData.length.toLocaleString()} Bytes</Box>
+              <Box padding='10px'>{bodyData ? bodyData.length.toLocaleString() + ' Bytes' : '(None)'}</Box>
             </Stack>
             :
             <AceEditor
@@ -183,7 +183,7 @@ export function RequestBodyEditor(props: {
               }}
               onChange={updateBodyAsText}
               name='code-editor'
-              value={bodyData}
+              value={bodyData as string}
             />
       }
     </Stack>

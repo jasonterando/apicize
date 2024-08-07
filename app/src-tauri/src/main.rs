@@ -2,8 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use tauri_plugin_clipboard::Clipboard;
 use tokio_util::sync::CancellationToken;
-use tauri_plugin_log::{Target, TargetKind};
+// use tauri_plugin_log::{Target, TargetKind};
 
 use apicize_lib::{
     models::{
@@ -11,13 +12,26 @@ use apicize_lib::{
     },
     oauth2_client_tokens::{clear_all_oauth2_tokens, clear_oauth2_token},
 };
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, State};
 
 use std::sync::{OnceLock, Mutex};
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
+        // .plugin(
+        //     tauri_plugin_log::Builder::new()
+        //         .targets([
+        //             Target::new(TargetKind::Stdout),
+        //             // Target::new(TargetKind::LogDir { file_name: None }),
+        //             // Target::new(TargetKind::Webview),                ])
+        //         ])
+        //         .build(),
+        // )        
+        // .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             open_workspace,
             save_workspace,
@@ -26,21 +40,10 @@ fn main() {
             run_request,
             cancel_request,
             clear_cached_authorization,
-            get_environment_variables
+            // get_environment_variables,
+            is_release_mode,
+            get_clipboard_image_base64,
         ])
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .targets([
-                    Target::new(TargetKind::Stdout),
-                    // Target::new(TargetKind::LogDir { file_name: None }),
-                    // Target::new(TargetKind::Webview),                ])
-                ])
-                .build(),
-        )        
-        // .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -53,6 +56,11 @@ fn main() {
                     Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyS);
 
                 let handle = app.handle().clone();
+
+                // CLIPBOARD = Some(handle.state::<tauri_plugin_clipboard::Clipboard>());
+                // let foo = CLIPBOARD.read_image_base64()?;
+                // println!("{}", foo);
+
                 let shortcut_builder = tauri_plugin_global_shortcut::Builder::new();
                 app.handle().plugin(
                     shortcut_builder
@@ -170,6 +178,29 @@ async fn clear_cached_authorization(authorization_id: String) -> bool {
 }
 
 #[tauri::command]
-fn get_environment_variables() -> Vec<(String, String)> {
-    std::env::vars().into_iter().map(|e| e).collect()
+fn get_clipboard_image_base64(clipboard: State<Clipboard>) -> Result<String, String> {
+    match clipboard.has_image() {
+        Ok(has_image) => {
+            if has_image {
+                clipboard.read_image_base64()
+            } else {
+                Err(String::from("Clipboard does not contain an image"))
+            }
+        },
+        Err(msg) => Err(msg)
+    }
+}
+
+// #[tauri::command]
+// fn get_environment_variables() -> Vec<(String, String)> {
+//     std::env::vars().into_iter().map1(|e| e).collect()
+// }
+
+#[tauri::command]
+fn is_release_mode() -> bool {
+    return if cfg!(debug_assertions) {
+        false
+    } else {
+        true
+    }
 }

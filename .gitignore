@@ -4,3 +4,5 @@ target
 .webpack
 tsconfig.tsbuildinfo
 *.sh
+.next
+.yarn

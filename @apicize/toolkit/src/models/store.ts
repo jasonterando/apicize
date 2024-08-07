@@ -459,9 +459,9 @@ const certificateSlice = createSlice({
     name: '',
     persistence: Persistence.Private,
     type: WorkbookCertificateType.None,
-    pem: undefined as number[] | undefined,
-    key: undefined as number[] | undefined,
-    pfx: undefined as number[] | undefined,
+    pem: undefined as string | undefined,
+    key: undefined as string | undefined,
+    pfx: undefined as string | undefined,
     password: undefined as string | undefined,
   },
   reducers: {
@@ -470,9 +470,9 @@ const certificateSlice = createSlice({
       name: string,
       persistence: Persistence,
       type: WorkbookCertificateType,
-      pem: number[] | undefined,
-      key: number[] | undefined,
-      pfx: number[] | undefined,
+      pem: string | undefined,
+      key: string | undefined,
+      pfx: string | undefined,
       password: string | undefined,
     }>) => {
       state.id = action.payload.id
@@ -493,13 +493,13 @@ const certificateSlice = createSlice({
     setType: (state, action: PayloadAction<WorkbookCertificateType>) => {
       state.type = action.payload
     },
-    setPem: (state, action: PayloadAction<number[]>) => {
+    setPem: (state, action: PayloadAction<string>) => {
       state.pem = action.payload
     },
-    setKey: (state, action: PayloadAction<number[] | undefined>) => {
+    setKey: (state, action: PayloadAction<string | undefined>) => {
       state.key = action.payload
     },
-    setPfx: (state, action: PayloadAction<number[]>) => {
+    setPfx: (state, action: PayloadAction<string>) => {
       state.pfx = action.payload
     },
     setPassword: (state, action: PayloadAction<string | undefined>) => {

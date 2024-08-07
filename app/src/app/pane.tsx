@@ -3,6 +3,10 @@ import { Box } from "@mui/system";
 import { emit } from "@tauri-apps/api/event";
 import { useSelector } from "react-redux";
 
+/**
+ * This is the main pane (view) where help, viewers and editors are shown
+ * @returns View displaying either help ro viewers/editors
+ */
 export default function Pane() {
     let showHelp = useSelector((state: WorkbookState) => state.help.showHelp)
     let helpState = useSelector((state: WorkbookState) => state.help)
