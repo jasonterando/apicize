@@ -56,11 +56,17 @@ jobs:
       - name: install frontend dependencies
         run: yarn install # change this to npm, pnpm or bun depending on which one you use.
 
-      - name: install packages
-        run: yarn
-
-      - name: build
+      - name: build TypeScript library
         run: yarn build
+        working-directory: ${{env.working-directory}}/@apicize/lib-typescript
+
+      - name: build toolkit
+        run: yarn build
+        working-directory: ${{env.working-directory}}/@apicize/toolkit
+
+      - name: build Tauri
+        run: yarn build
+        working-directory: ${{env.working-directory}}/app
 
       - uses: tauri-apps/tauri-action@v0
         env:
