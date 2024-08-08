@@ -11,8 +11,6 @@ jobs:
   publish-tauri:
     permissions:
       contents: write
-    env:
-      working-directory: ./app
     strategy:
       fail-fast: false
       matrix:
@@ -58,15 +56,15 @@ jobs:
 
       - name: build TypeScript library
         run: yarn build
-        working-directory: ${{env.working-directory}}/@apicize/lib-typescript
+        working-directory: ./@apicize/lib-typescript
 
       - name: build toolkit
         run: yarn build
-        working-directory: ${{env.working-directory}}/@apicize/toolkit
+        working-directory: ./@apicize/toolkit
 
       - name: build Tauri
         run: yarn build
-        working-directory: ${{env.working-directory}}/app
+        working-directory: ./app
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -78,4 +76,4 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-          projectPath: ${{env.working-directory}}
+          projectPath: ./app
