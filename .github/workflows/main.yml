@@ -54,17 +54,17 @@ jobs:
       - name: install frontend dependencies
         run: yarn install # change this to npm, pnpm or bun depending on which one you use.
 
-      - name: get TypeScript version
-        run: yarn tsc --version
+      # - name: get TypeScript version
+      #   run: yarn tsc --version
 
-      - name: list files
-        run: ls -la
+      # - name: list files
+      #   run: ls -la
 
-      - name: show package
-        run: cat package.json
+      # - name: show package
+      #   run: cat package.json
 
-      - name: show yarn version
-        run: yarn --version
+      # - name: show yarn version
+      #   run: yarn --version
 
       - name: build
         run: yarn build:release
