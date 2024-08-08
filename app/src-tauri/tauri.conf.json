@@ -62,7 +62,11 @@
     ],
     "shortDescription": "",
     "targets": [
-      "deb"
+      "deb",
+      "rpm",
+      "dmg",
+      "app",
+      "msi"
     ],
     "windows": {
       "certificateThumbprint": null,
