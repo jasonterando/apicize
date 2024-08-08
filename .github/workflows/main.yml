@@ -23,8 +23,8 @@ jobs:
           #   args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
             args: ''
-          - platform: 'windows-latest'
-            args: ''
+          # - platform: 'windows-latest'
+          #   args: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -56,8 +56,11 @@ jobs:
       - name: install frontend dependencies
         run: yarn install # change this to npm, pnpm or bun depending on which one you use.
 
+      - name: install packages
+        run: yarn
+
       - name: build
-        run: yarn && yarn build
+        run: yarn build
 
       - uses: tauri-apps/tauri-action@v0
         env:
