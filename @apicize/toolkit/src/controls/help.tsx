@@ -15,6 +15,8 @@ import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined'
 import ScienceIcon from '@mui/icons-material/Science';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
+import SecurityIcon from '@mui/icons-material/Security';
+import LockIcon from '@mui/icons-material/Lock';
 import { logo } from './logo';
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
@@ -152,9 +154,13 @@ export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: 
             case 'body':
                 return <ArticleOutlinedIcon className='help-icon' />
             case 'test':
-                return <AirlineStopsIcon className='help-icon' />
-            case 'proxy':
                 return <ScienceIcon className='help-icon' />
+            case 'authorization':
+                return <LockIcon className='help-icon' />
+            case 'certificate':
+                return <SecurityIcon className='help-icon' />
+            case 'proxy':
+                return <AirlineStopsIcon className='help-icon' />
             default:
                 return null
         }

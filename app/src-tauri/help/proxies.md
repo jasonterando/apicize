@@ -1,5 +1,12 @@
 # :toolbar :icon[proxy] Proxies
-Apicize supports http/s and SOCKS 5 proxies when executing tests.
+
+Apicize supports http/s and SOCKS 5 proxies when executing tests.  To add a new Proxy parameter, click on the Plus sign
+next to Proxies in the navigation panel.  Select a name for your proxy and its location. Click 
+[here](help:parameter-storage) for information on how parameters are stored in Apicize.
+
+To delete a Proxy parameter, select it in the navigation pane, and in its context menu, select "Delete Proxy".
+
+Proxies can be set for [Requests](help:requests), [Request Groups](help:groups) or [OAuth2 Authorizations](help:authorizations/oauth2-client).
 
 ## Configuration
 
@@ -9,9 +16,9 @@ Configure the proxy using URLs such as:
 * `https://myproxy.com`
 * `https://myproxy.com:8443`
 
-Select the proxy by sliding the **Selected** toggle button on (i.e. blue).  Once selected, the proxy will be used for all tests.
+:image[proxies.jpg]
 
 ### See Also
 
-* [**Running Tests**](help:running-tests)
+* [**Parameter Storage**](help:parameter-storage)
 
