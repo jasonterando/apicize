@@ -66,8 +66,8 @@ jobs:
       # - name: show yarn version
       #   run: yarn --version
 
-      - name: build
-        run: yarn build:release
+      - name: build dependencies
+        run: yarn build-deps
         working-directory: ./
 
       - uses: tauri-apps/tauri-action@v0
