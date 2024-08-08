@@ -54,18 +54,6 @@ jobs:
       - name: install frontend dependencies
         run: yarn install # change this to npm, pnpm or bun depending on which one you use.
 
-      # - name: get TypeScript version
-      #   run: yarn tsc --version
-
-      # - name: list files
-      #   run: ls -la
-
-      # - name: show package
-      #   run: cat package.json
-
-      # - name: show yarn version
-      #   run: yarn --version
-
       - name: build dependencies
         run: yarn build-deps
         working-directory: ./
@@ -77,7 +65,8 @@ jobs:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'App v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
+          # releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
           projectPath: ./app
+          distPath:
