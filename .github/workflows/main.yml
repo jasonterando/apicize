@@ -61,7 +61,7 @@ jobs:
         run: ls -la
 
       - name: build
-        run: yarn build
+        run: yarn build:release
 
       - uses: tauri-apps/tauri-action@v0
         env:
