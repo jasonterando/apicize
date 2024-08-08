@@ -11,14 +11,16 @@ jobs:
   publish-tauri:
     permissions:
       contents: write
+    env:
+      working-directory: ./app
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin'
+          # - platform: 'macos-latest' # for Arm based macs (M1 and above).
+          #   args: '--target aarch64-apple-darwin'
+          # - platform: 'macos-latest' # for Intel based macs.
+          #   args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
             args: ''
           - platform: 'windows-latest'
@@ -51,8 +53,10 @@ jobs:
         # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
         # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
-      - name: install frontend dependencies
-        run: yarn install # change this to npm, pnpm or bun depending on which one you use.
+      # - name: install frontend dependencies
+      #   run: yarn install # change this to npm, pnpm or bun depending on which one you use.
+      - name: install app dependencies and build it
+        run: yarn && yarn build
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -64,3 +68,4 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+          projectPath: ${{env.working-directory}}
