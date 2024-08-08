@@ -19,7 +19,7 @@
     "@tauri-apps/plugin-dialog": "^2.0.0-beta",
     "@tauri-apps/plugin-fs": "^2.0.0-beta",
     "@tauri-apps/plugin-global-shortcut": "^2.0.0-beta",
-    "next": "14.0.4",
+    "next": "^14.2.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^9.0.4",
