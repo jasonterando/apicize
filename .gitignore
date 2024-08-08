@@ -6,3 +6,4 @@ tsconfig.tsbuildinfo
 *.sh
 .next
 .yarn
+.yarnrc.yml
