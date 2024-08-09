@@ -37,7 +37,7 @@
     "unist-util-visit": "^5.0.0"
   },
   "dependencies": {
-    "@apicize/lib-typescript": "^0.2.0",
+    "@apicize/lib-typescript": "^0.3",
     "@dnd-kit/core": "^6.1.0",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
