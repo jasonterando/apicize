@@ -2,7 +2,7 @@ import { useSelector } from "react-redux"
 import { WorkbookState } from "../../../models/store"
 import { TextViewer } from "../text-viewer"
 import { IconButton, Typography } from "@mui/material"
-import { Box } from "@mui/system"
+import { Box, Stack } from "@mui/system"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
 import { WorkspaceContext } from "../../../contexts/workspace-context"
@@ -23,8 +23,8 @@ export function ResultRequestViewer(props: {
 
     const text = beautify.js_beautify(JSON.stringify(request), {})
     return (
-        <Box>
-            <Typography variant='h2' sx={{marginTop: 0}}>Request
+        <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>
+            <Typography variant='h2' sx={{marginTop: 0, flexGrow: 0}}>Request
             <IconButton
                     aria-label="Copy Request to Clipboard"
                     title="Copy Request to Clipboard"
@@ -34,6 +34,6 @@ export function ResultRequestViewer(props: {
                 </IconButton>
             </Typography>
             <TextViewer text={text} extension='json' />
-        </Box>
+        </Stack>
     )
 }

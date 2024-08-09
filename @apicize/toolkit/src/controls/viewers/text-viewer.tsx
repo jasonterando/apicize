@@ -54,6 +54,7 @@ export function TextViewer(props: { text?: string, extension?: string }) {
         fontSize='1rem'
         lineHeight='1rem'
         width='100%'
+        height='100%'
         name='code-editor'
         showGutter={true}
         showPrintMargin={false}

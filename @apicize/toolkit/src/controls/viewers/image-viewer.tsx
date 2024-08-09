@@ -10,9 +10,10 @@ export function ImageViewer(props: {
         return (
             <Box
                 style={{
-                    flexGrow: 0,
+                    flexGrow: 1,
                     flexBasis: 0,
                     overflow: 'auto',
+                    position: 'relative',
                     marginTop: 0,
                     bottom: 0
                 }}
@@ -21,7 +22,6 @@ export function ImageViewer(props: {
                     style={{
                         objectPosition: 'left top',
                         objectFit: 'scale-down',
-                        maxWidth: '100%'
                     }}
                     src={`data:image/${props.extensionToRender};base64,${props.base64ToRender}`}
                 />

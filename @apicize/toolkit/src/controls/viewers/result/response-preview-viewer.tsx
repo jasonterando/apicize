@@ -2,7 +2,7 @@ import { useSelector } from "react-redux"
 import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from "../image-viewer";
 import { TextViewer } from "../text-viewer";
 import { WorkbookState } from "../../../models/store";
-import { IconButton, Typography } from "@mui/material";
+import { IconButton, Stack, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
@@ -60,8 +60,8 @@ export function ResultResponsePreview(props: {
     const showTextCopy = (!isImage) && ((text.length ?? 0) > 0)
 
     return (
-        <Box>
-            <Typography variant='h2' sx={{ marginTop: 0 }}>
+        <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', width: '100%', display: 'flex' }}>
+            <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }}>
                 Response Body (Preview)
                 {showImageCopy
                     ? (<IconButton
@@ -88,6 +88,6 @@ export function ResultResponsePreview(props: {
                     ? (<ImageViewer base64ToRender={body?.data} extensionToRender={extension} />)
                     : (<TextViewer text={text} extension={extension} />)
             }
-        </Box>
+        </Stack>
     )
 }
