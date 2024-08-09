@@ -51,7 +51,7 @@ const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
 const ResultDetail = (props: { info: ExecutionSummaryInfo }) => {
     let idx = 0
     const executedAt = props.info.executedAt > 0 ? `${props.info.executedAt.toLocaleString()}` : '(Start)'
-    return (<Box sx={{marginBottom: '2rem'}}>
+    return (<Box sx={{marginBottom: '2rem' }}>
         <Box sx={{ marginBottom: '1rem' }}>
             {((props.info.errorMessage?.length ?? 0) == 0)
                 ? (<></>)
@@ -143,7 +143,7 @@ export function ResultInfoViewer(props: {
         }
         
         return (
-            <Box>
+            <Box sx={{position: 'relative', overflow: 'auto', boxSizing: 'border-box', width: '100%', height: '100%'}}>
                 <Typography variant='h2' sx={{ marginTop: 0 }}>
                     {title}
                     <IconButton
@@ -165,8 +165,8 @@ export function ResultInfoViewer(props: {
         )
     } else if (summary) {
         return (
-            <Box>
-                <Typography variant='h2' sx={{ marginTop: 0 }}>
+            <Box sx={{position: 'relative', overflow: 'auto', boxSizing: 'border-box', width: '100%', height: '100%'}}>
+                <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }}>
                     Request Execution {summary.success ? "Completed" : "Failed"}
                     <IconButton
                         aria-label="Copy Results to Clipboard"

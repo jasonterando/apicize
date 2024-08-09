@@ -1,4 +1,5 @@
 import { Box } from "@mui/material"
+import { maxWidth } from "@mui/system"
 
 export const KNOWN_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'tif', 'tiff']
 
@@ -15,13 +16,14 @@ export function ImageViewer(props: {
                     overflow: 'auto',
                     position: 'relative',
                     marginTop: 0,
-                    bottom: 0
+                    boxSizing: 'border-box',
+                    width: '100%',
+                    maxWidth: '100%',
                 }}
             >
                 <img
                     style={{
-                        objectPosition: 'left top',
-                        objectFit: 'scale-down',
+                        position: 'absolute'
                     }}
                     src={`data:image/${props.extensionToRender};base64,${props.base64ToRender}`}
                 />
