@@ -2,14 +2,19 @@
 
 import { ReactNode, useContext, useEffect, useRef, useState } from "react"
 import {
-    ToastContext, ToastStore, ToastSeverity, WorkbookState,
-    useConfirmation, WorkspaceContext,
+    ToastContext, ToastStore, ToastSeverity,
+    useConfirmation,
     NavigationType,
     base64Encode,
     ClipboardContentType,
-    ContentDestination
+    ContentDestination,
+    useWindow,
+    useNavigationState,
+    useHelp,
+    useWorkspace,
+    useClipboard,
+    useExecution,
 } from "@apicize/toolkit"
-import { useSelector } from 'react-redux'
 import { ApicizeExecutionResults, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
 import { join, resourceDir } from "@tauri-apps/api/path"
 
@@ -30,24 +35,27 @@ const EXT = 'apicize';
  * @returns element including children (if any)
  */
 export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
-    const context = useContext(WorkspaceContext)
+    const workspaceCtx = useWorkspace()
+    const executionCtx = useExecution()
     const confirm = useConfirmation()
     const toast = useContext<ToastStore>(ToastContext)
 
-    const dirty = useSelector((state: WorkbookState) => state.workbook.dirty)
+    const windowCtx = useWindow()
+    const navStateCtx = useNavigationState()
+    const helpCtx = useHelp()
+    const clipboardCtx = useClipboard()
+
+    const dirty = windowCtx.dirty
     const _forceClose = useRef(false)
     const _internalDirty = useRef(false)
 
-    const workbookFullName = useSelector((state: WorkbookState) => state.workbook.workbookFullName)
-    const workbookDisplayName = useSelector((state: WorkbookState) => state.workbook.workbookDisplayName)
+    const workbookFullName = windowCtx.workbookFullName
+    const workbookDisplayName = windowCtx.workbookDisplayName
 
-    const requestId = useSelector((state: WorkbookState) => state.request.id)
-    const authorizationId = useSelector((state: WorkbookState) => state.authorization.id)
+    const activeType = navStateCtx.activeType
 
-    const activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
-
-    const nextHelpTopic = useSelector((state: WorkbookState) => state.help.nextHelpTopic)
-    const helpTopicHistory = useSelector((state: WorkbookState) => state.help.helpTopicHistory)
+    const nextHelpTopic = helpCtx.nextHelpTopic
+    const helpTopicHistory = helpCtx.helpTopicHistory
 
     const [sshPath, setSshPath] = useState('')
     const [bodyDataPath, setBodyDataPath] = useState('')
@@ -61,7 +69,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             let updateHistory = [...helpTopicHistory]
             switch (topic) {
                 case '\nclose':
-                    context.help.hideHelp()
+                    helpCtx.hideHelp()
                     return
                 case '\nback':
                     updateHistory.pop()
@@ -103,7 +111,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                         text = `${text.substring(0, imageLink.index)}${replaceWith}${text.substring(imageLink.index + imageLink[0].length)}`
                     }
                 } while (imageLink && imageLink.length > 0)
-                context.help.showHelp(showTopic, text, updateHistory)
+                helpCtx.help(showTopic, text, updateHistory)
             } else {
                 throw new Error(`Help topic "${showTopic}" not found`)
             }
@@ -127,7 +135,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                     document.addEventListener('contextmenu', event => event.preventDefault())
                 }
 
-                context.navigation.setApplicationInfo(name, version)
+                windowCtx.changeApp(name, version)
                 try {
                     let settings = await loadSettings()
                     if ((settings?.lastWorkbookFileName?.length ?? 0) > 0) {
@@ -136,7 +144,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 } catch (e) {
                     toast.open(`${e}`, ToastSeverity.Error)
                 } finally {
-                    context.navigation.setShowNavigation(true)
+                    navStateCtx.changeShowNavigation(true)
                     // workbookStore.dispatch(navigationActions.setShowLanding(true))
                 }
 
@@ -154,7 +162,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                                 defaultToCancel: true
                             })) {
                                 _forceClose.current = true
-                                context.workbook.setDirty(false)
+                                windowCtx.changeDirty(false)
                                 currentWindow.close()
                             }
                         })()
@@ -181,17 +189,17 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         })
 
         let unlistenClipboardUpdate: Promise<UnlistenFn> | null = null
-        clipboard.startListening().then(async () => {
-            unlistenClipboardUpdate = clipboard.onSomethingUpdate((types) => {
-                const ctypes: ClipboardContentType[] = []
-                if (types.text) ctypes.push(ClipboardContentType.Text)
-                if (types.imageBinary) ctypes.push(ClipboardContentType.Image)
-                context.clipboard.setTypes(ctypes)
-            })
-        })
+        // clipboard.startListening().then(async () => {
+        //     unlistenClipboardUpdate = clipboard.onSomethingUpdate((types) => {
+        //         const ctypes: ClipboardContentType[] = []
+        //         if (types.text) ctypes.push(ClipboardContentType.Text)
+        //         if (types.imageBinary) ctypes.push(ClipboardContentType.Image)
+        //         clipboardCtx.changeTypes(types.text === true, types.imageBinary === true)
+        //     })
+        // })
 
         return () => {
-            if (unlistenClipboardUpdate) unlistenClipboardUpdate.then(f => f())
+            // if (unlistenClipboardUpdate) unlistenClipboardUpdate.then(f => f())
             unlistenOpenFile.then(f => f())
             unlistenAction.then(f => f())
             unlistenHelp.then(f => f())
@@ -267,7 +275,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             }
         }
 
-        const fileName = context.getWorkbookFileName()
+        const fileName = workspaceCtx.getWorkbookFileName()
         if (fileName && fileName.length > 0) {
             const base = await path.basename(fileName)
             let i = fileName.indexOf(base)
@@ -352,19 +360,19 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             const data = base64Encode(await readFile(fileName))
             switch (destination) {
                 case ContentDestination.PEM:
-                    context.certificate.setPem(id, data)
+                    workspaceCtx.certificate.setPem(id, data)
                     if (pathName.length > 0) setSshPath(pathName)
                     break
                 case ContentDestination.Key:
-                    context.certificate.setKey(id, data)
+                    workspaceCtx.certificate.setKey(id, data)
                     if (pathName.length > 0) setSshPath(pathName)
                     break
                 case ContentDestination.PFX:
-                    context.certificate.setPfx(id, data)
+                    workspaceCtx.certificate.setPfx(id, data)
                     if (pathName.length > 0) setSshPath(pathName)
                     break
                 case ContentDestination.BodyBinary:
-                    context.request.setBodyData(id, data)
+                    workspaceCtx.request.setBodyData(id, data)
                     if (pathName.length > 0) setBodyDataPath(pathName)
                     break
             }
@@ -403,20 +411,20 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         switch (destination) {
             case ContentDestination.PEM:
                 text = await getClipboardText()
-                if (text) context.certificate.setPem(id, base64Encode((new TextEncoder).encode(text)))
+                if (text) workspaceCtx.certificate.setPem(id, base64Encode((new TextEncoder).encode(text)))
                 break
             case ContentDestination.Key:
                 text = await getClipboardText()
-                if (text) context.certificate.setKey(id, base64Encode((new TextEncoder).encode(text)))
+                if (text) workspaceCtx.certificate.setKey(id, base64Encode((new TextEncoder).encode(text)))
                 break
             case ContentDestination.BodyBinary:
                 data = await getClipboardImage()
                 if (data) {
-                    context.request.setBodyData(id, data)
+                    workspaceCtx.request.setBodyData(id, data)
                 } else {
                     text = await getClipboardText()
                     if (text) {
-                        context.request.setBodyData(id, base64Encode((new TextEncoder()).encode(text)))
+                        workspaceCtx.request.setBodyData(id, base64Encode((new TextEncoder()).encode(text)))
                     }
                 }
                 break
@@ -438,7 +446,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         }
 
         const settings = await loadSettings()
-        context.newWorkbook(settings)
+        workspaceCtx.newWorkbook(settings)
         toast.open('Created New Workbook', ToastSeverity.Success)
     }
 
@@ -478,7 +486,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         try {
             const data: Workspace = await core.invoke('open_workspace', { path: fileName })
             const displayName = await getDisplayName(fileName)
-            context.openWorkbook(fileName, displayName, data, settings)
+            workspaceCtx.openWorkbook(fileName, displayName, data)
             if (doUpdateSettings) {
                 await updateSettings({ lastWorkbookFileName: fileName })
             }
@@ -493,13 +501,13 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             if (!(workbookFullName && workbookFullName.length > 0)) {
                 return
             }
-            const workspace = context.getWorkspaceFromStore()
+            const workspace = workspaceCtx.getWorkspaceFromStore()
 
             await core.invoke('save_workspace', { workspace, path: workbookFullName })
 
             await updateSettings({ lastWorkbookFileName: workbookFullName })
             toast.open(`Saved ${workbookFullName}`, ToastSeverity.Success)
-            context.onSaveWorkbook(
+            workspaceCtx.onSaveWorkbook(
                 workbookFullName,
                 await getDisplayName(workbookFullName)
             )
@@ -529,12 +537,12 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 fileName += `.${EXT}`
             }
 
-            const workspace = context.getWorkspaceFromStore()
+            const workspace = workspaceCtx.getWorkspaceFromStore()
             await core.invoke('save_workspace', { workspace, path: fileName })
 
             await updateSettings({ lastWorkbookFileName: fileName })
             toast.open(`Saved ${fileName}`, ToastSeverity.Success)
-            context.onSaveWorkbook(
+            workspaceCtx.onSaveWorkbook(
                 fileName,
                 await getDisplayName(fileName)
             )
@@ -553,27 +561,29 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     }
 
     const doRunRequest = async () => {
-        // toast.open(`Executing id ${entry.name}`, ToastSeverity.Info)
+        const requestId = navStateCtx.activeType === NavigationType.Request ? navStateCtx.activeId : ''
         const runInfo = activeType === NavigationType.Request
-            ? context.request.getRunInformation()
-            : context.group.getRunInformation()
+            ? workspaceCtx.request.getRunInformation()
+            : workspaceCtx.group.getRunInformation()
 
-        if (!runInfo) return
+        if (runInfo === undefined) return
 
         try {
-            context.execution.runStart(runInfo.requestId)
+            executionCtx.runStart(runInfo.requestId)
             let results = await core.invoke<ApicizeExecutionResults>
                 ('run_request', runInfo)
-            context.execution.runComplete(runInfo.requestId, results)
+            console.log(`Received`, results)
+            executionCtx.runComplete(runInfo.requestId, results)
         } catch (e) {
             let msg1 = `${e}`
             toast.open(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
-            context.execution.runCancel(runInfo.requestId)
+            executionCtx.runCancel(runInfo.requestId)
         }
     }
 
     const doCancelRequest = async () => {
-        if (!requestId) return
+        const requestId = navStateCtx.activeType === NavigationType.Request ? navStateCtx.activeId : ''
+        if (requestId?.length === 0) return
         try {
             await core.invoke('cancel_request', {
                 id: requestId
@@ -585,7 +595,8 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
     const doClearToken = async () => {
         try {
-            if (authorizationId) {
+            const authorizationId = navStateCtx.activeType === NavigationType.Authorization ? navStateCtx.activeId : ''
+            if ((authorizationId?.length ?? 0) > 0) {
                 const result = await core.invoke('clear_cached_authorization', {
                     authorization_id: authorizationId
                 })
@@ -652,7 +663,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         _settings.current = await loadSettings()
 
         // Build a new set of settings, including  in proxy / certificate information
-        const newSettings = context.getSettingsFromStore(
+        const newSettings = workspaceCtx.getSettingsFromStore(
             updates.workbookDirectory === undefined ? _settings.current.workbookDirectory : updates.workbookDirectory,
             updates.lastWorkbookFileName === undefined ? _settings.current.lastWorkbookFileName : updates.lastWorkbookFileName
         )

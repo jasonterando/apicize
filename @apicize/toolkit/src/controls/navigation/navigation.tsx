@@ -17,23 +17,68 @@ import LanguageIcon from '@mui/icons-material/Language'
 import { TreeView } from '@mui/x-tree-view/TreeView'
 import { TreeItem } from '@mui/x-tree-view/TreeItem'
 import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack } from '@mui/material'
-import { NavigationType, WorkbookState } from '../../models/store'
-import { useSelector } from 'react-redux'
+import { NavigationType } from '../../models/store'
 import AddIcon from '@mui/icons-material/Add'
 import React, { ReactNode, SyntheticEvent, useContext, useState } from 'react'
 import { useConfirmation } from '../../services/confirmation-service'
 import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensors, useSensor, PointerSensor, DragCancelEvent, DragMoveEvent } from '@dnd-kit/core'
 import { GetTitle } from '@apicize/lib-typescript';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
-import { WorkspaceContext } from '../../contexts/workspace-context';
+import { useWorkspace } from '../../contexts/workspace-context';
 import { NavigationListItem } from '../../models/navigation-list-item';
-import { Check } from '@mui/icons-material';
+import { useWindow } from '../../contexts/window-context';
+import { useNavigationContent } from '../../contexts/navigation-content-context';
 
 interface MenuPosition {
     id: string
     mouseX: number
     mouseY: number
 }
+
+
+// function md5(inputString: string) {
+//     var hc = "0123456789abcdef";
+//     function rh(n: number) { var j, s = ""; for (j = 0; j <= 3; j++) s += hc.charAt((n >> (j * 8 + 4)) & 0x0F) + hc.charAt((n >> (j * 8)) & 0x0F); return s; }
+//     function ad(x: number, y: number) { var l = (x & 0xFFFF) + (y & 0xFFFF); var m = (x >> 16) + (y >> 16) + (l >> 16); return (m << 16) | (l & 0xFFFF); }
+//     function rl(n: number, c: number) { return (n << c) | (n >>> (32 - c)); }
+//     function cm(q: number, a: number, b: number, x: number, s: number, t: number) { return ad(rl(ad(ad(a, q), ad(x, t)), s), b); }
+//     function ff(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cm((b & c) | ((~b) & d), a, b, x, s, t); }
+//     function gg(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cm((b & d) | (c & (~d)), a, b, x, s, t); }
+//     function hh(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cm(b ^ c ^ d, a, b, x, s, t); }
+//     function ii(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cm(c ^ (b | (~d)), a, b, x, s, t); }
+//     function sb(x: string) {
+//         var i; var nblk = ((x.length + 8) >> 6) + 1; var blks = new Array(nblk * 16); for (i = 0; i < nblk * 16; i++) blks[i] = 0;
+//         for (i = 0; i < x.length; i++) blks[i >> 2] |= x.charCodeAt(i) << ((i % 4) * 8);
+//         blks[i >> 2] |= 0x80 << ((i % 4) * 8); blks[nblk * 16 - 2] = x.length * 8; return blks;
+//     }
+//     var i, x = sb("" + inputString), a = 1732584193, b = -271733879, c = -1732584194, d = 271733878, olda, oldb, oldc, oldd;
+//     for (i = 0; i < x.length; i += 16) {
+//         olda = a; oldb = b; oldc = c; oldd = d;
+//         a = ff(a, b, c, d, x[i + 0], 7, -680876936); d = ff(d, a, b, c, x[i + 1], 12, -389564586); c = ff(c, d, a, b, x[i + 2], 17, 606105819);
+//         b = ff(b, c, d, a, x[i + 3], 22, -1044525330); a = ff(a, b, c, d, x[i + 4], 7, -176418897); d = ff(d, a, b, c, x[i + 5], 12, 1200080426);
+//         c = ff(c, d, a, b, x[i + 6], 17, -1473231341); b = ff(b, c, d, a, x[i + 7], 22, -45705983); a = ff(a, b, c, d, x[i + 8], 7, 1770035416);
+//         d = ff(d, a, b, c, x[i + 9], 12, -1958414417); c = ff(c, d, a, b, x[i + 10], 17, -42063); b = ff(b, c, d, a, x[i + 11], 22, -1990404162);
+//         a = ff(a, b, c, d, x[i + 12], 7, 1804603682); d = ff(d, a, b, c, x[i + 13], 12, -40341101); c = ff(c, d, a, b, x[i + 14], 17, -1502002290);
+//         b = ff(b, c, d, a, x[i + 15], 22, 1236535329); a = gg(a, b, c, d, x[i + 1], 5, -165796510); d = gg(d, a, b, c, x[i + 6], 9, -1069501632);
+//         c = gg(c, d, a, b, x[i + 11], 14, 643717713); b = gg(b, c, d, a, x[i + 0], 20, -373897302); a = gg(a, b, c, d, x[i + 5], 5, -701558691);
+//         d = gg(d, a, b, c, x[i + 10], 9, 38016083); c = gg(c, d, a, b, x[i + 15], 14, -660478335); b = gg(b, c, d, a, x[i + 4], 20, -405537848);
+//         a = gg(a, b, c, d, x[i + 9], 5, 568446438); d = gg(d, a, b, c, x[i + 14], 9, -1019803690); c = gg(c, d, a, b, x[i + 3], 14, -187363961);
+//         b = gg(b, c, d, a, x[i + 8], 20, 1163531501); a = gg(a, b, c, d, x[i + 13], 5, -1444681467); d = gg(d, a, b, c, x[i + 2], 9, -51403784);
+//         c = gg(c, d, a, b, x[i + 7], 14, 1735328473); b = gg(b, c, d, a, x[i + 12], 20, -1926607734); a = hh(a, b, c, d, x[i + 5], 4, -378558);
+//         d = hh(d, a, b, c, x[i + 8], 11, -2022574463); c = hh(c, d, a, b, x[i + 11], 16, 1839030562); b = hh(b, c, d, a, x[i + 14], 23, -35309556);
+//         a = hh(a, b, c, d, x[i + 1], 4, -1530992060); d = hh(d, a, b, c, x[i + 4], 11, 1272893353); c = hh(c, d, a, b, x[i + 7], 16, -155497632);
+//         b = hh(b, c, d, a, x[i + 10], 23, -1094730640); a = hh(a, b, c, d, x[i + 13], 4, 681279174); d = hh(d, a, b, c, x[i + 0], 11, -358537222);
+//         c = hh(c, d, a, b, x[i + 3], 16, -722521979); b = hh(b, c, d, a, x[i + 6], 23, 76029189); a = hh(a, b, c, d, x[i + 9], 4, -640364487);
+//         d = hh(d, a, b, c, x[i + 12], 11, -421815835); c = hh(c, d, a, b, x[i + 15], 16, 530742520); b = hh(b, c, d, a, x[i + 2], 23, -995338651);
+//         a = ii(a, b, c, d, x[i + 0], 6, -198630844); d = ii(d, a, b, c, x[i + 7], 10, 1126891415); c = ii(c, d, a, b, x[i + 14], 15, -1416354905);
+//         b = ii(b, c, d, a, x[i + 5], 21, -57434055); a = ii(a, b, c, d, x[i + 12], 6, 1700485571); d = ii(d, a, b, c, x[i + 3], 10, -1894986606);
+//         c = ii(c, d, a, b, x[i + 10], 15, -1051523); b = ii(b, c, d, a, x[i + 1], 21, -2054922799); a = ii(a, b, c, d, x[i + 8], 6, 1873313359);
+//         d = ii(d, a, b, c, x[i + 15], 10, -30611744); c = ii(c, d, a, b, x[i + 6], 15, -1560198380); b = ii(b, c, d, a, x[i + 13], 21, 1309151649);
+//         a = ii(a, b, c, d, x[i + 4], 6, -145523070); d = ii(d, a, b, c, x[i + 11], 10, -1120210379); c = ii(c, d, a, b, x[i + 2], 15, 718787259);
+//         b = ii(b, c, d, a, x[i + 9], 21, -343485551); a = ad(a, olda); b = ad(b, oldb); c = ad(c, oldc); d = ad(d, oldd);
+//     }
+//     return rh(a) + rh(b) + rh(c) + rh(d);
+// }
 
 export function Navigation(props: {
     triggerNew: () => void,
@@ -43,19 +88,10 @@ export function Navigation(props: {
     triggerHelp: (topic?: string) => void
 }) {
 
-    const context = useContext(WorkspaceContext)
+    const workspaceCtx = useWorkspace()
+    const navigationContentCtx = useNavigationContent()
+    const windowCtx = useWindow()
     const confirm = useConfirmation()
-
-    let activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
-    let activeID = useSelector((state: WorkbookState) => state.navigation.activeID)
-    let showNavigation = useSelector((state: WorkbookState) => state.navigation.showNavigation)
-
-    const requests = useSelector((state: WorkbookState) => state.navigation.requestList)
-    const authorizations = useSelector((state: WorkbookState) => state.navigation.authorizationList)
-    const scenarios = useSelector((state: WorkbookState) => state.navigation.scenarioList)
-    const proxies = useSelector((state: WorkbookState) => state.navigation.proxyList)
-    const certificates = useSelector((state: WorkbookState) => state.navigation.certificateList)
-    const workbookFullName = useSelector((state: WorkbookState) => state.workbook.workbookFullName)
 
     const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>(undefined)
     const [reqMenu, setReqMenu] = useState<MenuPosition | undefined>(undefined)
@@ -107,23 +143,6 @@ export function Navigation(props: {
         acceptsType: string
         depth: number
     }
-
-    React.useEffect(() => {
-        if (activeID) {
-            switch (activeType) {
-                case NavigationType.Request:
-                    selectRequest(activeID)
-                    break
-                case NavigationType.Authorization:
-                    selectAuthorization(activeID)
-                    break
-                case NavigationType.Scenario:
-                    selectScenario(activeID)
-                    break
-            }
-        }
-    }, [activeType, activeID])
-
 
     function NavTreeSection(props: {
         children?: ReactNode | undefined
@@ -264,7 +283,7 @@ export function Navigation(props: {
                             <Box className='nav-node-text' sx={{ flexGrow: 1 }}>{GetTitle(props.item)}</Box>
                             <IconButton
                                 sx={{
-                                    visibility: props.item.id === activeID ? 'normal' : 'hidden'
+                                    visibility: props.item.id === navigationContentCtx.activeId ? 'normal' : 'hidden'
                                 }}
                                 onClick={(e) => {
                                     e.preventDefault()
@@ -321,7 +340,7 @@ export function Navigation(props: {
                         <Box className='nav-node-text' sx={{ verticalAlign: 'middle' }}>{GetTitle(props.item)}</Box>
                         <IconButton
                             sx={{
-                                visibility: props.item.id === activeID ? 'normal' : 'hidden'
+                                visibility: props.item.id === navigationContentCtx.activeId ? 'normal' : 'hidden'
                             }}
                             onClick={(e) => {
                                 e.preventDefault()
@@ -336,7 +355,7 @@ export function Navigation(props: {
     }
 
     const clearAllSelections = () => {
-        context.workbook.clearAllActivations()
+        workspaceCtx.workbook.clearAllActivations()
     }
 
     const closeRequestsMenu = () => {
@@ -460,142 +479,142 @@ export function Navigation(props: {
     }
 
     const selectRequest = (id: string) => {
-        context.workbook.activateRequestOrGroup(id)
+        workspaceCtx.workbook.activateRequestOrGroup(id)
     }
 
     const selectScenario = (id: string) => {
-        context.workbook.activateScenario(id)
+        workspaceCtx.workbook.activateScenario(id)
     }
 
     const selectAuthorization = (id: string) => {
-        context.workbook.activateAuthorization(id)
+        workspaceCtx.workbook.activateAuthorization(id)
     }
 
     const selectCertificate = (id: string) => {
-        context.workbook.activateCertificate(id)
+        workspaceCtx.workbook.activateCertificate(id)
     }
 
     const selectProxy = (id: string) => {
-        context.workbook.activateProxy(id)
+        workspaceCtx.workbook.activateProxy(id)
     }
 
     const handleAddRequest = (targetRequestId?: string | null) => {
         closeRequestsMenu()
         closeRequestMenu()
-        context.request.add(targetRequestId)
+        workspaceCtx.request.add(targetRequestId)
     }
 
     const handleAddRequestGroup = (targetRequestId?: string | null) => {
         closeRequestsMenu()
         closeRequestMenu()
-        context.group.add(targetRequestId)
+        workspaceCtx.group.add(targetRequestId)
     }
 
     const handleAddScenario = (targetScenarioId?: string | null) => {
         closeScenarioMenu()
-        context.scenario.add(targetScenarioId)
+        workspaceCtx.scenario.add(targetScenarioId)
     }
 
     const handleAddAuth = (targetAuthId?: string | null) => {
         closeAuthMenu()
-        context.authorization.add(targetAuthId)
+        workspaceCtx.authorization.add(targetAuthId)
     }
     const handleAddCert = (targetCertId?: string | null) => {
         closeCertMenu()
-        context.certificate.add(targetCertId)
+        workspaceCtx.certificate.add(targetCertId)
     }
 
     const handleAddProxy = (targetProxyId?: string | null) => {
         closeProxyMenu()
-        context.proxy.add(targetProxyId)
+        workspaceCtx.proxy.add(targetProxyId)
     }
 
     const handleDeleteRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (!activeID || (activeType !== NavigationType.Request && activeType !== NavigationType.Group)) return
-        const id = activeID
+        if (!navigationContentCtx.activeId || (navigationContentCtx.activeType !== NavigationType.Request && navigationContentCtx.activeType !== NavigationType.Group)) return
+        const id = navigationContentCtx.activeId
         confirm({
             title: 'Delete Request',
-            message: `Are you are you sure you want to delete ${GetTitle(requests.find(r => r.id === id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(navigationContentCtx.requestList.find(r => r.id === id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                context.request.delete(id)
+                workspaceCtx.request.delete(id)
             }
         })
     }
 
     const handleDeleteScenario = () => {
         closeScenarioMenu()
-        if (!activeID || activeType !== NavigationType.Scenario) return
-        const id = activeID
+        if (!navigationContentCtx.activeId || navigationContentCtx.activeType !== NavigationType.Scenario) return
+        const id = navigationContentCtx.activeId
         confirm({
             title: 'Delete Scenario',
-            message: `Are you are you sure you want to delete ${GetTitle(scenarios.find(s => s.id === id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(navigationContentCtx.scenarioList.find(s => s.id === id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                context.scenario.delete(id)
+                workspaceCtx.scenario.delete(id)
             }
         })
     }
 
     const handleDeleteAuth = () => {
         closeAuthMenu()
-        if (!activeID || activeType !== NavigationType.Authorization) return
-        const id = activeID
+        if (!navigationContentCtx.activeId || navigationContentCtx.activeType !== NavigationType.Authorization) return
+        const id = navigationContentCtx.activeId
         confirm({
             title: 'Delete Authorization',
-            message: `Are you are you sure you want to delete ${GetTitle(authorizations.find(a => a.id === id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(navigationContentCtx.authorizationList.find(a => a.id === id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                context.authorization.delete(id)
+                workspaceCtx.authorization.delete(id)
             }
         })
     }
 
     const handleDeleteCert = () => {
         closeCertMenu()
-        if (!activeID || activeType !== NavigationType.Certificate) return
-        const id = activeID
+        if (!navigationContentCtx.activeId || navigationContentCtx.activeType !== NavigationType.Certificate) return
+        const id = navigationContentCtx.activeId
         confirm({
             title: 'Delete Certificate',
-            message: `Are you are you sure you want to delete ${GetTitle(certificates.find(s => s.id === id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(navigationContentCtx.certificateList.find(s => s.id === id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                context.certificate.delete(id)
+                workspaceCtx.certificate.delete(id)
             }
         })
-    }    
+    }
     const handleDeleteProxy = () => {
         closeProxyMenu()
-        if (!activeID || activeType !== NavigationType.Proxy) return
-        const id = activeID
+        if (!navigationContentCtx.activeId || navigationContentCtx.activeType !== NavigationType.Proxy) return
+        const id = navigationContentCtx.activeId
         confirm({
             title: 'Delete Proxy',
-            message: `Are you are you sure you want to delete ${GetTitle(proxies.find(s => s.id === id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(navigationContentCtx.proxyList.find(s => s.id === id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                context.proxy.delete(id)
+                workspaceCtx.proxy.delete(id)
             }
         })
     }
@@ -603,52 +622,52 @@ export function Navigation(props: {
     const handleDupeRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (activeType === NavigationType.Request && activeID) context.request.copy(activeID)
+        if (navigationContentCtx.activeType === NavigationType.Request && navigationContentCtx.activeId) workspaceCtx.request.copy(navigationContentCtx.activeId)
     }
 
     const handleDupeScenario = () => {
         closeScenarioMenu()
-        if (activeType === NavigationType.Scenario && activeID) context.scenario.copy(activeID)
+        if (navigationContentCtx.activeType === NavigationType.Scenario && navigationContentCtx.activeId) workspaceCtx.scenario.copy(navigationContentCtx.activeId)
     }
 
     const handleDupeAuth = () => {
         closeAuthMenu()
-        if (activeType === NavigationType.Authorization && activeID) context.authorization.copy(activeID)
+        if (navigationContentCtx.activeType === NavigationType.Authorization && navigationContentCtx.activeId) workspaceCtx.authorization.copy(navigationContentCtx.activeId)
     }
 
     const handleDupeCert = () => {
         closeCertMenu()
-        if (activeType === NavigationType.Certificate && activeID) context.certificate.copy(activeID)
+        if (navigationContentCtx.activeType === NavigationType.Certificate && navigationContentCtx.activeId) workspaceCtx.certificate.copy(navigationContentCtx.activeId)
     }
 
     const handleDupeProxy = () => {
         closeProxyMenu()
-        if (activeType === NavigationType.Proxy && activeID) context.proxy.copy(activeID)
+        if (navigationContentCtx.activeType === NavigationType.Proxy && navigationContentCtx.activeId) workspaceCtx.proxy.copy(navigationContentCtx.activeId)
     }
 
     const handleMoveRequest = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectRequest(id)
-        context.request.move(id, destinationID, onLowerHalf, onLeft)
+        workspaceCtx.request.move(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveScenario = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectScenario(id)
-        context.scenario.move(id, destinationID, onLowerHalf, onLeft)
+        workspaceCtx.scenario.move(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveAuth = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectAuthorization(id)
-        context.authorization.move(id, destinationID, onLowerHalf, onLeft)
+        workspaceCtx.authorization.move(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveCert = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectCertificate(id)
-        context.certificate.move(id, destinationID, onLowerHalf, onLeft)
+        workspaceCtx.certificate.move(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveProxy = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectProxy(id)
-        context.proxy.move(id, destinationID, onLowerHalf, onLeft)
+        workspaceCtx.proxy.move(id, destinationID, onLowerHalf, onLeft)
     }
 
     function RequestsMenu() {
@@ -663,13 +682,13 @@ export function Navigation(props: {
                     left: requestsMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequest(activeID)}>
+                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequest(navigationContentCtx.activeId)}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequestGroup(activeID)}>
+                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequestGroup(navigationContentCtx.activeId)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
@@ -691,13 +710,13 @@ export function Navigation(props: {
                     left: reqMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequest(activeID)}>
+                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequest(navigationContentCtx.activeId)}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequestGroup(activeID)}>
+                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequestGroup(navigationContentCtx.activeId)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
@@ -732,7 +751,7 @@ export function Navigation(props: {
                     left: scenarioMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddScenario(activeID)}>
+                <MenuItem onClick={(_) => handleAddScenario(navigationContentCtx.activeId)}>
                     <ListItemIcon>
                         <LanguageIcon fontSize='small' />
                     </ListItemIcon>
@@ -766,7 +785,7 @@ export function Navigation(props: {
                     left: authMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddAuth(activeID)}>
+                <MenuItem onClick={(_) => handleAddAuth(navigationContentCtx.activeId)}>
                     <ListItemIcon>
                         <LockIcon fontSize='small' />
                     </ListItemIcon>
@@ -800,7 +819,7 @@ export function Navigation(props: {
                     left: certMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddCert(activeID)}>
+                <MenuItem onClick={(_) => handleAddCert(navigationContentCtx.activeId)}>
                     <ListItemIcon>
                         <LockIcon fontSize='small' />
                     </ListItemIcon>
@@ -834,7 +853,7 @@ export function Navigation(props: {
                     left: proxyMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddProxy(activeID)}>
+                <MenuItem onClick={(_) => handleAddProxy(navigationContentCtx.activeId)}>
                     <ListItemIcon>
                         <LanguageIcon fontSize='small' />
                     </ListItemIcon>
@@ -935,9 +954,9 @@ export function Navigation(props: {
             item.children.forEach(expandRequestsWithChildren)
         }
     }
-    requests.forEach(expandRequestsWithChildren)
+    navigationContentCtx.requestList.forEach(expandRequestsWithChildren)
 
-    return showNavigation ? (
+    return (
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '4px', paddingRight: '20px', backgroundColor: '#202020' }}>
             <Box display='flex' flexDirection='row' sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '2px' }}>
                 <Box sx={{ width: '100%', marginRight: '8px' }}>
@@ -947,7 +966,7 @@ export function Navigation(props: {
                     <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => props.triggerOpen()} sx={{ marginLeft: '4px' }}>
                         <FileOpenIcon />
                     </IconButton>
-                    <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={(workbookFullName?.length ?? 0) == 0} onClick={() => props.triggerSave()} sx={{ marginLeft: '4px' }}>
+                    <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={windowCtx.workbookFullName.length == 0} onClick={() => props.triggerSave()} sx={{ marginLeft: '4px' }}>
                         <SaveIcon />
                     </IconButton>
                     <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => props.triggerSaveAs()} sx={{ marginLeft: '4px' }}>
@@ -967,13 +986,13 @@ export function Navigation(props: {
                     defaultCollapseIcon={<ExpandMoreIcon />}
                     defaultExpandIcon={<ChevronRightIcon />}
                     defaultExpanded={defaultExpanded}
-                    selected={activeID}
+                    selected={navigationContentCtx.activeId}
                     multiSelect={false}
                     sx={{ height: '100vh', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
                 >
                     <NavTreeSection key='nav-section-request' type='request' title='Requests' helpTopic='requests' onAdd={() => { }}>
                         {
-                            requests.map(t => <NavTreeItem
+                            navigationContentCtx.requestList.map(t => <NavTreeItem
                                 item={t}
                                 depth={0}
                                 type='request'
@@ -986,7 +1005,7 @@ export function Navigation(props: {
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-scenario' type='scenario' title='Scenarios' helpTopic='scenarios' onAdd={handleAddScenario}>
                         {
-                            scenarios.map(t => <NavTreeItem
+                            navigationContentCtx.scenarioList.map(t => <NavTreeItem
                                 item={t}
                                 depth={0}
                                 type='scenario'
@@ -999,7 +1018,7 @@ export function Navigation(props: {
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' helpTopic='authorizations' onAdd={handleAddAuth}>
                         {
-                            authorizations.map(t => <NavTreeItem
+                            navigationContentCtx.authorizationList.map(t => <NavTreeItem
                                 item={t}
                                 depth={0}
                                 type='auth'
@@ -1012,7 +1031,7 @@ export function Navigation(props: {
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-cert' type='cert' title='Certificates' helpTopic='certificates' onAdd={handleAddCert}>
                         {
-                            certificates.map(t => <NavTreeItem
+                            navigationContentCtx.certificateList.map(t => <NavTreeItem
                                 item={t}
                                 depth={0}
                                 type='cert'
@@ -1025,7 +1044,7 @@ export function Navigation(props: {
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-proxy' type='proxy' title='Proxies' helpTopic='proxies' onAdd={handleAddProxy}>
                         {
-                            proxies.map(t => <NavTreeItem
+                            navigationContentCtx.proxyList.map(t => <NavTreeItem
                                 item={t}
                                 depth={0}
                                 type='proxy'
@@ -1045,5 +1064,5 @@ export function Navigation(props: {
             <CertMenu />
             <ProxyMenu />
         </Stack>
-    ) : null
+    )
 }

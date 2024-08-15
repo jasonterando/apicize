@@ -1,24 +1,16 @@
-import { useSelector } from "react-redux"
 import { TextViewer } from "../text-viewer";
-import { WorkbookState } from "../../../models/store";
-import { Box, IconButton, Stack, Typography } from "@mui/material";
+import { IconButton, Stack, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { useContext } from "react";
-import { WorkspaceContext } from "../../../contexts/workspace-context";
+import { useExecution } from "../../../contexts/execution-context";
 
 export function ResultRawPreview(props: {
+    requestOrGroupId: string,
+    resultIndex: number,
+    runIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
-    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
-    useSelector((state: WorkbookState) => state.execution.resultIndex)
-    useSelector((state: WorkbookState) => state.execution.runIndex)
-    if (!executionId) {
-        return null
-    }
-
-    const execution = useContext(WorkspaceContext).execution
-    const body = execution.getResponseBody(executionId)
-        
+    const execution = useExecution()
+    const body = execution.getExecutionResultBody(props.requestOrGroupId, props.runIndex, props.resultIndex)
     let has_text = body?.text !== undefined
     let preview = has_text ? body?.text : body?.data
     return (

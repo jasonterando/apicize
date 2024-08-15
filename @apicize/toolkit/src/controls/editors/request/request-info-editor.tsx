@@ -1,39 +1,12 @@
-import { TextField, Grid, Select, MenuItem, FormControl, InputLabel } from '@mui/material'
-import { useContext } from 'react'
-import { WorkbookState } from '../../../models/store'
-import { useSelector } from 'react-redux'
+import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Box } from '@mui/material'
 import { WorkbookMethod, WorkbookMethods } from '@apicize/lib-typescript'
-import { WorkspaceContext } from '../../../contexts/workspace-context'
-import { ParametersEditor } from '../parameters-editor'
+import { useRequestEditor } from '../../../contexts/editors/request-editor-context'
 
 export function RequestInfoEditor() {
-    const context = useContext(WorkspaceContext)
-    const request = context.request
-  
-    const id = useSelector((state: WorkbookState) => state.request.id)
-    const name = useSelector((state: WorkbookState) => state.request.name)
-    const url = useSelector((state: WorkbookState) => state.request.url)
-    const method = useSelector((state: WorkbookState) => state.request.method)
-    const timeout = useSelector((state: WorkbookState) => state.request.timeout)
+    const requestCtx = useRequestEditor()
 
-    if (! id) {
+    if (requestCtx.id.length === 0) {
         return null
-    }
-
-    const updateName = (name: string) => {
-        request.setName(id, name)
-    }
-
-    const updateURL = (url: string) => {
-        request.setURL(id, url)
-    }
-
-    const updateMethod = (method: WorkbookMethod) => {
-        request.setMethod(id, method)
-    }
-
-    const updateTimeout = (timeout: number) => {
-        request.setTimeout(id, timeout)
     }
 
     const methodMenuItems = () => {
@@ -50,8 +23,8 @@ export function RequestInfoEditor() {
                     label="Name"
                     aria-label='Request name'
                     // size="small"
-                    value={name}
-                    onChange={e => updateName(e.target.value)}
+                    value={requestCtx.name}
+                    onChange={e => requestCtx.changeName(e.target.value)}
                     fullWidth
                 />
             </Grid>
@@ -61,8 +34,8 @@ export function RequestInfoEditor() {
                     label="URL"
                     aria-label='Request url'
                     // size="small"
-                    value={url}
-                    onChange={e => updateURL(e.target.value)}
+                    value={requestCtx.url}
+                    onChange={e => requestCtx.changeUrl(e.target.value)}
                     fullWidth
                 />
             </Grid>
@@ -73,9 +46,9 @@ export function RequestInfoEditor() {
                         labelId='request-method-label-id'
                         aria-label='Request method'
                         id="request-method"
-                        value={method}
+                        value={requestCtx.method}
                         label="Method"
-                        onChange={e => updateMethod(e.target.value as WorkbookMethod)}
+                        onChange={e => requestCtx.changeMethod(e.target.value as WorkbookMethod)}
                     >
                         {methodMenuItems()}
                     </Select>
@@ -87,8 +60,8 @@ export function RequestInfoEditor() {
                         label='Timeout'
                         sx={{marginLeft: '24px', width: '8em'}}
                         type='number'
-                        value={timeout}
-                        onChange={e => updateTimeout(parseInt(e.target.value))}
+                        value={requestCtx.timeout}
+                        onChange={e => requestCtx.changeTimeout(parseInt(e.target.value))}
                     />
                 </FormControl>
             </Grid>

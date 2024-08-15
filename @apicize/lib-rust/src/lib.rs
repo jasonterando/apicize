@@ -1242,7 +1242,11 @@ impl Workspace {
                 // Recursively run requests located in groups...
                 let mut results: Vec<ApicizeResult> = Vec::new();
 
-                let mut active_vars = variables.clone();
+                let (variables, ..) =
+                    workspace.retrieve_parameters(request, &variables);
+
+                let mut arc_variables = Arc::new(variables);
+
                 let fake = Vec::<String>::new();
                 let group_child_ids = workspace
                     .requests
@@ -1260,7 +1264,7 @@ impl Workspace {
                         let cloned_workspace = workspace.clone();
                         let cloned_started = tests_started.clone();
                         let cloned_id = id.clone();
-                        let cloned_variables = variables.clone();
+                        let cloned_variables = arc_variables.clone();
                         let cloned_request_name = request_name.clone();
 
                         runs.spawn(Workspace::run_int(
@@ -1284,7 +1288,7 @@ impl Workspace {
                         let cloned_workspace = workspace.clone();
                         let cloned_started = tests_started.clone();
                         let cloned_id = id.clone();
-                        let cloned_variables = active_vars.clone();
+                        let cloned_variables = arc_variables.clone();
                         let cloned_request_name = request_name.clone();
 
                         let (group_test_results, group_vars) = Workspace::run_int(
@@ -1299,11 +1303,11 @@ impl Workspace {
                         .await;
 
                         results.extend(group_test_results);
-                        active_vars = Arc::new(group_vars.clone());
+                        arc_variables = Arc::new(group_vars.clone());
                     }
                 }
 
-                return (results, active_vars.as_ref().clone());
+                return (results, arc_variables.as_ref().clone());
             }
         }
     }

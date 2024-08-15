@@ -1,23 +1,17 @@
-import { useSelector } from "react-redux"
-import { WorkbookState } from "../../../models/store"
 import { DataGrid } from "@mui/x-data-grid"
 import { GenerateIdentifier } from "../../../services/random-identifier-generator"
-import { Box, Stack, Typography } from "@mui/material"
-import { WorkspaceContext } from "../../../contexts/workspace-context"
-import { useContext } from "react"
+import { Stack, Typography } from "@mui/material"
+import { useNavigationState } from "../../../contexts/navigation-state-context"
+import { useExecution } from "../../../contexts/execution-context"
 
-export function ResponseHeadersViewer() {
-    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
-    if (!executionId) {
-        return null
-    }
+export function ResponseHeadersViewer(props: {requestOrGroupId: string, resultIndex: number, runIndex: number}) {
+    const nav = useNavigationState()
+    const executionCtx = useExecution()
 
-    const execution = useContext(WorkspaceContext).execution
-    useSelector((state: WorkbookState) => state.execution.resultIndex)
-    useSelector((state: WorkbookState) => state.execution.runIndex)
+    const resultHeaders = executionCtx.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
 
     const headers = []
-    for (const [name, value] of Object.entries(execution.getResponseHeaders(executionId) ?? {})) {
+    for (const [name, value] of Object.entries(resultHeaders ?? {})) {
         headers.push({
             id: GenerateIdentifier(),
             name,

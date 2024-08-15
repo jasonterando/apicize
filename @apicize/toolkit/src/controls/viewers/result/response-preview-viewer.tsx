@@ -1,28 +1,20 @@
-import { useSelector } from "react-redux"
 import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from "../image-viewer";
 import { TextViewer } from "../text-viewer";
-import { WorkbookState } from "../../../models/store";
 import { IconButton, Stack, Typography } from "@mui/material";
-import { Box } from "@mui/system";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { useContext } from "react";
-import { WorkspaceContext } from "../../../contexts/workspace-context";
+import { useExecution } from "../../../contexts/execution-context";
 
 export function ResultResponsePreview(props: {
+    requestOrGroupId: string,
+    resultIndex: number,
+    runIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void,
     triggerCopyImageToClipboard: (base64?: string) => void,
 }) {
-    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
-    useSelector((state: WorkbookState) => state.execution.resultIndex)
-    useSelector((state: WorkbookState) => state.execution.runIndex)
-    if (!executionId) {
-        return null
-    }
-
-    const execution = useContext(WorkspaceContext).execution
-    const headers = execution.getResponseHeaders(executionId)
-    const body = execution.getResponseBody(executionId)
+    const execution = useExecution()
+    const headers = execution.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    const body = execution.getExecutionResultBody(props.requestOrGroupId, props.runIndex, props.resultIndex)
 
     let extension = ''
     for (const [name, value] of Object.entries(headers ?? {})) {

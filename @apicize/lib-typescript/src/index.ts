@@ -14,6 +14,7 @@ export { IndexedNestedRequests, addNestedEntity, getNestedEntity, removeNestedEn
     export { Workspace } from './models/workspace'
 export { Identifiable } from './models/identifiable'
 export { Named } from './models/named'
+export { Executable } from './models/executable'
 export { Persistence, Persisted } from './models/persistence'
 export { Selection } from './models/selection'
 export { GetTitle } from './models/named'

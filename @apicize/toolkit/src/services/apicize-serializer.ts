@@ -76,16 +76,6 @@ export function base64Decode(base64: string): Uint8Array {
 }
 
 
-function toStateStorage<S extends Identifiable, E extends S  | Editable | Hierarchical<S>>(
-    index: IndexedEntities<S>,
-    callback: (item: E) => void
-): IndexedEntities<E> {
-    for(const v of Object.values(index.entities)) {
-        callback(v as unknown as E)
-    }
-    return index as unknown as IndexedEntities<E>
-}
-
 /**
  * Strip editable artifacts from indexed entries and re-typecast response
  * @param item 
@@ -106,8 +96,11 @@ function stateIndexToStorage<S extends Identifiable, E extends S | Editable | Hi
     return cloned as IndexedEntities<S>
 }
 
-
-export function newStateStorage(): EditableWorkspace {
+/**
+ * Generate an empty editable workspace
+ * @returns empty workspace
+ */
+export function newEditableWorkspace(): EditableWorkspace {
     return {
         requests: { entities: {}, topLevelIds: [] },
         scenarios: { entities: {}, topLevelIds: [] },
@@ -121,7 +114,14 @@ export function newStateStorage(): EditableWorkspace {
     }
 }
 
-export function workspaceToState(workspace: Workspace): EditableWorkspace {
+/**
+ * Translate the workspace returned by Rust library into an editable workspace,
+ * making sure child properties have unique identifiers and translating
+ * body data so we can edit it
+ * @param workspace 
+ * @returns 
+ */
+export function storedWorkspaceToEditableWorkspace(workspace: Workspace): EditableWorkspace {
     for (const scenario of Object.values(workspace.scenarios.entities)) {
         scenario.variables?.forEach(v => {
             const v1 = v as EditableNameValuePair    
@@ -162,7 +162,12 @@ export function editableToNameValuePair(pair: EditableNameValuePair) {
     }
 }
 
-export function stateRequestsToStorage(index: IndexedNestedRequests<EditableWorkbookRequestEntry>) {
+/**
+ * Translate requests into something we can call the Rust library with
+ * @param index 
+ * @returns 
+ */
+export function prepareRequestsForStorage(index: IndexedNestedRequests<EditableWorkbookRequestEntry>) {
     const cloned = structuredClone(index)
     for(const entity of Object.values(cloned.entities)) {
         const stored = entity as EditableWorkbookRequest
@@ -218,10 +223,24 @@ export function stateRequestsToStorage(index: IndexedNestedRequests<EditableWork
             stored.queryStringParams?.forEach(p => delete (p as unknown as any).id)
         }
     }
+    console.log('submitting', cloned)
     return cloned
 }
 
-export function stateToWorkspace(
+/**
+ * Translate the editable workspace we use in React to something we can pass to Rust library
+ * @param requests 
+ * @param scenarios 
+ * @param authorizations 
+ * @param certificates 
+ * @param proxies 
+ * @param selectedScenario 
+ * @param selectedAuthorization 
+ * @param selectedCertificate 
+ * @param selectedProxy 
+ * @returns 
+ */
+export function editableWorkspaceToStoredWorkspace(
     requests: IndexedEntities<EditableWorkbookRequestEntry>,
     scenarios: IndexedEntities<EditableWorkbookScenario>,
     authorizations: IndexedEntities<EditableWorkbookAuthorization>,
@@ -234,7 +253,7 @@ export function stateToWorkspace(
 ): Workspace {
     const result = {
         version: 1.0,
-        requests: stateRequestsToStorage(requests),
+        requests: prepareRequestsForStorage(requests),
         scenarios: stateIndexToStorage<WorkbookScenario, EditableWorkbookScenario>(scenarios),
         authorizations: stateIndexToStorage<WorkbookAuthorization, EditableWorkbookAuthorization>(authorizations),
         certificates: stateIndexToStorage<WorkbookCertificate, EditableWorkbookCertificate>(certificates, (c) => {

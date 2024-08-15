@@ -34,7 +34,7 @@ export interface IndexedText {
 }
 
 export interface WorkbookExecution {
-     requestID: string
+     // requestID: string
      running: boolean
      runIndex?: number
      runList?: IndexedText[]
@@ -43,9 +43,10 @@ export interface WorkbookExecution {
      results?: WorkbookExecutionResult[][]
      executedAt?: number
      milliseconds?: number
+     panel?: string
 }
 
-export function ApicizeRunResultsToWorkbookExecutionResults(runs: ApicizeResult[][], requests: { [id: string]: EditableWorkbookRequestEntry }) {
+export function ApicizeRunResultsToWorkbookExecutionResults(runs: ApicizeResult[][]) {
      return runs.map(results =>
           results.map(result => {
                return {

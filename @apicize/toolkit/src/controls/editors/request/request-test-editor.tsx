@@ -1,27 +1,13 @@
-import { useContext } from 'react'
-import { useSelector } from 'react-redux'
-import { WorkbookState } from '../../../models/store'
 import 'prismjs/components/prism-javascript'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
 import AceEditor from "react-ace"
 import "ace-builds/src-noconflict/mode-javascript"
-import { WorkspaceContext } from '../../../contexts/workspace-context'
+import { useRequestEditor } from '../../../contexts/editors/request-editor-context'
 // import { TextareaAutosize } from '@mui/material'
 
 export function RequestTestEditor() {
-  const context = useContext(WorkspaceContext)
-  const request = context.request
-  const id = useSelector((state: WorkbookState) => state.request.id)
-  const test = useSelector((state: WorkbookState) => state.request.test ?? '')
-
-  if (!id) {
-    return null
-  }
-
-  const updateTest = (val: string) => {
-    request.setTest(id, val)
-  }
+  const requestCtx = useRequestEditor()
 
   return (
     <AceEditor
@@ -35,7 +21,7 @@ export function RequestTestEditor() {
       showGutter={true}
       showPrintMargin={false}
       tabSize={3}
-      onChange={(v) => updateTest(v)}
+      onChange={(v) => requestCtx.changeTest(v)}
       setOptions={{
         useWorker: false,
         foldStyle: "markbegin",
@@ -44,7 +30,7 @@ export function RequestTestEditor() {
         fixedWidthGutter: true,
         showLineNumbers: true,
       }}
-      value={test} />
+      value={requestCtx.test} />
 
     // <TextareaAutosize
     //   autoFocus

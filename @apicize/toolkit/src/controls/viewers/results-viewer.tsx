@@ -1,13 +1,12 @@
-import { useSelector } from "react-redux"
 import { OverridableStringUnion } from '@mui/types'
 import { Box, Stack, SvgIconPropsColorOverrides, SxProps, Theme, ToggleButton, ToggleButtonGroup } from "@mui/material"
-import { ResultType, WorkbookState } from "../../models/store"
+import { ResultType } from "../../models/store"
 import ScienceIcon from '@mui/icons-material/ScienceOutlined'
 import SendIcon from '@mui/icons-material/Send';
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import PreviewIcon from '@mui/icons-material/Preview'
-import React, { useContext, useEffect } from "react"
+import React, { useState } from "react"
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-markup'
 // import 'prismjs/themes/prism-tomorrow.css''
@@ -17,58 +16,106 @@ import { ResultInfoViewer } from "./result/result-info-viewer";
 import { ResponseHeadersViewer } from "./result/response-headers-viewer";
 import { ResultRequestViewer } from "./result/result-request-viewer";
 import { RequestRunProgress } from "./result/requuest-run-progress";
-import { WorkspaceContext } from "../../contexts/workspace-context";
+import { useExecution } from "../../contexts/execution-context"
+
+type InfoColorType = OverridableStringUnion<
+    | 'inherit'
+    | 'success'
+    | 'warning'
+    | 'disabled',
+    SvgIconPropsColorOverrides>
 
 export function ResultsViewer(props: {
     sx: SxProps<Theme>,
+    requestOrGroupId: string,
+    isGroup: boolean,
+    runIndex: number,
+    resultIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void,
     triggerCopyImageToClipboard: (base64?: string) => void,
     cancelRequest: (id: string) => void
 }) {
-    const context = useContext(WorkspaceContext)
-    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
-    const resultType = useSelector((state: WorkbookState) => state.execution.resultType)
-    const failedTestCount = useSelector((state: WorkbookState) => state.execution.failedTestCount)
-    const running = useSelector((state: WorkbookState) => state.execution.running)
-    const longTextInResponse = useSelector((state: WorkbookState) => state.execution.longTextInResponse)
-    useSelector((state: WorkbookState) => state.execution.resultIndex)
-    useSelector((state: WorkbookState) => state.execution.runIndex)
-    const panel = useSelector((state: WorkbookState) => state.execution.panel);
+    const execution = useExecution()
 
-    if (!executionId) {
-        return null
+    const getUpdatedState = (): [string, boolean, boolean, InfoColorType] => {
+        const info = execution.getExecutionInfo(props.requestOrGroupId)
+
+        let activeDisableOtherPanels: boolean
+        let isRunning = (info?.running === true)
+        if (isRunning) {
+            activeDisableOtherPanels = true
+        } else {
+            activeDisableOtherPanels = props.isGroup
+        }
+        let activePanel = info?.panel ?? ''
+        if (activePanel.length === 0 && (!props.isGroup)) {
+            activePanel = longTextInResponse ? 'Text' : 'Preview'
+        }
+        if (activePanel.length === 0 || (activeDisableOtherPanels && activePanel !== 'Info')) {
+            activePanel = 'Info'
+        }
+
+        const result = isRunning
+            ? null
+            : execution.getExecutionSummary(props.requestOrGroupId, props.runIndex, props.resultIndex)
+
+        let allOk = true
+        let failedTestCount = 0
+        if (Array.isArray(result)) {
+            for (const r of result) {
+                if (!r.success) {
+                    allOk = false
+                    break
+                }
+                failedTestCount += (r.failedTestCount ?? 0)
+            }
+        } else if (result) {
+            allOk = result.success
+            failedTestCount = (result.failedTestCount ?? 0)
+        }
+
+        if (!allOk) {
+            activeDisableOtherPanels = true
+        }
+
+        let activeInfoColor = (
+            isRunning
+                ? 'disabled'
+                : allOk
+                    ? failedTestCount === 0
+                        ? 'success'
+                        : 'warning'
+                    : 'error'
+        ) as InfoColorType
+
+        return [activePanel, isRunning, activeDisableOtherPanels, activeInfoColor]
     }
+
+
+    // TODO - FIX THESE
+    const [activePanel, activeRunning, activeDisableOtherPanels, activeIconColor] = getUpdatedState()
+
+    const [panel, setPanel] = useState(activePanel)
+    const [running, setRunning] = useState(activeRunning)
+    const [disableOtherPanels, setDisableOtherPanels] = useState(activeDisableOtherPanels)
+    const [infoColor, setInfoColor] = useState(activeIconColor)
+    const [longTextInResponse, setLongTextInResponse] = useState(false)
+
+
+    React.useEffect(() => {
+        const [activePanel, activeRunning, activeDisableOtherPanels, activeInfoColor] = getUpdatedState()
+        setPanel(activePanel)
+        setRunning(activeRunning)
+        setDisableOtherPanels(activeDisableOtherPanels)
+        setInfoColor(activeInfoColor)
+    }, [execution.running])
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: string) => {
         if (newValue) {
-            context.execution.setPanel(newValue)
+            execution.changePanel(props.requestOrGroupId, newValue)
+            setPanel(newValue)
         }
     }
-
-    const disableOtherPanels = (running || resultType != ResultType.Single)
-
-    let activePanel = panel
-    if (activePanel.length === 0 && resultType === ResultType.Single) {
-        activePanel = longTextInResponse ? 'Text' : 'Preview'
-    }
-    if (activePanel.length === 0 || (disableOtherPanels && activePanel !== 'Info')) {
-        activePanel = 'Info'
-    }
-
-    let infoColor = (
-        (resultType === ResultType.Single || resultType === ResultType.Group)
-            ? failedTestCount === 0
-                ? 'success'
-                : 'warning'
-            : (resultType === ResultType.Failed)
-                ? 'error'
-                : 'inherit'
-    ) as OverridableStringUnion<
-        | 'inherit'
-        | 'success'
-        | 'warning',
-        SvgIconPropsColorOverrides
-    >
 
     return (
         <Stack direction={'row'} sx={props.sx}>
@@ -88,17 +135,28 @@ export function ResultsViewer(props: {
             <Box sx={{ overflow: 'hidden', flexGrow: 1, bottom: '0', position: 'relative' }}>
                 {
                     running ? <RequestRunProgress cancelRequest={props.cancelRequest} /> :
-                        (!executionId) ? <></> :
-                            activePanel === 'Info' ? <ResultInfoViewer triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />
-                                : activePanel === 'Headers' ? <ResponseHeadersViewer />
-                                    : activePanel === 'Preview' ? <ResultResponsePreview
+                        panel === 'Info' ? <ResultInfoViewer requestOrGroupId={props.requestOrGroupId} runIndex={props.runIndex} resultIndex={props.resultIndex}
+                            triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />
+                            : panel === 'Headers' ? <ResponseHeadersViewer requestOrGroupId={props.requestOrGroupId} runIndex={props.runIndex} resultIndex={props.resultIndex} />
+                                : panel === 'Preview' ? <ResultResponsePreview
+                                    requestOrGroupId={props.requestOrGroupId}
+                                    runIndex={props.runIndex}
+                                    resultIndex={props.resultIndex}
+                                    triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
+                                    triggerCopyImageToClipboard={props.triggerCopyImageToClipboard}
+                                />
+                                    : panel === 'Text' ? <ResultRawPreview
+                                        requestOrGroupId={props.requestOrGroupId}
+                                        runIndex={props.runIndex}
+                                        resultIndex={props.resultIndex}
                                         triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
-                                        triggerCopyImageToClipboard={props.triggerCopyImageToClipboard}
                                     />
-                                        : activePanel === 'Text' ? <ResultRawPreview triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
-                                        />
-                                            : activePanel === 'Request' ? <ResultRequestViewer triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />
-                                                : null
+                                        : panel === 'Request' ? <ResultRequestViewer
+                                            requestOrGroupId={props.requestOrGroupId}
+                                            runIndex={props.runIndex}
+                                            resultIndex={props.resultIndex}
+                                            triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />
+                                            : null
                 }
             </Box>
         </Stack>)

@@ -1,13 +1,31 @@
 'use client'
 
 import {
-  ConfirmationServiceProvider, Navigation, workbookStore, ToastProvider, WorkspaceProvider
+  ConfirmationServiceProvider, Navigation, ToastProvider, WorkspaceProvider,
+  NavigationStateProvider, NavigationContentProvider,
+  WindowProvider,
+  HelpProvider,
+  ClipboardProvider,
+  GlobalStorage,
+  ExecutionProvider,
+  AuthorizationEditorProvider,
+  AuthorizationEditor,
+  CertificateEditor,
+  CertificateEditorProvider,
+  ContentDestination,
+  ProxyEditor,
+  ProxyEditorProvider,
+  RequestEditor,
+  RequestEditorProvider,
+  ScenarioEditor,
+  ScenarioEditorProvider,
+  useHelp,
+  HelpPanel
 } from '@apicize/toolkit'
 import type { } from '@mui/x-tree-view/themeAugmentation';
 import { Stack, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui/material'
-import {  } from '@apicize/toolkit'
+import { } from '@apicize/toolkit'
 import { ApicizeTauriProvider } from './providers/apicize-tauri-provider';
-import { Provider } from 'react-redux';
 import React from 'react'
 import { emit } from '@tauri-apps/api/event'
 import "typeface-open-sans"
@@ -94,32 +112,42 @@ export default function Home() {
       mode: 'dark',
     },
   })
+
+
   return (
-    <Provider store={workbookStore}>
-      <WorkspaceProvider>
-        {/* <main className={styles.main}> */}
-        <main>
-          <ThemeProvider theme={darkTheme}>
-            <CssBaseline />
-            <ToastProvider>
-              <ConfirmationServiceProvider>
-                <ApicizeTauriProvider>
-                  <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
-                    <Navigation
-                      triggerNew={() => emit('action', 'new')}
-                      triggerOpen={() => emit('action', 'open')}
-                      triggerSave={() => emit('action', 'save')}
-                      triggerSaveAs={() => emit('action', 'saveAs')}
-                      triggerHelp={(topic?: string) => emit('help', topic ?? '')}
-                    />
-                    <Pane />
-                  </Stack>
-                </ApicizeTauriProvider>
-              </ConfirmationServiceProvider>
-            </ToastProvider>
-          </ThemeProvider>
-        </main>
-      </WorkspaceProvider>
-    </Provider>
+    <WindowProvider>
+      <ExecutionProvider store={GlobalStorage}>
+        <HelpProvider>
+          <ClipboardProvider onSetText={(text) => emit('copyText', text)}>
+            <NavigationStateProvider>
+              <NavigationContentProvider>
+                <WorkspaceProvider store={GlobalStorage}>
+                  {/* <main className={styles.main}> */}
+                    <ThemeProvider theme={darkTheme}>
+                      <CssBaseline />
+                      <ToastProvider>
+                        <ConfirmationServiceProvider>
+                          <ApicizeTauriProvider>
+                            <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
+                              <Navigation
+                                triggerNew={() => emit('action', 'new')}
+                                triggerOpen={() => emit('action', 'open')}
+                                triggerSave={() => emit('action', 'save')}
+                                triggerSaveAs={() => emit('action', 'saveAs')}
+                                triggerHelp={(topic?: string) => emit('help', topic ?? '')}
+                              />
+                              <Pane />
+                            </Stack>
+                          </ApicizeTauriProvider>
+                        </ConfirmationServiceProvider>
+                      </ToastProvider>
+                    </ThemeProvider>
+                </WorkspaceProvider>
+              </NavigationContentProvider>
+            </NavigationStateProvider>
+          </ClipboardProvider>
+        </HelpProvider>
+      </ExecutionProvider>
+    </WindowProvider>
   )
 }

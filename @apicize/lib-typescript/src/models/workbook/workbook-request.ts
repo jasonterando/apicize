@@ -9,6 +9,7 @@ import {
 } from 'undici-types'
 import { WorkbookAuthorization } from './workbook-authorization';
 import { Selection } from '../selection';
+import { Executable } from '../executable';
 
 /**
  * Used to represent headers, query string parameters, etc.
@@ -57,8 +58,7 @@ export interface WorkbookBody {
     data?: WorkbookBodyData
 }
 
-export interface WorkbookRequest extends Identifiable, Named {
-    id: string
+export interface WorkbookRequest extends Identifiable, Named, Executable {
     url: string
     method?: WorkbookMethod
     timeout?: number
@@ -73,9 +73,4 @@ export interface WorkbookRequest extends Identifiable, Named {
     referrerPolicy?: ReferrerPolicy
     duplex?: RequestDuplex
     test?: string
-    runs: number
-    selectedScenario?: Selection
-    selectedAuthorization?: Selection
-    selectedCertificate?: Selection
-    selectedProxy?: Selection
 }

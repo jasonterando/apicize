@@ -1,81 +1,44 @@
-import { Stack, TextField, Grid, FormControl, InputLabel, MenuItem, Select, Button, IconButton, FormLabel, Typography } from '@mui/material'
+import { Stack, TextField, Grid, FormControl, InputLabel, MenuItem, Select, IconButton, Typography, SxProps } from '@mui/material'
 import SecurityIcon from '@mui/icons-material/Security';
 import FileOpenIcon from '@mui/icons-material/FileOpen';
-import React, { useContext, useState } from 'react'
-import { useSelector } from "react-redux";
-import { ContentDestination, NavigationType, WorkbookState } from '../../models/store'
-import { WorkspaceContext } from '../../contexts/workspace-context';
+import { ContentDestination } from '../../models/store'
 import { EditorTitle } from '../editor-title';
-import { Persistence, WorkbookCertificateType } from '@apicize/lib-typescript';
+import { WorkbookCertificateType } from '@apicize/lib-typescript';
 import { PersistenceEditor } from './persistence-editor';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import { base64Decode, base64Encode } from '../../services/apicize-serializer';
+import { useClipboard } from '../../contexts/clipboard-context';
+import { useCertificateEditor } from '../../contexts/editors/certificate-editor-context';
 
 export function CertificateEditor(props: {
+    sx: SxProps,
     triggerOpenFile: (destination: ContentDestination, id: string) => {},
     triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
 }) {
-    const help = useContext(WorkspaceContext).help
-    const certificate = useContext(WorkspaceContext).certificate
-
-    const activeType = useSelector((state: WorkbookState) => state.navigation.activeType)
-    const activeID = useSelector((state: WorkbookState) => state.navigation.activeID)
-    const name = useSelector((state: WorkbookState) => state.certificate.name)
-    const type = useSelector((state: WorkbookState) => state.certificate.type)
-    const pem = useSelector((state: WorkbookState) => state.certificate.pem)
-    const key = useSelector((state: WorkbookState) => state.certificate.key)
-    const pfx = useSelector((state: WorkbookState) => state.certificate.pfx)
-    const password = useSelector((state: WorkbookState) => state.certificate.password)
-    const persistence = useSelector((state: WorkbookState) => state.certificate.persistence)
-    const clipboardHasText = useSelector((state: WorkbookState) => state.clipboard.hasText)
-
-    React.useEffect(() => {
-        if (activeType === NavigationType.Certificate) {
-            help.setNextHelpTopic('certificates')
-        }
-    }, [activeType])
-
-    if (activeType !== NavigationType.Certificate || !activeID) {
-        return null
-    }
-
-    const updateName = (name: string) => {
-        certificate.setName(activeID, name)
-    }
-
-    const updatePersistence = (persistence: Persistence) => {
-        certificate.setPersistence(activeID, persistence)
-    }
-
-    const updateType = (type: string) => {
-        certificate.setType(activeID, type as WorkbookCertificateType)
-    }
-
-    const updatePassword = (value: any) => {
-        certificate.setPassword(activeID, value)
-    }
+    const certificateCtx = useCertificateEditor()
+    const clipboardCtx = useClipboard()
 
     let pemToView: string = ''
-    if (pem && (pem.length > 0)) {
+    if (certificateCtx.pem && (certificateCtx.pem.length > 0)) {
         try {
-            pemToView = (new TextDecoder('ascii')).decode(base64Decode(pem))
+            pemToView = (new TextDecoder('ascii')).decode(base64Decode(certificateCtx.pem))
         } catch {
             pemToView = '(Invalid)'
         }
     }
 
     let keyToView: string = ''
-    if (key) {
+    if (certificateCtx.key) {
         try {
-            keyToView = (new TextDecoder('ascii')).decode(base64Decode(key))
+            keyToView = (new TextDecoder('ascii')).decode(base64Decode(certificateCtx.key))
         } catch {
             keyToView = '(Invalid)'
         }
     }
 
     return (
-        <Stack direction={'column'} className='editor-panel-no-toolbar'>
-            <EditorTitle icon={<SecurityIcon />} name={name?.length ?? 0 > 0 ? name : '(Unnamed)'} />
+        <Stack direction={'column'} className='editor-panel-no-toolbar' sx={props.sx}>
+            <EditorTitle icon={<SecurityIcon />} name={certificateCtx.name?.length ?? 0 > 0 ? certificateCtx.name : '(Unnamed)'} />
             <Grid container direction={'column'} spacing={3} maxWidth={1000}>
                 <Grid item>
                     <TextField
@@ -83,8 +46,8 @@ export function CertificateEditor(props: {
                         label='Name'
                         aria-label='name'
                         // size='small'
-                        value={name}
-                        onChange={e => updateName(e.target.value)}
+                        value={certificateCtx.name}
+                        onChange={e => certificateCtx.changeName(e.target.value)}
                         fullWidth
                     />
                 </Grid>
@@ -95,30 +58,30 @@ export function CertificateEditor(props: {
                             <Select
                                 labelId='cert-type-label-id'
                                 id='cert-type'
-                                value={type}
+                                value={certificateCtx.type}
                                 label='Type'
-                                onChange={e => updateType(e.target.value)}
+                                onChange={e => certificateCtx.changeType(e.target.value as WorkbookCertificateType)}
                             >
                                 <MenuItem value={WorkbookCertificateType.PKCS8_PEM}>PKCS 8 (PEM)</MenuItem>
                                 <MenuItem value={WorkbookCertificateType.PKCS12}>PKCS 12 (PKCS)</MenuItem>
                                 <MenuItem value={WorkbookCertificateType.PEM}>PEM</MenuItem>
                             </Select>
                         </FormControl>
-                        <PersistenceEditor onUpdatePersistence={updatePersistence} persistence={persistence} />
+                        <PersistenceEditor onUpdatePersistence={certificateCtx.changePersistence} persistence={certificateCtx.persistence} />
                     </Stack>
                 </Grid>
                 {
-                    type === WorkbookCertificateType.PKCS8_PEM
+                    certificateCtx.type === WorkbookCertificateType.PKCS8_PEM
                         ? (
                             <Grid item>
                                 <Stack direction={'column'} spacing={3}>
                                     <Stack direction={'row'} spacing={3} position='relative'>
                                         <Typography variant='h6'>SSL PEM Certificate / Chain</Typography>
                                         <IconButton color='primary' size='medium' aria-label='open-pem' title='Open Certificate PEM File' onClick={() => {
-                                            props.triggerOpenFile(ContentDestination.PEM, activeID)
+                                            props.triggerOpenFile(ContentDestination.PEM, certificateCtx.id)
                                         }}><FileOpenIcon fontSize='inherit' /></IconButton>
-                                        <IconButton color='primary' disabled={!clipboardHasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard' onClick={() => {
-                                            props.triggerPasteFromClipboard(ContentDestination.PEM, activeID)
+                                        <IconButton color='primary' disabled={! clipboardCtx.hasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard' onClick={() => {
+                                            props.triggerPasteFromClipboard(ContentDestination.PEM, certificateCtx.id)
                                         }}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField
@@ -133,11 +96,11 @@ export function CertificateEditor(props: {
                                     <Stack direction={'row'} spacing={3} position='relative'>
                                         <Typography variant='h6'>SSL Key</Typography>
                                         <IconButton color='primary' size='medium' aria-label='open-key' title='Open Certificate Key File' onClick={() => {
-                                            props.triggerOpenFile(ContentDestination.Key, activeID)
+                                            props.triggerOpenFile(ContentDestination.Key, certificateCtx.id)
                                         }}><FileOpenIcon fontSize='inherit' /></IconButton>
-                                        <IconButton color='primary' disabled={!clipboardHasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard' onClick={() => {
+                                        <IconButton color='primary' disabled={!clipboardCtx.hasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard' onClick={() => {
                                             window.alert('fo!')
-                                            props.triggerPasteFromClipboard(ContentDestination.Key, activeID)
+                                            props.triggerPasteFromClipboard(ContentDestination.Key, certificateCtx.id)
                                         }}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField
@@ -152,7 +115,7 @@ export function CertificateEditor(props: {
                                 </Stack>
                             </Grid>
                         )
-                        : type === WorkbookCertificateType.PKCS12 ? (
+                        : certificateCtx.type === WorkbookCertificateType.PKCS12 ? (
                             <Grid item>
                                 <Stack direction={'column'} spacing={3}>
                                     <Stack direction={'row'} spacing={3}>
@@ -162,19 +125,19 @@ export function CertificateEditor(props: {
                                             multiline
                                             inputProps={{ className: "code", readOnly: true }}
                                             rows={8}
-                                            value={pfx ? base64Encode(Buffer.from(pfx)) : ''}
+                                            value={certificateCtx.pfx ? base64Encode(Buffer.from(certificateCtx.pfx)) : ''}
                                             fullWidth
                                         />
                                         <IconButton color='primary' size='medium' aria-label='open-pfx' title='Open Certificate PFX File' onClick={() => {
-                                            props.triggerOpenFile(ContentDestination.PFX, activeID)
+                                            props.triggerOpenFile(ContentDestination.PFX, certificateCtx.id)
                                         }}><FileOpenIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField
                                         id='cert-key'
                                         label='Certificate Key'
                                         inputProps={{ className: "password" }}
-                                        value={password}
-                                        onChange={e => updatePassword(e.target.value)}
+                                        value={certificateCtx.password}
+                                        onChange={e => certificateCtx.changePassword(e.target.value)}
                                         fullWidth
                                     />
                                 </Stack>

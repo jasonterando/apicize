@@ -1,27 +1,9 @@
 import { Grid, TextField } from "@mui/material"
-import { WorkbookState } from "../../../models/store"
-import { useContext } from "react"
-import { useSelector } from "react-redux"
-import { WorkspaceContext } from "../../../contexts/workspace-context"
+import { useAuthorizationEditor } from "../../../contexts/editors/authorization-editor-context"
 
 export function AuthorizationApiKeyPanel() {
-    const auth = useContext(WorkspaceContext).authorization
-
-    const id = useSelector((state: WorkbookState) => state.authorization.id)
-    const header = useSelector((state: WorkbookState) => state.authorization.header ?? '')
-    const value = useSelector((state: WorkbookState) => state.authorization.value ?? '')
-
-    if (!id) {
-        return null
-    }
-
-    const updateHeader = (updatedHeader: string) => {
-        auth.setHeader(id, updatedHeader)
-    }
-
-    const updateValue = (updatedValue: string) => {
-        auth.setValue(id, updatedValue)
-    }
+    const authCtx = useAuthorizationEditor()
+    if (! authCtx) return <></>
 
     return (<Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
         <Grid item>
@@ -29,8 +11,8 @@ export function AuthorizationApiKeyPanel() {
                 id='auth-header'
                 label="Header"
                 aria-label='header'
-                value={header}
-                onChange={e => updateHeader(e.target.value)}
+                value={authCtx.header}
+                onChange={e => authCtx.changeHeader(e.target.value)}
                 fullWidth
             />
         </Grid>
@@ -39,8 +21,8 @@ export function AuthorizationApiKeyPanel() {
                 id='auth-value'
                 label="Value"
                 aria-label='value'
-                value={value}
-                onChange={e => updateValue(e.target.value)}
+                value={authCtx.value}
+                onChange={e => authCtx.changeValue(e.target.value)}
                 fullWidth
             />
         </Grid>

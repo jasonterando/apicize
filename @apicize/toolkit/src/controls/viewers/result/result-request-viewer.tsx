@@ -1,26 +1,18 @@
-import { useSelector } from "react-redux"
-import { WorkbookState } from "../../../models/store"
 import { TextViewer } from "../text-viewer"
 import { IconButton, Typography } from "@mui/material"
-import { Box, Stack } from "@mui/system"
+import { Stack } from "@mui/system"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { WorkspaceContext } from "../../../contexts/workspace-context"
-import { useContext } from "react"
+import { useExecution } from "../../../contexts/execution-context";
 
 export function ResultRequestViewer(props: {
+    requestOrGroupId: string,
+    resultIndex: number,
+    runIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
-    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
-    useSelector((state: WorkbookState) => state.execution.resultIndex)
-    useSelector((state: WorkbookState) => state.execution.runIndex)
-    if (! executionId) {
-        return null
-    }
-
-    const execution = useContext(WorkspaceContext).execution
-    const request = execution.getRequest(executionId)
-
+    const execution = useExecution()
+    const request = execution.getExecutionRequest(props.requestOrGroupId, props.runIndex, props.resultIndex)
     const text = beautify.js_beautify(JSON.stringify(request), {})
     return (
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>

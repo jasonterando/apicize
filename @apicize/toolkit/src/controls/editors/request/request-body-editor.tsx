@@ -1,15 +1,12 @@
 import * as React from 'react'
 import Box from '@mui/material/Box'
-import { useSelector } from 'react-redux'
-import { ContentDestination, WorkbookState } from '../../../models/store'
+import { ContentDestination } from '../../../models/store'
 import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
 import { NameValueEditor } from '../name-value-editor'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
-import { useContext } from 'react'
-import { WorkspaceContext } from '../../../contexts/workspace-context'
 
 import AceEditor from "react-ace"
 import "ace-builds/src-noconflict/mode-json"
@@ -17,18 +14,18 @@ import "ace-builds/src-noconflict/mode-xml"
 import "ace-builds/src-noconflict/theme-monokai"
 import "ace-builds/src-noconflict/ext-language_tools"
 import { WorkbookBodyType, WorkbookBodyTypes } from '@apicize/lib-typescript'
+import { useRequestEditor } from '../../../contexts/editors/request-editor-context'
 
 export function RequestBodyEditor(props: {
   triggerOpenFile: (destination: ContentDestination, id: string) => {},
   triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
 }) {
-  const context = useContext(WorkspaceContext)
-  const request = context.request
+  const requestCtx = useRequestEditor()
 
   const headerDoesNotMatchType = (bodyType: WorkbookBodyType | undefined | null) => {
     let needsContextHeaderUpdate = true
     let mimeType = getBodyTypeMimeType(bodyType)
-    const contentTypeHeader = headers?.find(h => h.name === 'Content-Type')
+    const contentTypeHeader = requestCtx.headers?.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
       needsContextHeaderUpdate = contentTypeHeader.value !== mimeType
     } else {
@@ -54,34 +51,25 @@ export function RequestBodyEditor(props: {
     }
   }
 
-  const id = useSelector((state: WorkbookState) => state.request.id)
-  const headers = useSelector((state: WorkbookState) => state.request.headers)
-  const bodyType = useSelector((state: WorkbookState) => state.request.bodyType)
-  const bodyData = useSelector((state: WorkbookState) => state.request.bodyData)
-
-  const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(headerDoesNotMatchType(bodyType))
-
-  if (!id) {
-    return null
-  }
+  const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(headerDoesNotMatchType(requestCtx.bodyType))
 
   const updateBodyType = (val: WorkbookBodyType | string) => {
     const newBodyType = (val == "" ? undefined : val as unknown as WorkbookBodyType) ?? WorkbookBodyType.Text
-    request.setBodyType(id, newBodyType)
+    requestCtx.changeBodyType(newBodyType)
     setAllowUpdateHeader(headerDoesNotMatchType(newBodyType))
   }
 
-  const updateBodyAsText = (val: string | undefined) => {
-    request.setBodyData(id, val)
+  const updateBodyAsText = (value: string | undefined) => {
+    requestCtx.changeBodyData(value ?? '')
   }
 
   const updateBodyAsFormData = (data: EditableNameValuePair[]) => {
-    request.setBodyData(id, data)
+    requestCtx.changeBodyData(data)
   }
 
   const updateTypeHeader = () => {
-    const mimeType = getBodyTypeMimeType(bodyType)
-    let newHeaders = headers ? structuredClone(headers) : []
+    const mimeType = getBodyTypeMimeType(requestCtx.bodyType)
+    let newHeaders = requestCtx.headers ? structuredClone(requestCtx.headers) : []
     const contentTypeHeader = newHeaders.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
       if (mimeType.length === 0) {
@@ -100,7 +88,7 @@ export function RequestBodyEditor(props: {
       }
     }
     setAllowUpdateHeader(false)
-    request.setHeaders(id, headers)
+    requestCtx.changeHeaders(newHeaders)
   }
 
   const bodyTypeMenuItems = () => {
@@ -111,7 +99,7 @@ export function RequestBodyEditor(props: {
 
   let mode
 
-  switch (bodyType) {
+  switch (requestCtx.bodyType) {
     case WorkbookBodyType.JSON:
       mode = 'json'
       break
@@ -128,7 +116,7 @@ export function RequestBodyEditor(props: {
           <Select
             labelId='request-method-label-id'
             id="request-method"
-            value={bodyType}
+            value={requestCtx.bodyType}
             label="Body Content Type"
             sx={{
               width: "10em"
@@ -140,11 +128,11 @@ export function RequestBodyEditor(props: {
         </FormControl>
         <Button disabled={!allowUpdateHeader} onClick={updateTypeHeader}>Update Content-Type Header</Button>
       </Stack>
-      {bodyType == WorkbookBodyType.None
+      {requestCtx.bodyType == WorkbookBodyType.None
         ? <></>
-        : bodyType == WorkbookBodyType.Form
-          ? <NameValueEditor values={bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={updateBodyAsFormData} />
-          : bodyType == WorkbookBodyType.Raw
+        : requestCtx.bodyType == WorkbookBodyType.Form
+          ? <NameValueEditor values={requestCtx.bodyData as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={updateBodyAsFormData} />
+          : requestCtx.bodyType == WorkbookBodyType.Raw
             ? <Stack
               direction='row'
               sx={{
@@ -154,13 +142,13 @@ export function RequestBodyEditor(props: {
                 width: 'fit-content',
               }}
             >
-              <IconButton aria-label='from-file' title='Load Body from File' onClick={() => props.triggerOpenFile(ContentDestination.BodyBinary, id)} sx={{ marginRight: '4px' }}>
+              <IconButton aria-label='from-file' title='Load Body from File' onClick={() => props.triggerOpenFile(ContentDestination.BodyBinary, requestCtx.id)} sx={{ marginRight: '4px' }}>
                 <FileOpenIcon />
               </IconButton>
-              <IconButton aria-label='from-clipboard' title='Paste Body from Clipboard' onClick={() => props.triggerPasteFromClipboard(ContentDestination.BodyBinary, id)} sx={{ marginRight: '4px' }}>
+              <IconButton aria-label='from-clipboard' title='Paste Body from Clipboard' onClick={() => props.triggerPasteFromClipboard(ContentDestination.BodyBinary, requestCtx.id)} sx={{ marginRight: '4px' }}>
                 <ContentPasteGoIcon />
               </IconButton>
-              <Box padding='10px'>{bodyData ? bodyData.length.toLocaleString() + ' Bytes' : '(None)'}</Box>
+              <Box padding='10px'>{requestCtx.bodyData ? requestCtx.bodyData.length.toLocaleString() + ' Bytes' : '(None)'}</Box>
             </Stack>
             :
             <AceEditor
@@ -183,7 +171,7 @@ export function RequestBodyEditor(props: {
               }}
               onChange={updateBodyAsText}
               name='code-editor'
-              value={bodyData as string}
+              value={requestCtx.bodyData as string}
             />
       }
     </Stack>

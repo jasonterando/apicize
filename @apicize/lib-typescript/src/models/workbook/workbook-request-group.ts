@@ -1,3 +1,4 @@
+import { Executable } from "../executable";
 import { Identifiable } from "../identifiable";
 import { Named } from "../named";
 import { Selection } from "../selection";
@@ -7,12 +8,6 @@ export enum WorkbookGroupExecution {
     Concurrent= "CONCURRENT",
 }
 
-export interface WorkbookRequestGroup extends Identifiable, Named {
-    id: string
-    runs: number
+export interface WorkbookRequestGroup extends Identifiable, Named, Executable {
     execution: WorkbookGroupExecution
-    selectedScenario?: Selection
-    selectedAuthorization?: Selection
-    selectedCertificate?: Selection
-    selectedProxy?: Selection
 }

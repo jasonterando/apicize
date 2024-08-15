@@ -1,27 +1,9 @@
 import { Grid, TextField } from "@mui/material"
-import { WorkbookState } from "../../../models/store"
-import { useContext } from "react"
-import { useSelector } from "react-redux"
-import { WorkspaceContext } from "../../../contexts/workspace-context"
+import { useAuthorizationEditor } from "../../../contexts/editors/authorization-editor-context"
 
 export function AuthorizationBasicPanel() {
-    const auth = useContext(WorkspaceContext).authorization
-
-    const id = useSelector((state: WorkbookState) => state.authorization.id)
-    const username = useSelector((state: WorkbookState) => state.authorization.username ?? '')
-    const password = useSelector((state: WorkbookState) => state.authorization.password ?? '')
-
-    if(! id) {
-        return null
-    }
-
-    const updateUsername = (updatedUsername: string) => {
-        auth.setUsername(id, updatedUsername)
-    }
-
-    const updatePassword = (updatedPassword: string) => {
-        auth.setPassword(id, updatedPassword)
-    }
+    const authCtx = useAuthorizationEditor()
+    if (! authCtx) return <></>
 
     return (<Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
         <Grid item>
@@ -29,8 +11,8 @@ export function AuthorizationBasicPanel() {
                 id='auth-username'
                 label="Username"
                 aria-label='username'
-                value={username}
-                onChange={e => updateUsername(e.target.value)}
+                value={authCtx.username}
+                onChange={e => authCtx.changeUsername(e.target.value)}
                 fullWidth
             />
         </Grid>
@@ -39,8 +21,8 @@ export function AuthorizationBasicPanel() {
                 id='auth-password'
                 label="Password"
                 aria-label='password'
-                value={password}
-                onChange={e => updatePassword(e.target.value)}
+                value={authCtx.password}
+                onChange={e => authCtx.changePassword(e.target.value)}
                 fullWidth
             />
         </Grid>

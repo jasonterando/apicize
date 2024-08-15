@@ -1,16 +1,14 @@
-import { useSelector } from "react-redux"
-import { WorkbookState } from "../../../models/store"
-import { Box, Stack } from "@mui/system"
+import { Box, Stack, SxProps } from "@mui/system"
 import { IconButton, Typography } from "@mui/material"
 import CheckIcon from '@mui/icons-material/Check';
 import BlockIcon from '@mui/icons-material/Block';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { WorkspaceContext } from "../../../contexts/workspace-context";
-import { useContext } from "react";
-import { ExecutionSummaryInfo } from "../../../models/workbook/execution-summary-info";
+import { useExecution, WorkbookExecutionResultSummary } from "../../../contexts/execution-context";
+import { useWorkspace } from "../../../contexts/workspace-context";
 
-const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
+const ResultSummary = (props: { info: WorkbookExecutionResultSummary }) => {
+    const workspaceCtx = useWorkspace()
     let idx = 0
     let info = []
     if (props.info.status) {
@@ -21,7 +19,7 @@ const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
     }
     return (<Box key={`test-summary-${idx++}`} sx={{marginBottom: '1rem'}}>
         <Typography sx={{ marginTop: 0, paddingTop: 0, color: '#80000' }}>
-            {props.info.name} 
+            {workspaceCtx.request.getRequest(props.info.requestId)?.name ?? '(Invalid Request ID)'} 
             <>
                 {info.length === 0 ? '' : ` (${info.join(', ')})`}
             </>
@@ -48,7 +46,7 @@ const ResultSummary = (props: { info: ExecutionSummaryInfo }) => {
     </Box>)
 }
 
-const ResultDetail = (props: { info: ExecutionSummaryInfo }) => {
+const ResultDetail = (props: { info: WorkbookExecutionResultSummary }) => {
     let idx = 0
     const executedAt = props.info.executedAt > 0 ? `${props.info.executedAt.toLocaleString()}` : '(Start)'
     return (<Box sx={{marginBottom: '2rem' }}>
@@ -117,16 +115,15 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
 )
 
 export function ResultInfoViewer(props: {
+    requestOrGroupId: string,
+    resultIndex: number,
+    runIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
-    const executionId = useSelector((state: WorkbookState) => state.navigation.activeExecutionID)
-    if (! executionId) {
-        return null
-    }
-
-    const milliseconds = useSelector((state: WorkbookState) => state.execution.milliseconds)
-    const execution = useContext(WorkspaceContext).execution
-    const summary = execution.getSummary(executionId)
+    const execution = useExecution()
+    const info = execution.getExecutionInfo(props.requestOrGroupId)
+    const summary = execution.getExecutionSummary(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    const milliseconds = info?.milliseconds
     
     const copyToClipboard = (data: any) => {
         const text = beautify.js_beautify(JSON.stringify(data), {})
@@ -143,7 +140,7 @@ export function ResultInfoViewer(props: {
         }
         
         return (
-            <Box sx={{position: 'relative', overflow: 'auto', boxSizing: 'border-box', width: '100%', height: '100%'}}>
+            <Stack direction='column' sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex'}}>
                 <Typography variant='h2' sx={{ marginTop: 0 }}>
                     {title}
                     <IconButton
@@ -161,7 +158,7 @@ export function ResultInfoViewer(props: {
                         </Box>
                     ))
                 }
-            </Box>
+            </Stack>
         )
     } else if (summary) {
         return (

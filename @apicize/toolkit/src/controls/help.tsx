@@ -1,5 +1,3 @@
-import { useSelector } from 'react-redux'
-import { WorkbookState } from '../models/store'
 import { Box, IconButton, Link, LinkProps, Typography, TypographyProps, TypographyPropsVariantOverrides } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -28,6 +26,8 @@ import { OverridableStringUnion } from '@mui/types'
 import { unified } from 'unified';
 import remarkDirective from 'remark-directive';
 import { ExtraProps } from 'hast-util-to-jsx-runtime';
+import { useWindow } from '../contexts/window-context';
+import { useHelp } from '../contexts/help-context';
 
 // Register `hName`, `hProperties` types, used when turning markdown to HTML:
 /// <reference types="mdast-util-to-hast" />
@@ -35,11 +35,16 @@ import { ExtraProps } from 'hast-util-to-jsx-runtime';
 /// <reference types="mdast-util-directive" />
 
 export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: () => void }) {
-    let name = useSelector((state: WorkbookState) => state.navigation.appName)
-    let version = useSelector((state: WorkbookState) => state.navigation.appVersion)
-    let helpText = useSelector((state: WorkbookState) => state.help.helpText)
-    let helpTopic = useSelector((state: WorkbookState) => state.help.helpTopic)
-    let helpHistory = useSelector((state: WorkbookState) => state.help.helpTopicHistory)
+    const windowCtx = useWindow()
+    const helpCtx = useHelp()
+
+    let name = windowCtx.appName
+    let version = windowCtx.appVersion
+    
+    
+    let helpText = helpCtx.helpText
+    let helpTopic = helpCtx.helpTopic
+    let helpHistory = helpCtx.helpTopicHistory
 
     let [content, setContent] = useState(createElement(Fragment))
 

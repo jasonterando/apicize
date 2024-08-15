@@ -14,7 +14,6 @@
     "@dnd-kit/core": "^6.1.0",
     "@mui/material": "^5.14.20",
     "@mui/system": "^5.14.20",
-    "@reduxjs/toolkit": "^1.9.7",
     "@tauri-apps/api": "^2.0.0-beta",
     "@tauri-apps/cli": "^2.0.0-beta",
     "@tauri-apps/plugin-dialog": "^2.0.0-beta",
@@ -23,15 +22,12 @@
     "next": "^14.2.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-redux": "^9.0.4",
-    "redux": "^5.0.0",
     "remark-directive": "^3.0.0",
     "tauri-plugin-clipboard-api": "^2.1.6",
     "typeface-open-sans": "^1.1.13",
     "valibot": "^0.36.0"
   },
   "devDependencies": {
-    "@types/react-redux": "^7.1.33",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "mdast-util-directive": "^3.0.0",

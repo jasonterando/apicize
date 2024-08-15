@@ -1,11 +1,11 @@
 import { Typography } from "@mui/material";
 import { Box } from "@mui/system";
-import { useSelector } from "react-redux";
-import { WorkbookState } from "../models/store";
+import { useWindow } from "../contexts/window-context";
 
 export function logo() {
-    let name = useSelector((state: WorkbookState) => state.navigation.appName)
-    let version = useSelector((state: WorkbookState) => state.navigation.appVersion)
+    const window = useWindow()
+    let name = window.appName
+    let version = window.appVersion
 
     return <Box display='flex'>
         <Box>
