@@ -19,126 +19,139 @@ import { ContentDestination } from '../../models/store'
 import { RequestGroupEditor } from './request/request-group-editor';
 import { EditorTitle } from '../editor-title';
 import { RequestParametersEditor } from './request/request-parameters-editor';
-import { useNavigationState } from '../../contexts/navigation-state-context';
-import { useHelp } from '../../contexts/help-context';
-import { useRequestEditor } from '../../contexts/editors/request-editor-context';
-import { useExecution } from '../../contexts/execution-context';
+import { useExecution, useWorkspace } from '../../contexts/root.context';
+import { WorkbookRequestType } from '@apicize/lib-typescript';
+import { observer } from 'mobx-react-lite';
+import { EditableEntityType } from '../../models/workbook/editable-entity-type';
+import { EditableWorkbookRequestEntry } from '../../models/workbook/editable-workbook-request';
+import { RunInformation } from '../../models/workbook/run-information';
+import { WorkbookExecutionResultMenuItem, WorkbookExecutionRunMenuItem } from '../../models/workbook/workbook-execution';
 
-export function RequestEditor(props: {
+export const RequestEditor = observer((props: {
     sx: SxProps,
-    triggerRun: () => {},
+    triggerRun: (info: RunInformation) => {},
     triggerCancel: () => {},
     triggerCopyTextToClipboard: (text?: string) => void
     triggerCopyImageToClipboard: (base64?: string) => void,
     triggerOpenFile: (destination: ContentDestination, id: string) => {},
     triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
-}) {
-    useNavigationState()
-    const requestCtx = useRequestEditor()
-
-    const helpCtx = useHelp()
-    const execution = useExecution()
-
-    const info = execution.getExecutionInfo(requestCtx.id)
-
-    const [running, setRunning] = React.useState(false)
-    const [runs, setRuns] = React.useState(requestCtx.runs)
-    const [runIndex, setRunIndex] = React.useState(info?.runIndex)
-    const [runList, setRunList] = React.useState(info?.runList)
-    const [resultIndex, setResultIndex] = React.useState(info?.resultIndex)
-    const [resultLists, setResultLists] = React.useState(info?.resultLists)
-
-
+}) => {
     const [panel, setPanel] = React.useState<string>('Info')
+
+    const workspace = useWorkspace()
+    const request = (workspace.active?.entityType === EditableEntityType.Request && !workspace.helpVisible)
+        ? workspace.active as EditableWorkbookRequestEntry
+        : null
+
+    const executionCtx = useExecution()
+
+    const requestId = request?.id ?? ''
+    const execution = executionCtx.getExecution(requestId)
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: string) => {
         if (newValue) setPanel(newValue)
     }
 
-    React.useEffect(() => {
-        if (panel === null) {
-            setPanel('Info')
-        }
-    }, [requestCtx.id])
+    // React.useEffect(() => {
+    //     if (panel === null) {
+    //         setPanel('Info')
+    //     }
+    // }, [])
 
-    React.useEffect(() => {
-        if (requestCtx.isGroup) {
-            helpCtx.changeNextHelpTopic('groups')
-        } else {
-            let helpTopic
-            switch (panel) {
-                case 'Info':
-                    helpTopic = 'requests/info'
-                    break
-                case 'Query String':
-                    helpTopic = 'requests/query'
-                    break
-                case 'Headers':
-                    helpTopic = 'requests/headers'
-                    break
-                case 'Body':
-                    helpTopic = 'requests/body'
-                    break
-                case 'Test':
-                    helpTopic = 'requests/test'
-                    break
-            }
-            if (helpTopic) {
-                helpCtx.changeNextHelpTopic(helpTopic)
-            }
-        }
-    }, [panel, requestCtx.id])
+    // React.useEffect(() => {
+    //     if (request) {
+    //         if (request.type === WorkbookRequestType.Group) {
+    //             helpCtx.changeNextHelpTopic('groups')
+    //         } else {
+    //             let helpTopic
+    //             switch (panel) {
+    //                 case 'Info':
+    //                     helpTopic = 'requests/info'
+    //                     break
+    //                 case 'Query String':
+    //                     helpTopic = 'requests/query'
+    //                     break
+    //                 case 'Headers':
+    //                     helpTopic = 'requests/headers'
+    //                     break
+    //                 case 'Body':
+    //                     helpTopic = 'requests/body'
+    //                     break
+    //                 case 'Test':
+    //                     helpTopic = 'requests/test'
+    //                     break
+    //             }
+    //             if (helpTopic) {
+    //                 helpCtx.changeNextHelpTopic(helpTopic)
+    //             }
+    //         }
+    //     }
+    // }, [panel])
 
-    React.useEffect(() => {
-        const isRunning = execution.running.get(requestCtx.id) ?? false
-        setRunning(isRunning === true)
-        if (!isRunning) {
-            const info = execution.getExecutionInfo(requestCtx.id)
-            if (info) {
-                setRunIndex(info.runIndex)
-                setRunList(info.runList)
-                setResultIndex(info.resultIndex)
-                setResultLists(info.resultLists)
-            }
-        }
-    }, [execution.running])
+    // React.useEffect(() => {
+    //     if (request) {
+    //         const isRunning = execution.running.get(request.id) ?? false
+    //         setRunning(isRunning === true)
+    //         if (!isRunning) {
+    //             const info = execution.getExecutionInfo(request.id)
+    //             if (info) {
+    //                 setRunIndex(info.runIndex)
+    //                 setRunList(info.runList)
+    //                 setResultIndex(info.resultIndex)
+    //                 setResultLists(info.resultLists)
+    //             }
+    //         }
+    //     }
+    // }, [execution.running])
 
-    React.useEffect(() => {
-        setRuns(requestCtx.runs)
-    }, [requestCtx.runs])
+    // React.useEffect(() => {
+    //     if (request) setRuns(request.runs)
+    // }, [])
 
-
-    if (requestCtx.id.length === 0) {
-        return null
-    }
-
-    if (requestCtx.isGroup && (!['Info', 'Parameters'].includes(panel))) {
+    if (request && request.type === WorkbookRequestType.Group && (!['Info', 'Parameters'].includes(panel))) {
         setPanel('Info')
     }
 
     const updateRuns = (runs: number) => {
-        requestCtx.changeRuns(runs)
+        workspace.setRequestRuns(runs)
     }
 
     const updateSelectedRun = (index: number) => {
-        setRunIndex(index)
-        execution.changeRunIndex(requestCtx.id, index)
+        executionCtx.changeRunIndex(requestId, index)
     }
 
     const updateSelectedResult = (index: number) => {
-        setResultIndex(index)
-        execution.changeResultIndex(requestCtx.id, index)
+        executionCtx.changeResultIndex(requestId, index)
     }
 
     const handleRunClick = () => async () => {
-        props.triggerRun()
+        const runInfo = workspace.getRequestRunInformation()
+        if (!runInfo) return
+        props.triggerRun(runInfo)
     }
 
-    return (
+    let runsToShow: WorkbookExecutionRunMenuItem[] | null = null
+    let resultsToShow: WorkbookExecutionResultMenuItem[] | null = null
+    let runIndex = -1
+    let resultIndex = -1
+
+    if (execution.runIndex !== undefined && execution.runs !== undefined) {
+        if (execution.runs.length > 1) {
+            runIndex = execution.runIndex
+            runsToShow = execution.runs
+        }
+        const run = execution.runs[execution.runIndex]
+        if (execution.resultIndex !== undefined && run?.results && (run.results.length ?? 0) > 1) {
+            resultsToShow = run.results
+            resultIndex = execution.resultIndex
+        }
+    }
+
+    return request ? (
         <Stack direction='column' className='editor-panel' sx={{ ...props.sx, display: 'flex' }}>
             <Stack sx={{ height: '50vh', paddingBottom: '48px', flexBasis: 2 }}>
                 {
-                    requestCtx.isGroup
+                    request.type === WorkbookRequestType.Group
                         ? (
                             <Box sx={{ display: "flex", bottom: 0 }}>
                                 <ToggleButtonGroup
@@ -153,7 +166,7 @@ export function RequestEditor(props: {
                                     <ToggleButton value="Parameters" title="Show Group Parameters" aria-label='show test'><AltRouteIcon /></ToggleButton>
                                 </ToggleButtonGroup>
                                 <Box className='panels' sx={{ flexGrow: 1 }}>
-                                    <EditorTitle icon={<FolderIcon />} name={requestCtx.name.length ?? 0 > 0 ? `${requestCtx.name} - ${panel}` : '(Unnamed)'} />
+                                    <EditorTitle icon={<FolderIcon />} name={request.name.length ?? 0 > 0 ? `${request.name} - ${panel}` : '(Unnamed)'} />
                                     {panel === 'Info' ? <RequestGroupEditor />
                                         : panel === 'Parameters' ? <RequestParametersEditor />
                                             : null}
@@ -178,7 +191,7 @@ export function RequestEditor(props: {
                                     <ToggleButton value="Parameters" title="Show Request Parameters" aria-label='show test'><AltRouteIcon /></ToggleButton>
                                 </ToggleButtonGroup>
                                 <Box className='panels' sx={{ flexGrow: 1 }}>
-                                    <EditorTitle icon={<SendIcon />} name={(requestCtx.name.length > 0) ? `${requestCtx.name} - ${panel}` : `(Unnamed) - ${panel}`} />
+                                    <EditorTitle icon={<SendIcon />} name={(request.name.length > 0) ? `${request.name} - ${panel}` : `(Unnamed) - ${panel}`} />
                                     {panel === 'Info' ? <RequestInfoEditor />
                                         : panel === 'Headers' ? <RequestHeadersEditor />
                                             : panel === 'Query String' ? <RequestQueryStringEditor />
@@ -196,7 +209,7 @@ export function RequestEditor(props: {
                     sx={{ marginRight: '24px' }}
                     orientation='vertical'
                     aria-label="request run context">
-                    <ToggleButton value='Run' title='Run selected request' disabled={running} onClick={handleRunClick()}>
+                    <ToggleButton value='Run' title='Run selected request' disabled={execution.running} onClick={handleRunClick()}>
                         <PlayCircleFilledIcon />
                     </ToggleButton>
                 </ButtonGroup>
@@ -207,7 +220,7 @@ export function RequestEditor(props: {
                             aria-label='Nubmer of Run Attempts'
                             placeholder='Attempts'
                             label='# of Runs'
-                            disabled={running}
+                            disabled={execution.running}
                             sx={{ width: '8em', flexGrow: 0 }}
                             type='number'
                             InputProps={{
@@ -216,29 +229,29 @@ export function RequestEditor(props: {
                                 }
                             }}
 
-                            value={runs}
+                            value={request.runs}
                             onChange={e => updateRuns(parseInt(e.target.value))}
                         />
                     </Grid>
                     {
-                        (runIndex !== undefined && runList && (runList?.length ?? 0) > 1)
+                        (runsToShow)
                             ? <Grid item>
                                 <FormControl>
                                     <InputLabel id='run-id'>Runs</InputLabel>
                                     <Select
                                         labelId='run-id'
                                         id='run'
-                                        value={runIndex.toString()}
-                                        disabled={running}
+                                        disabled={execution.running}
                                         label='Run'
                                         sx={{ minWidth: '10em' }}
+                                        value={runIndex?.toString() ?? ''}
                                         onChange={e => updateSelectedRun(parseInt(e.target.value))}
                                     >
                                         {
-                                            runList.map(r => {
-                                                return (
-                                                    <MenuItem key={`run-${r.index}`} value={r.index}>{r.text}</MenuItem>)
-                                            })
+                                            runsToShow.map((run, index) =>
+                                            (
+                                                <MenuItem key={`run-${index}`} value={index}>{run.title}</MenuItem>)
+                                            )
                                         }
                                     </Select>
                                 </FormControl>
@@ -246,26 +259,23 @@ export function RequestEditor(props: {
                             : <></>
                     }
                     {
-                        (resultIndex !== undefined && runIndex !== undefined
-                            && resultLists && ((resultLists[runIndex]?.length ?? 0) > 1))
+                        (resultsToShow)
                             ? <Grid item>
                                 <FormControl>
                                     <InputLabel id='result-id'>Results</InputLabel>
                                     <Select
                                         labelId='results-id'
                                         id='result'
-                                        value={resultIndex?.toString() ?? ''}
-                                        disabled={running}
+                                        value={resultIndex ?? 0}
+                                        disabled={execution.running}
                                         label='Run'
                                         sx={{ minWidth: '10em' }}
-                                        onChange={e => updateSelectedResult(parseInt(e.target.value))}
+                                        onChange={e => updateSelectedResult(e.target.value as number)}
                                     >
-                                        <MenuItem key={`result-group`} value={-1}>Group Summary</MenuItem>
                                         {
-                                            resultLists[runIndex].map(r => {
-                                                return (
-                                                    <MenuItem key={`result-${r.index}`} value={r.index}>{r.text}</MenuItem>)
-                                            })
+                                            resultsToShow.map((run, index) => (
+                                                <MenuItem key={`result-${index}`} value={run.index}>{run.title}</MenuItem>
+                                            ))
                                         }
                                     </Select>
                                 </FormControl>
@@ -274,20 +284,14 @@ export function RequestEditor(props: {
                     }
                 </Grid>
             </Stack>
-            {
-                info && runIndex !== undefined && resultIndex !== undefined
-                    ? <ResultsViewer
-                        sx={{ paddingTop: '48px', flexGrow: 1 }}
-                        requestOrGroupId={requestCtx.id}
-                        isGroup={requestCtx.url === undefined}
-                        runIndex={runIndex}
-                        resultIndex={resultIndex}
-                        triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
-                        triggerCopyImageToClipboard={props.triggerCopyTextToClipboard}
-                        cancelRequest={props.triggerCancel}
-                    />
-                    : <></>
-            }
+            <ResultsViewer
+                sx={{ paddingTop: '48px', flexGrow: 1 }}
+                requestOrGroupId={request.id}
+                isGroup={request.type === WorkbookRequestType.Group}
+                triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
+                triggerCopyImageToClipboard={props.triggerCopyTextToClipboard}
+                cancelRequest={props.triggerCancel}
+            />
         </Stack>
-    )
-}
+    ) : null
+})

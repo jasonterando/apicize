@@ -1,14 +1,12 @@
 import { DataGrid } from "@mui/x-data-grid"
 import { GenerateIdentifier } from "../../../services/random-identifier-generator"
 import { Stack, Typography } from "@mui/material"
-import { useNavigationState } from "../../../contexts/navigation-state-context"
-import { useExecution } from "../../../contexts/execution-context"
+import { useExecution } from "../../../contexts/root.context"
 
-export function ResponseHeadersViewer(props: {requestOrGroupId: string, resultIndex: number, runIndex: number}) {
-    const nav = useNavigationState()
-    const executionCtx = useExecution()
+export function ResponseHeadersViewer(props: {requestOrGroupId: string, runIndex: number, resultIndex: number}) {
+    const execution = useExecution()
 
-    const resultHeaders = executionCtx.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    const resultHeaders = execution.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
 
     const headers = []
     for (const [name, value] of Object.entries(resultHeaders ?? {})) {
@@ -21,7 +19,7 @@ export function ResponseHeadersViewer(props: {requestOrGroupId: string, resultIn
 
     return (
         <Stack direction="column" sx={{ flexGrow: 1 }}>
-            <Typography variant='h2' sx={{ marginTop: 0 }}>Response Headers</Typography>
+            <Typography variant='h2' sx={{ marginTop: 0 }} component='div'>Response Headers</Typography>
             <DataGrid
                 rows={headers}
                 rowHeight={32}

@@ -20,7 +20,7 @@
   "build": {
     "beforeBuildCommand": "yarn build",
     "beforeDevCommand": "yarn dev",
-    "devUrl": "http://localhost:3000",
+    "devUrl": "http://localhost:1420",
     "frontendDist": "../out"
   },
   "bundle": {

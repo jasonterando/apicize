@@ -1,59 +1,67 @@
 import { ApicizeResult, ApicizeTestResult } from "@apicize/lib-typescript";
-import { EditableWorkbookRequestEntry } from "./editable-workbook-request-entry";
-import { MAX_TEXT_RENDER_LENGTH } from "../../controls/viewers/text-viewer";
-
-export interface WorkbookExecutionResult extends ApicizeResult {
-     key: string;
-     longTextInResponse: boolean;
-}
+import { OverridableStringUnion } from '@mui/types'
+import { SvgIconPropsColorOverrides } from "@mui/material"
 
 export interface WorkbookExecutionResponse {
      status: number
      statusText: string
 }
 
-export interface WorkbookExecutionRequest {
-     name: string,
-     response?: WorkbookExecutionResponse
-     tests?: ApicizeTestResult[]
-     executedAt: number
-     milliseconds: number
-     success: boolean
+export interface WorkbookExecutionGroupSummaryRequest {
+     status?: number
+     statusText?: string
+     milliseconds: number,
+     requestName: string,
+     tests?: ApicizeTestResult[] 
      errorMessage?: string
 }
 
-export interface WorkbookExecutionSummary {
-     run: number;
-     totalRuns: number;
-     requests: WorkbookExecutionRequest[]
+export interface WorkbookExecutionGroupSummary {
+     success: boolean
+     executedAt: number
+     milliseconds: number
+     allTestsSucceeded: boolean
+     requests?: WorkbookExecutionGroupSummaryRequest[]
+     infoColor: InfoColorType
 }
 
-export interface IndexedText {
-     index: number
-     text: string
+export interface WorkbookExecutionResult extends ApicizeResult {
+     longTextInResponse: boolean
+     infoColor: InfoColorType
+     disableOtherPanels: boolean
+     hasRequest: boolean
+}
+
+export interface WorkbookExecutionRun {
+     title: string
+     results: WorkbookExecutionResult[]
+}
+
+export interface WorkbookExecutionResultMenuItem {
+     index: number, // -1 = summary for group
+     title: string,
+}
+
+export interface WorkbookExecutionRunMenuItem {
+     title: string,
+     results: WorkbookExecutionResultMenuItem[]
+     groupSummary?: WorkbookExecutionGroupSummary
 }
 
 export interface WorkbookExecution {
-     // requestID: string
      running: boolean
      runIndex?: number
-     runList?: IndexedText[]
      resultIndex?: number
-     resultLists?: IndexedText[][]
-     results?: WorkbookExecutionResult[][]
-     executedAt?: number
-     milliseconds?: number
+     runs?: WorkbookExecutionRunMenuItem[]
+
      panel?: string
+     results?: Map<string, WorkbookExecutionResult>
 }
 
-export function ApicizeRunResultsToWorkbookExecutionResults(runs: ApicizeResult[][]) {
-     return runs.map(results =>
-          results.map(result => {
-               return {
-                    ...result,
-                    key: `${result.requestId}-${result.run}-${result.totalRuns}}`,
-                    longTextInResponse: (result.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH
-               } as WorkbookExecutionResult
-          })
-     )
-}
+export type InfoColorType = OverridableStringUnion<
+     | 'inherit'
+     | 'success'
+     | 'warning'
+     | 'error'
+     | 'disabled',
+     SvgIconPropsColorOverrides>

@@ -23,6 +23,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/providers/apicize-tauri-provider.tsx", "../toolkit/src/services/toast-service.tsx", "src/app/page.tsx", "../toolkit/src/controls/landing.tsx", "help/build.ts", "src/app/.example.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/providers/apicize-tauri-provider.tsx", "../toolkit/src/services/toast-service.tsx", "src/page.tsx", "../toolkit/src/controls/landing.tsx", "help/build.ts", "src/.example.tsx"],
   "exclude": ["node_modules", "src-tauri"]
 }

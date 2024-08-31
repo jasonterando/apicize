@@ -7,7 +7,7 @@ export interface IndexedEntities<T extends Identifiable> {
     /**
      * List of all entities (not in sorted or hierarchical order)
      */
-    entities: { [id: string]: T },
+    entities: Map<string, T>,
 
     /**
      * Sorted list of IDs for top level IDs
@@ -22,7 +22,7 @@ export interface IndexedEntities<T extends Identifiable> {
  * @returns 
  */
 export function addEntity<T extends Identifiable>(entity: T, storage: IndexedEntities<T>, beforeId?: string | null) {
-    storage.entities[entity.id] = entity
+    storage.entities.set(entity.id, entity)
     if (beforeId) {
         let idx = storage.topLevelIds.indexOf(beforeId)
         if (idx !== -1) {
@@ -41,7 +41,7 @@ export function addEntity<T extends Identifiable>(entity: T, storage: IndexedEnt
  * @returns 
  */
 export function getEntity<T extends Identifiable>(id: string, storage: IndexedEntities<T>): T {
-    const result = storage.entities[id]
+    const result = storage.entities.get(id)
     if (! result) {
         throw new Error(`Unable to find entry ID ${id}`)
     }
@@ -60,15 +60,7 @@ export function removeEntity<T extends Identifiable>(id: string, storage: Indexe
     if (idx !== -1) {
         storage.topLevelIds.splice(idx, 1)
     }
-
-    if (storage.entities[id]) {
-        found = true
-        delete storage.entities[id]
-    }
-
-    if (!found) {
-        throw new Error(`Unable to find entry ID ${id}`)
-    }
+    storage.entities.delete(id)
 }
 
 /**

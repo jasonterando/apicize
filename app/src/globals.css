@@ -85,3 +85,7 @@ pre {
   display: inline-block;
   vertical-align: middle;
 }
+
+.nav-node-text {
+  flex-grow: 1;
+}

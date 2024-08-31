@@ -1,13 +1,30 @@
+import Prism from "prismjs";
+const foo = Prism
+
 import 'prismjs/components/prism-javascript'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
 import AceEditor from "react-ace"
 import "ace-builds/src-noconflict/mode-javascript"
-import { useRequestEditor } from '../../../contexts/editors/request-editor-context'
-// import { TextareaAutosize } from '@mui/material'
+import { useWorkspace } from '../../../contexts/root.context'
+import { WorkbookRequestType } from '@apicize/lib-typescript'
+import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
+import { EditableWorkbookRequest, EditableWorkbookRequestEntry } from "../../../models/workbook/editable-workbook-request";
+import { observer } from "mobx-react-lite";
 
-export function RequestTestEditor() {
-  const requestCtx = useRequestEditor()
+export const RequestTestEditor = observer(() => {
+  const workspace = useWorkspace()
+
+  if (workspace.active?.entityType !== EditableEntityType.Request) {
+    return null
+  }
+
+  const requestEntry = workspace.active as EditableWorkbookRequestEntry
+  if (requestEntry.type !== WorkbookRequestType.Request) {
+    return null
+  }
+
+  const request = requestEntry as EditableWorkbookRequest
 
   return (
     <AceEditor
@@ -21,7 +38,7 @@ export function RequestTestEditor() {
       showGutter={true}
       showPrintMargin={false}
       tabSize={3}
-      onChange={(v) => requestCtx.changeTest(v)}
+      onChange={(v) => workspace.setRequestTest(v)}
       setOptions={{
         useWorker: false,
         foldStyle: "markbegin",
@@ -30,47 +47,6 @@ export function RequestTestEditor() {
         fixedWidthGutter: true,
         showLineNumbers: true,
       }}
-      value={requestCtx.test} />
-
-    // <TextareaAutosize
-    //   autoFocus
-    //   maxRows={20}
-    //   style={{
-    //     borderStyle: 'solid',
-    //     borderWidth: '1px',
-    //     borderLeftColor: '#444',
-    //     borderRightColor: '#444',
-    //     borderTopColor: '#444',
-    //     borderBottomColor: '#444',
-    //     borderRadius: '4px',
-    //     fontFamily: 'monospace',
-    //     outline: 'none',
-    //     minHeight: '10vh',
-    //     padding: '10px',
-    //     minWidth: '100%',
-    //     width: '100%',
-    //     color: '#FFFFFF',
-    //     backgroundColor: '#202020',
-    //     overflow: 'auto'
-    //   }}
-    //   value={test}
-    //   onChange={(e) => updateTest(e.target.value)} />
-    // <Editor
-    //   autoFocus
-    //   padding={10}
-    //   style={{
-    //     fontFamily: 'monospace',
-    //     // minHeight: '200px',
-    //     outline: 'none',
-    //     maxHeight: '20vh',
-    //     // borderTopStyle: 'solid !important',
-    //     // borderBottomStyle: 'solid !important',
-    //     // borderLeftStyle: 'solid !important',
-    //     // borderRightStyle: 'solid !important'
-    //   }}
-    //   value={test}
-    //   highlight={code => highlight(code, languages.javascript, 'javascript')}
-    //   onValueChange={updateTest}
-    // />
+      value={request.test} />
   )
-}
+})

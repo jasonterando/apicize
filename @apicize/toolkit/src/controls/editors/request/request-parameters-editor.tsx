@@ -1,73 +1,84 @@
-import { useEffect, useState } from 'react'
-import { useRequestEditor } from '../../../contexts/editors/request-editor-context'
 import { EntitySelection } from '../../../models/workbook/entity-selection'
 import { MenuItem, FormControl, InputLabel, Select } from '@mui/material'
 import { Stack } from '@mui/system'
+import { useWorkspace } from '../../../contexts/root.context'
+import { DEFAULT_SELECTION_ID } from '../../../models/store'
+import { EditableWorkbookRequestEntry } from '../../../models/workbook/editable-workbook-request'
+import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
+import { observer } from 'mobx-react-lite'
 
-export function RequestParametersEditor() {
-  const requestEditorCtx = useRequestEditor()
+export const RequestParametersEditor = observer(() => {
+    const workspace = useWorkspace()
 
-  let credIndex = 0
-  const itemsFromSelections = (selections: EntitySelection[]) => {
-      return selections.map(s => (
-          <MenuItem key={`creds-${credIndex++}`} value={s.id}>{s.name}</MenuItem>
-      ))
-  }
+    if (workspace.active?.entityType !== EditableEntityType.Request) {
+        return null
+    }
 
-  return (
-      <Stack spacing={3}>
-          <FormControl>
-              <InputLabel id='cred-scenario-label'>Scenarios</InputLabel>
-              <Select
-                  labelId='cred-scenario-label'
-                  id='cred-scenario'
-                  label='Scenario'
-                  value={requestEditorCtx.selectedScenarioId}
-                  onChange={(e) => requestEditorCtx.changeSelectedScenarioId(e.target.value)}
-                  fullWidth
-              >
-                  {itemsFromSelections(requestEditorCtx.scenarios)}
-              </Select>
-          </FormControl>
-          <FormControl>
-              <InputLabel id='cred-auth-label'>Authorization</InputLabel>
-              <Select
-                  labelId='cred-auth-label'
-                  id='cred-auth'
-                  label='Authorization'
-                  value={requestEditorCtx.selectedAuthorizationId}
-                  onChange={(e) => requestEditorCtx.changeSelectedAuthorizationId(e.target.value)}
-                  fullWidth
-              >
-                  {itemsFromSelections(requestEditorCtx.authorizations)}
-              </Select>
-          </FormControl>
-          <FormControl>
-              <InputLabel id='cred-cert-label'>Certificate</InputLabel>
-              <Select
-                  labelId='cred-cert-label'
-                  id='cred-cert'
-                  label='Certificate'
-                  value={requestEditorCtx.selectedCertificateId}
-                  onChange={(e) => requestEditorCtx.changeSelectedCertificateId(e.target.value)}
-                  fullWidth
-              >
-                  {itemsFromSelections(requestEditorCtx.certificates)}
-              </Select>
-          </FormControl>
-          <FormControl>
-              <InputLabel id='cred-proxy-label'>Proxy</InputLabel>
-              <Select
-                  labelId='cred-proxy-label'
-                  id='cred-proxy'
-                  label='Proxy'
-                  value={requestEditorCtx.selectedProxyId}
-                  onChange={(e) => requestEditorCtx.changeSelectedProxyId(e.target.value)}
-                  fullWidth
-              >
-                  {itemsFromSelections(requestEditorCtx.proxies)}
-              </Select>
-          </FormControl>
-      </Stack>
-  )
-}
+    const requestEntry = workspace.active as EditableWorkbookRequestEntry
+
+    let credIndex = 0
+    const itemsFromSelections = (selections: EntitySelection[]) => {
+        return selections.map(s => (
+            <MenuItem key={`creds-${credIndex++}`} value={s.id}>{s.name}</MenuItem>
+        ))
+    }
+
+    const lists = workspace.getRequestParameterLists()
+
+    return (
+        <Stack spacing={3}>
+            <FormControl>
+                <InputLabel id='cred-scenario-label'>Scenarios</InputLabel>
+                <Select
+                    labelId='cred-scenario-label'
+                    id='cred-scenario'
+                    label='Scenario'
+                    value={requestEntry.selectedScenario?.id ?? DEFAULT_SELECTION_ID}
+                    onChange={(e) => workspace.setRequestSelectedScenarioId(e.target.value)}
+                    fullWidth
+                >
+                    {itemsFromSelections(lists.scenarios)}
+                </Select>
+            </FormControl>
+            <FormControl>
+                <InputLabel id='cred-auth-label'>Authorization</InputLabel>
+                <Select
+                    labelId='cred-auth-label'
+                    id='cred-auth'
+                    label='Authorization'
+                    value={requestEntry.selectedAuthorization?.id ?? DEFAULT_SELECTION_ID}
+                    onChange={(e) => workspace.setRequestSelectedAuthorizationId(e.target.value)}
+                    fullWidth
+                >
+                    {itemsFromSelections(lists.authorizations)}
+                </Select>
+            </FormControl>
+            <FormControl>
+                <InputLabel id='cred-cert-label'>Certificate</InputLabel>
+                <Select
+                    labelId='cred-cert-label'
+                    id='cred-cert'
+                    label='Certificate'
+                    value={requestEntry.selectedCertificate?.id ?? DEFAULT_SELECTION_ID}
+                    onChange={(e) => workspace.setRequestSelectedCertificateId(e.target.value)}
+                    fullWidth
+                >
+                    {itemsFromSelections(lists.certificates)}
+                </Select>
+            </FormControl>
+            <FormControl>
+                <InputLabel id='cred-proxy-label'>Proxy</InputLabel>
+                <Select
+                    labelId='cred-proxy-label'
+                    id='cred-proxy'
+                    label='Proxy'
+                    value={requestEntry.selectedProxy?.id ?? DEFAULT_SELECTION_ID}
+                    onChange={(e) => workspace.setRequestSelectedProxyId(e.target.value)}
+                    fullWidth
+                >
+                    {itemsFromSelections(lists.proxies)}
+                </Select>
+            </FormControl>
+        </Stack>
+    )
+})

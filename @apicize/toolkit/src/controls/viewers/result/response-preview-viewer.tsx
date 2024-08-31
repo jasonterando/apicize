@@ -3,12 +3,12 @@ import { TextViewer } from "../text-viewer";
 import { IconButton, Stack, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { useExecution } from "../../../contexts/execution-context";
+import { useExecution } from "../../../contexts/root.context";
 
 export function ResultResponsePreview(props: {
     requestOrGroupId: string,
-    resultIndex: number,
     runIndex: number,
+    resultIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void,
     triggerCopyImageToClipboard: (base64?: string) => void,
 }) {
@@ -53,7 +53,7 @@ export function ResultResponsePreview(props: {
 
     return (
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', width: '100%', display: 'flex' }}>
-            <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }}>
+            <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>
                 Response Body (Preview)
                 {showImageCopy
                     ? (<IconButton

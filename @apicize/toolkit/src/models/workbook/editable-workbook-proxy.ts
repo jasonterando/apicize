@@ -1,17 +1,28 @@
-import { WorkbookProxy } from "@apicize/lib-typescript"
+import { Persistence, WorkbookProxy } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
+import { observable } from "mobx"
+import { EditableEntityType } from "./editable-entity-type"
 
-export interface EditableWorkbookProxy extends Editable, WorkbookProxy {
-}
+export class EditableWorkbookProxy extends Editable<WorkbookProxy> implements WorkbookProxy {
+    public readonly entityType = EditableEntityType.Proxy
+    @observable accessor persistence = Persistence.Private
+    @observable accessor url = ''
 
-/**
- * Strip editable artifacts from editable scenarios
- * @param authorization 
- * @returns 
- */
-export function EditableWorkbookScenarioToScenario(proxy: EditableWorkbookProxy): WorkbookProxy {
-    const cloned = structuredClone(proxy)
-    cloned.dirty = undefined
-    cloned.invalid = undefined
-    return cloned
+    static fromWorkspace(entry: WorkbookProxy): EditableWorkbookProxy {
+        const result = new EditableWorkbookProxy()
+        result.id = entry.id
+        result.name = entry.name ?? ''
+        result.persistence = entry.persistence
+        result.url = entry.url
+        return result
+    }
+
+    toWorkspace(): WorkbookProxy {
+        return {
+            id: this.id,
+            name: this.name,
+            persistence: this.persistence,
+            url: this.url
+        }
+    }
 }

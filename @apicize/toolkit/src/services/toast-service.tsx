@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useState } from "react";
+import { ReactNode, createContext, useContext, useState } from "react";
 import { ToastSeverity } from "../controls/toast";
 import { Alert, Snackbar } from "@mui/material";
 
@@ -9,6 +9,14 @@ export interface ToastStore {
 export const ToastContext = createContext<ToastStore>({
     open: (_message: string, _severity: ToastSeverity = ToastSeverity.Info) => {}
 })
+
+export function useToast() {
+    const context = useContext(ToastContext);
+    if (! context) {
+        throw new Error('useToast must be used within a ToastProvider');
+    }
+    return context;
+}
 
 export function ToastProvider({ children }: { children?: ReactNode }) {
     const [open, setOpen] = useState(false)
@@ -34,3 +42,4 @@ export function ToastProvider({ children }: { children?: ReactNode }) {
         </ToastContext.Provider>
     )
 }
+

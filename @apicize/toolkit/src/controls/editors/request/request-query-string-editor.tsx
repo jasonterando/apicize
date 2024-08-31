@@ -1,13 +1,27 @@
+import { WorkbookRequestType } from '@apicize/lib-typescript'
+import { useWorkspace } from '../../../contexts/root.context'
 import { NameValueEditor } from '../name-value-editor'
-import { useRequestEditor } from '../../../contexts/editors/request-editor-context'
+import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
+import { EditableWorkbookRequest, EditableWorkbookRequestEntry } from '../../../models/workbook/editable-workbook-request'
+import { observer } from 'mobx-react-lite'
 
-export function RequestQueryStringEditor() {
-  const requestCtx = useRequestEditor()
-  return (
-    <NameValueEditor
-      values={requestCtx.queryStringParams}
-      nameHeader='Parameter'
-      valueHeader='Value'
-      onUpdate={requestCtx.changeQueryStringParams} />
+export const RequestQueryStringEditor = observer(() => {
+  const workspace = useWorkspace()
+
+  if (workspace.active?.entityType !== EditableEntityType.Request) {
+    return null
+  }
+
+  const requestEntry = workspace.active as EditableWorkbookRequestEntry
+  if (requestEntry.type !== WorkbookRequestType.Request) {
+    return null
+  }
+
+  const request = requestEntry as EditableWorkbookRequest
+  return (<NameValueEditor
+    values={request.queryStringParams}
+    nameHeader='Parameter'
+    valueHeader='Value'
+    onUpdate={workspace.setRequestQueryStringParams} />
   )
-}
+})

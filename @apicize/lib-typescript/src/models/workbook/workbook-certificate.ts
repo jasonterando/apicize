@@ -7,7 +7,7 @@ import { Persisted } from "../persistence"
  */
 export enum WorkbookCertificateType { None = 'none', PKCS12 = 'PKCS12',  PKCS8_PEM = 'PKCS8_PEM', PEM = 'PEM'};
 
-export type WorkbookCertificate = WorkbookBaseCertificate | WorkbookPkcs12Certificate | WorkbookPkcs8PemCertificate | WorkbookPemCertificate
+export type WorkbookCertificate = WorkbookPkcs12Certificate | WorkbookPkcs8PemCertificate | WorkbookPemCertificate
 
 export interface WorkbookBaseCertificate extends Identifiable, Named, Persisted {
     type: WorkbookCertificateType

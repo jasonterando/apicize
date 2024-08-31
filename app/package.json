@@ -2,10 +2,11 @@
   "name": "app",
   "private": true,
   "version": "0.3.0",
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "start": "vite preview",
     "lint": "next lint",
     "tauri": "tauri"
   },
@@ -19,7 +20,8 @@
     "@tauri-apps/plugin-dialog": "^2.0.0-beta",
     "@tauri-apps/plugin-fs": "^2.0.0-beta",
     "@tauri-apps/plugin-global-shortcut": "^2.0.0-beta",
-    "next": "^14.2.5",
+    "mobx": "^6.13.1",
+    "mobx-react-lite": "^4.0.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "remark-directive": "^3.0.0",
@@ -28,10 +30,12 @@
     "valibot": "^0.36.0"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "mdast-util-directive": "^3.0.0",
     "mdast-util-to-hast": "^13.1.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^5.4.1"
   }
 }

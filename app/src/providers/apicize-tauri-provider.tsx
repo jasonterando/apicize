@@ -4,30 +4,36 @@ import { ReactNode, useContext, useEffect, useRef, useState } from "react"
 import {
     ToastContext, ToastStore, ToastSeverity,
     useConfirmation,
-    NavigationType,
     base64Encode,
-    ClipboardContentType,
     ContentDestination,
-    useWindow,
-    useNavigationState,
-    useHelp,
     useWorkspace,
-    useClipboard,
     useExecution,
+    useWindow,
+    EditableEntityType,
+    useToast,
 } from "@apicize/toolkit"
 import { ApicizeExecutionResults, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
 import { join, resourceDir } from "@tauri-apps/api/path"
-
+import { Window } from "@tauri-apps/api/window"
 import * as app from '@tauri-apps/api/app'
 import * as core from '@tauri-apps/api/core'
 import * as path from '@tauri-apps/api/path'
-import * as window from '@tauri-apps/api/window'
 import { listen, Event, UnlistenFn } from "@tauri-apps/api/event"
 import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
 import * as dialog from '@tauri-apps/plugin-dialog'
 import clipboard, { writeImageBase64, writeText } from "tauri-plugin-clipboard-api"
+import { autorun, reaction } from "mobx"
+import { RunInformation } from "@apicize/toolkit/dist/models/workbook/run-information"
 
 const EXT = 'apicize';
+
+let _window: Window | undefined = undefined
+const getWindow = async () => {
+    if (!_window) {
+        _window = (await import('@tauri-apps/api/window')).Window.getCurrent()
+    }
+    return _window
+}
 
 /**
  * This provider is the "glue" between React and Tauri
@@ -38,87 +44,18 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const workspaceCtx = useWorkspace()
     const executionCtx = useExecution()
     const confirm = useConfirmation()
-    const toast = useContext<ToastStore>(ToastContext)
+    const toast = useToast()
 
     const windowCtx = useWindow()
-    const navStateCtx = useNavigationState()
-    const helpCtx = useHelp()
-    const clipboardCtx = useClipboard()
 
-    const dirty = windowCtx.dirty
     const _forceClose = useRef(false)
     const _internalDirty = useRef(false)
-
-    const workbookFullName = windowCtx.workbookFullName
-    const workbookDisplayName = windowCtx.workbookDisplayName
-
-    const activeType = navStateCtx.activeType
-
-    const nextHelpTopic = helpCtx.nextHelpTopic
-    const helpTopicHistory = helpCtx.helpTopicHistory
 
     const [sshPath, setSshPath] = useState('')
     const [bodyDataPath, setBodyDataPath] = useState('')
 
     let _settings = useRef<StoredGlobalSettings | undefined>()
     let _loaded = useRef(false)
-
-    const processHelp = (topic: string) => {
-        (async () => {
-            let showTopic: string
-            let updateHistory = [...helpTopicHistory]
-            switch (topic) {
-                case '\nclose':
-                    helpCtx.hideHelp()
-                    return
-                case '\nback':
-                    updateHistory.pop()
-                    showTopic = updateHistory.pop() ?? ''
-                    if (showTopic.length === 0) return
-                    break
-                case '':
-                    showTopic = nextHelpTopic.length > 0 ? nextHelpTopic : 'home'
-                    break
-                default:
-                    showTopic = topic
-            }
-
-            const historyLength = updateHistory.length
-            if (historyLength < 25 && (historyLength === 0 || updateHistory[historyLength - 1] !== showTopic)) {
-                updateHistory.push(showTopic)
-            }
-
-            const helpFile = await join(await resourceDir(), 'help', `${showTopic}.md`)
-            if (await exists(helpFile)) {
-                let text = await readTextFile(helpFile)
-
-                const helpDir = await path.join(await resourceDir(), 'help', 'images')
-
-                // This is cheesy, but I can't think of another way to inject images from the React client
-                let imageLink
-                do {
-                    imageLink = text.match(/\:image\[(.*)\]/)
-                    if (imageLink && imageLink.length > 0 && imageLink.index) {
-                        const imageFile = await path.join(helpDir, imageLink[1])
-                        let replaceWith = ''
-                        try {
-                            const data = await readFile(imageFile)
-                            const ext = await path.extname(imageFile)
-                            replaceWith = `![](data:image/${ext};base64,${base64Encode(data)})`
-                        } catch (e) {
-                            console.error(`${e} - unable to load ${imageFile}`)
-                        }
-                        text = `${text.substring(0, imageLink.index)}${replaceWith}${text.substring(imageLink.index + imageLink[0].length)}`
-                    }
-                } while (imageLink && imageLink.length > 0)
-                helpCtx.help(showTopic, text, updateHistory)
-            } else {
-                throw new Error(`Help topic "${showTopic}" not found`)
-            }
-        })().catch((e) => {
-            toast.open(`${e}`, ToastSeverity.Error)
-        })
-    }
 
     useEffect(() => {
         if (!_loaded.current) {
@@ -144,12 +81,12 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 } catch (e) {
                     toast.open(`${e}`, ToastSeverity.Error)
                 } finally {
-                    navStateCtx.changeShowNavigation(true)
+                    // workspaceCtx.changeShowNavigation(true)
                     // workbookStore.dispatch(navigationActions.setShowLanding(true))
                 }
 
                 // Set up close event hook, warn user if "dirty"
-                const currentWindow = window.Window.getCurrent()
+                const currentWindow = await getWindow()
                 currentWindow.onCloseRequested((e) => {
                     if (_internalDirty.current && (!_forceClose.current)) {
                         e.preventDefault();
@@ -168,15 +105,13 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                         })()
                     }
                 })
-
             })()
         }
 
+        const unlistenRun = listen('run', async (event: Event<RunInformation>) => { await doRunRequest(event.payload)})
         const unlistenOpenFile = listen('openFile', async (event: Event<{ destination: ContentDestination, id: string }>) => { await doOpenFile(event.payload.destination, event.payload.id) })
         const unlistenAction = listen('action', async (event: Event<string>) => { await doRouteAction(event.payload) })
-        const unlistenHelp = listen('help', async (event: Event<string>) => {
-            processHelp(event.payload)
-        })
+
         const unlistenCopyTextToClipboard = listen<string | undefined>('copyText', async (event) => {
             await doCopyTextToClipboard(event.payload)
         })
@@ -200,28 +135,25 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
         return () => {
             // if (unlistenClipboardUpdate) unlistenClipboardUpdate.then(f => f())
+            unlistenRun.then(f => f())
             unlistenOpenFile.then(f => f())
             unlistenAction.then(f => f())
-            unlistenHelp.then(f => f())
             unlistenCopyTextToClipboard.then(f => f())
             unlistenCopyImageToClipboard.then(f => f())
             unlistenPastFromClipboard.then(f => f())
         }
     })
 
-    // Keep track of the current window
-    // Called by provider when opened workbook is opened or saved
-    useEffect(() => {
-        (async () => {
-            // Monitor store's stateful dirty, set internal ref variable to value
-            _internalDirty.current = dirty
+    reaction(
+        () => ({ dirty: windowCtx.dirty, displayName: windowCtx.workbookDisplayName }),
+        async ({ dirty, displayName }) => {
             const showDirty = dirty ? ' *' : ''
-            window.Window.getCurrent().setTitle(((workbookDisplayName?.length ?? 0) > 0)
-                ? `Apicize - ${workbookDisplayName}${showDirty}`
+            const currentWindow = await getWindow()
+            currentWindow.setTitle(((displayName?.length ?? 0) > 0)
+                ? `Apicize - ${displayName}${showDirty}`
                 : `Apicize (New Workbook)${showDirty}`)
-        })()
-    }, [workbookDisplayName, dirty])
-
+        }
+    )
 
     const doRouteAction = async (action: string) => {
         switch (action) {
@@ -236,9 +168,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 break
             case 'saveAs':
                 await doSaveWorkbookAs()
-                break
-            case 'run':
-                await doRunRequest()
                 break
             case 'cancel':
                 await doCancelRequest()
@@ -275,7 +204,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             }
         }
 
-        const fileName = workspaceCtx.getWorkbookFileName()
+        const fileName = windowCtx.workbookFullName
         if (fileName && fileName.length > 0) {
             const base = await path.basename(fileName)
             let i = fileName.indexOf(base)
@@ -292,8 +221,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         let title: string
         let extensions: string[]
         let extensionName: string
-
-        debugger
 
         switch (destination) {
             case ContentDestination.PEM:
@@ -360,19 +287,19 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             const data = base64Encode(await readFile(fileName))
             switch (destination) {
                 case ContentDestination.PEM:
-                    workspaceCtx.certificate.setPem(id, data)
+                    workspaceCtx.setCertificatePem(data)
                     if (pathName.length > 0) setSshPath(pathName)
                     break
                 case ContentDestination.Key:
-                    workspaceCtx.certificate.setKey(id, data)
+                    workspaceCtx.setCertificateKey(data)
                     if (pathName.length > 0) setSshPath(pathName)
                     break
                 case ContentDestination.PFX:
-                    workspaceCtx.certificate.setPfx(id, data)
+                    workspaceCtx.setCertificatePfx(data)
                     if (pathName.length > 0) setSshPath(pathName)
                     break
                 case ContentDestination.BodyBinary:
-                    workspaceCtx.request.setBodyData(id, data)
+                    workspaceCtx.setRequestBodyData(data)
                     if (pathName.length > 0) setBodyDataPath(pathName)
                     break
             }
@@ -411,20 +338,20 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         switch (destination) {
             case ContentDestination.PEM:
                 text = await getClipboardText()
-                if (text) workspaceCtx.certificate.setPem(id, base64Encode((new TextEncoder).encode(text)))
+                if (text) workspaceCtx.setCertificatePem(base64Encode((new TextEncoder).encode(text)))
                 break
             case ContentDestination.Key:
                 text = await getClipboardText()
-                if (text) workspaceCtx.certificate.setKey(id, base64Encode((new TextEncoder).encode(text)))
+                if (text) workspaceCtx.setCertificateKey(base64Encode((new TextEncoder).encode(text)))
                 break
             case ContentDestination.BodyBinary:
                 data = await getClipboardImage()
                 if (data) {
-                    workspaceCtx.request.setBodyData(id, data)
+                    workspaceCtx.setRequestBodyData(data)
                 } else {
                     text = await getClipboardText()
                     if (text) {
-                        workspaceCtx.request.setBodyData(id, base64Encode((new TextEncoder()).encode(text)))
+                        workspaceCtx.setRequestBodyData(base64Encode((new TextEncoder()).encode(text)))
                     }
                 }
                 break
@@ -433,7 +360,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
     // Triggers the start of a new workbook
     const doNewWorkbook = async () => {
-        if (dirty) {
+        if (windowCtx.dirty) {
             if (! await confirm({
                 title: 'New Workbook',
                 message: 'Are you sure you want to create a new workbook without saving changes?',
@@ -446,7 +373,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         }
 
         const settings = await loadSettings()
-        workspaceCtx.newWorkbook(settings)
+        workspaceCtx.newWorkspace()
         toast.open('Created New Workbook', ToastSeverity.Success)
     }
 
@@ -454,7 +381,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const doOpenWorkbook = async (fileName?: string, doUpdateSettings = true) => {
         const settings = await loadSettings()
 
-        if (dirty) {
+        if (windowCtx.dirty) {
             if (! await confirm({
                 title: 'Open Workbook',
                 message: 'Are you sure you want to open a workbook without saving changes?',
@@ -486,7 +413,8 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         try {
             const data: Workspace = await core.invoke('open_workspace', { path: fileName })
             const displayName = await getDisplayName(fileName)
-            workspaceCtx.openWorkbook(fileName, displayName, data)
+            windowCtx.changeWorkbook(fileName, displayName)
+            workspaceCtx.loadWorkspace(data)
             if (doUpdateSettings) {
                 await updateSettings({ lastWorkbookFileName: fileName })
             }
@@ -498,18 +426,18 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
     const doSaveWorkbook = async () => {
         try {
-            if (!(workbookFullName && workbookFullName.length > 0)) {
+            if (!(windowCtx.workbookFullName && windowCtx.workbookFullName.length > 0)) {
                 return
             }
-            const workspace = workspaceCtx.getWorkspaceFromStore()
+            const workspace = workspaceCtx.getWorkspace()
 
-            await core.invoke('save_workspace', { workspace, path: workbookFullName })
+            await core.invoke('save_workspace', { workspace, path: windowCtx.workbookFullName })
 
-            await updateSettings({ lastWorkbookFileName: workbookFullName })
-            toast.open(`Saved ${workbookFullName}`, ToastSeverity.Success)
-            workspaceCtx.onSaveWorkbook(
-                workbookFullName,
-                await getDisplayName(workbookFullName)
+            await updateSettings({ lastWorkbookFileName: windowCtx.workbookFullName })
+            toast.open(`Saved ${windowCtx.workbookFullName}`, ToastSeverity.Success)
+            windowCtx.changeWorkbook(
+                windowCtx.workbookFullName,
+                await getDisplayName(windowCtx.workbookFullName)
             )
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
@@ -522,7 +450,8 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
             let fileName = await dialog.save({
                 title: 'Save Apicize Workbook',
-                defaultPath: ((workbookFullName?.length ?? 0) > 0) ? workbookFullName : settings.workbookDirectory,
+                defaultPath: ((windowCtx.workbookFullName?.length ?? 0) > 0)
+                    ? windowCtx.workbookFullName : settings.workbookDirectory,
                 filters: [{
                     name: 'Apicize Files',
                     extensions: [EXT]
@@ -537,12 +466,12 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 fileName += `.${EXT}`
             }
 
-            const workspace = workspaceCtx.getWorkspaceFromStore()
+            const workspace = workspaceCtx.getWorkspace()
             await core.invoke('save_workspace', { workspace, path: fileName })
 
             await updateSettings({ lastWorkbookFileName: fileName })
             toast.open(`Saved ${fileName}`, ToastSeverity.Success)
-            workspaceCtx.onSaveWorkbook(
+            windowCtx.changeWorkbook(
                 fileName,
                 await getDisplayName(fileName)
             )
@@ -560,19 +489,14 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         return base;
     }
 
-    const doRunRequest = async () => {
-        const requestId = navStateCtx.activeType === NavigationType.Request ? navStateCtx.activeId : ''
-        const runInfo = activeType === NavigationType.Request
-            ? workspaceCtx.request.getRunInformation()
-            : workspaceCtx.group.getRunInformation()
-
-        if (runInfo === undefined) return
-
+    const doRunRequest = async (runInfo: RunInformation) => {
         try {
             executionCtx.runStart(runInfo.requestId)
+            console.log(`Executing ${runInfo.requestId}`,runInfo.workspace)
+
             let results = await core.invoke<ApicizeExecutionResults>
-                ('run_request', runInfo)
-            console.log(`Received`, results)
+                ('run_request', { workspace: runInfo.workspace, requestId: runInfo.requestId } )
+            console.log('Run results', results)
             executionCtx.runComplete(runInfo.requestId, results)
         } catch (e) {
             let msg1 = `${e}`
@@ -582,7 +506,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     }
 
     const doCancelRequest = async () => {
-        const requestId = navStateCtx.activeType === NavigationType.Request ? navStateCtx.activeId : ''
+        const requestId = workspaceCtx.active?.entityType === EditableEntityType.Request ? workspaceCtx.active?.id : ''
         if (requestId?.length === 0) return
         try {
             await core.invoke('cancel_request', {
@@ -595,7 +519,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
     const doClearToken = async () => {
         try {
-            const authorizationId = navStateCtx.activeType === NavigationType.Authorization ? navStateCtx.activeId : ''
+            const authorizationId = workspaceCtx.active?.entityType === EditableEntityType.Authorization ? workspaceCtx.active?.id : ''
             if ((authorizationId?.length ?? 0) > 0) {
                 const result = await core.invoke('clear_cached_authorization', {
                     authorization_id: authorizationId
@@ -663,7 +587,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         _settings.current = await loadSettings()
 
         // Build a new set of settings, including  in proxy / certificate information
-        const newSettings = workspaceCtx.getSettingsFromStore(
+        const newSettings = workspaceCtx.getSettings(
             updates.workbookDirectory === undefined ? _settings.current.workbookDirectory : updates.workbookDirectory,
             updates.lastWorkbookFileName === undefined ? _settings.current.lastWorkbookFileName : updates.lastWorkbookFileName
         )

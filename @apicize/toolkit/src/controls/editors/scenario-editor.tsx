@@ -3,14 +3,18 @@ import LanguageIcon from '@mui/icons-material/Language';
 import { NameValueEditor } from './name-value-editor';
 import { EditorTitle } from '../editor-title';
 import { PersistenceEditor } from './persistence-editor';
-import { useScenarioEditor } from '../../contexts/editors/scenario-editor-context';
+import { useWorkspace } from '../../contexts/root.context';
+import { observer } from 'mobx-react-lite';
+import { EditableEntityType } from '../../models/workbook/editable-entity-type';
+import { EditableWorkbookScenario } from '../../models/workbook/editable-workbook-scenario';
 
-export function ScenarioEditor(props: {sx: SxProps}) {
-    const scenarioCtx = useScenarioEditor()
-
+export const ScenarioEditor = observer((props: {sx: SxProps}) => {
+    const workspace = useWorkspace()
+    if (workspace.active?.entityType !== EditableEntityType.Scenario || workspace.helpVisible) return null
+    const scenario = workspace.active as EditableWorkbookScenario
     return (
-        <Stack direction={'column'} className='editor-panel-no-toolbar' sx={props.sx}>
-            <EditorTitle icon={<LanguageIcon />} name={scenarioCtx.name.length > 0 ? scenarioCtx.name : '(Unnamed)'} />
+         <Stack direction={'column'} className='editor-panel-no-toolbar' sx={props.sx}>
+            <EditorTitle icon={<LanguageIcon />} name={scenario.name.length > 0 ? scenario.name : '(Unnamed)'} />
             <Grid container direction={'column'} spacing={3} maxWidth={1000}>
                 <Grid item>
                     <TextField
@@ -18,18 +22,18 @@ export function ScenarioEditor(props: {sx: SxProps}) {
                         label='Name'
                         aria-label='name'
                         // size='small'
-                        value={scenarioCtx.name}
-                        onChange={e => scenarioCtx.changeName(e.target.value)}
+                        value={scenario.name}
+                        onChange={e => workspace.setScenarioName(e.target.value)}
                         fullWidth
                     />
                 </Grid>
                 <Grid item>
-                    <PersistenceEditor onUpdatePersistence={scenarioCtx.changePersistence} persistence={scenarioCtx.persistence} />
+                    <PersistenceEditor onUpdatePersistence={(e) => workspace.setScenarioPersistence(e)} persistence={scenario.persistence} />
                 </Grid>
                 <Grid item>
-                    <NameValueEditor values={scenarioCtx.variables} nameHeader='Variable Name' valueHeader='Value' onUpdate={scenarioCtx.changeVariables} />
+                    <NameValueEditor values={scenario.variables} nameHeader='Variable Name' valueHeader='Value' onUpdate={(e) => workspace.setScenarioVariables(e)} />
                 </Grid>
             </Grid>
         </Stack >
     )
-}
+})

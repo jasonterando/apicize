@@ -8,7 +8,7 @@ export interface IndexedNestedRequests<T extends Identifiable> extends IndexedEn
     /**
      * List of children (if any) for hierarchical ID
      */
-    childIds?: { [id: string]: string[] }
+    childIds?: Map<string, string[]>
 }
 
 /**
@@ -20,8 +20,8 @@ export interface IndexedNestedRequests<T extends Identifiable> extends IndexedEn
 export function findParentEntity<T extends Identifiable>(id: string | null, storage: IndexedNestedRequests<T>) {
     if (! id || ! storage.childIds) return null
 
-    for(const [parentId, childIds] of Object.entries(storage.childIds)) {
-        if (childIds.includes(id)) return storage.entities[parentId]
+    for(const [parentId, childIds] of storage.childIds) {
+        if (childIds.includes(id)) return storage.entities.get(parentId)
     }
 
     return null
@@ -31,10 +31,17 @@ export function findParentEntity<T extends Identifiable>(id: string | null, stor
  * Utility to add a request to storage, optionally before the specified ID
  * @param id 
  * @param storage 
+ * @param beforeId
+ * @param asGroup
  * @returns 
  */
-export function addNestedEntity<T extends Identifiable>(entity: T, storage: IndexedNestedRequests<T>, beforeId?: string | null) {
-    storage.entities[entity.id] = entity
+export function addNestedEntity<T extends Identifiable>(
+        entity: T,
+        storage: IndexedNestedRequests<T>,
+        asGroup: boolean,
+        beforeId?: string | null,
+    ) {
+    storage.entities.set(entity.id, entity)
     if (beforeId) {
         let idx = storage.topLevelIds.indexOf(beforeId)
         if (idx !== -1) {
@@ -43,13 +50,20 @@ export function addNestedEntity<T extends Identifiable>(entity: T, storage: Inde
         }
 
         if (storage.childIds) {
-            for(const children of Object.values(storage.childIds)) {
+            for(const children of storage.childIds.values()) {
                 let idx = children.indexOf(beforeId)
                 if (idx !== -1) {
                     children.splice(idx, 0, entity.id)
                     return
                 }
             }
+        }
+    }
+    if (asGroup) {
+        if (storage.childIds) {
+            storage.childIds.set(entity.id, [])
+        } else {
+            storage.childIds = new Map([[entity.id, []]])
         }
     }
     storage.topLevelIds.push(entity.id)
@@ -62,7 +76,7 @@ export function addNestedEntity<T extends Identifiable>(entity: T, storage: Inde
  * @returns 
  */
 export function getNestedEntity<T extends Identifiable>(id: string, storage: IndexedNestedRequests<T>): T {
-    const result = storage.entities[id]
+    const result = storage.entities.get(id)
     if (! result) {
         throw new Error(`Unable to find entry ID ${id}`)
     }
@@ -81,7 +95,7 @@ export function findNestedEntity<T extends Identifiable>(id: string, storage: In
         return [index, storage.topLevelIds]
     }
     if (storage.childIds) {
-        for(const childList of Object.values(storage.childIds)) {
+        for(const childList of storage.childIds.values()) {
             index = childList.indexOf(id)
             if (index !== -1) {
                 return [index, childList]
@@ -115,13 +129,7 @@ export function removeNestedEntity<T extends Identifiable>(id: string, storage: 
         }
     }
 
-    if (storage.entities[id]) {
-        delete storage.entities[id]
-    }
-
-    if (!found) {
-        throw new Error(`Unable to find entry ID ${id}`)
-    }
+    storage.entities.delete(id)
 }
 
 /**
@@ -146,7 +154,8 @@ export function moveNestedEntity<T extends Identifiable>(id: string,
         destList = storage.topLevelIds
     } else {
         [destIndex, destList] = findNestedEntity(destinationID, storage)
-        const children = storage.childIds ? storage.childIds[destinationID] : undefined
+        const childIds = storage.childIds
+        const children = childIds?.get(destinationID)
 
         // If destination is a group, and on the left, then prepend to that group
         if (children && onLeft) {

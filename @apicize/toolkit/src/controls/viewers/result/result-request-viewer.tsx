@@ -3,12 +3,12 @@ import { IconButton, Typography } from "@mui/material"
 import { Stack } from "@mui/system"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { useExecution } from "../../../contexts/execution-context";
+import { useExecution } from "../../../contexts/root.context";
 
 export function ResultRequestViewer(props: {
     requestOrGroupId: string,
-    resultIndex: number,
     runIndex: number,
+    resultIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void
 }) {
     const execution = useExecution()
@@ -16,7 +16,7 @@ export function ResultRequestViewer(props: {
     const text = beautify.js_beautify(JSON.stringify(request), {})
     return (
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>
-            <Typography variant='h2' sx={{marginTop: 0, flexGrow: 0}}>Request
+            <Typography variant='h2' sx={{marginTop: 0, flexGrow: 0}} component='div'>Request
             <IconButton
                     aria-label="Copy Request to Clipboard"
                     title="Copy Request to Clipboard"

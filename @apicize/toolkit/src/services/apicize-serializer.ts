@@ -1,17 +1,15 @@
-import { StoredGlobalSettings, WorkbookBodyType, Workspace, IndexedNestedRequests, Identifiable, Selection, WorkbookAuthorization, WorkbookCertificate, WorkbookScenario, WorkbookProxy, WorkbookCertificateType } from "@apicize/lib-typescript";
-import { GenerateIdentifier } from "./random-identifier-generator";
-import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization";
+import { StoredGlobalSettings, Workspace, Identifiable, Selection, WorkbookAuthorization, WorkbookCertificate, WorkbookScenario, WorkbookProxy, IndexedNestedRequests, WorkbookRequest, WorkbookRequestEntry } from "@apicize/lib-typescript";
+import { EditableWorkbookAuthorizationEntry } from "../models/workbook/editable-workbook-authorization";
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario";
 import { IndexedEntities } from '@apicize/lib-typescript/src/models/indexed-entities'
 import { Editable } from "../models/editable";
-import { Hierarchical } from "../models/hierarchical";
-import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request";
+import { EditableWorkbookRequestEntry, } from "../models/workbook/editable-workbook-request";
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair";
-import { EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request-entry";
 import { EditableWorkspace } from "../models/workbook/editable-workspace";
 import { EditableWorkbookProxy } from "../models/workbook/editable-workbook-proxy";
 import { DEFAULT_SELECTION, NO_SELECTION } from "../models/store";
-import { EditableWorkbookCertificate } from "../models/workbook/editable-workbook-certificate";
+import { EditableWorkbookCertificateEntry } from "../models/workbook/editable-workbook-certificate";
+import { toJS } from "mobx";
 
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -81,19 +79,18 @@ export function base64Decode(base64: string): Uint8Array {
  * @param item 
  * @returns 
  */
-function stateIndexToStorage<S extends Identifiable, E extends S | Editable | Hierarchical<S>>(
-    index: IndexedEntities<E>,
-    process?: (entity: E) => void
+function editableIndexToStoredWorkspace<S extends Identifiable>(
+    index: IndexedEntities<Editable<S>>
 ): IndexedEntities<S> {
-    const cloned = structuredClone(index)
-    for(const entity of Object.values<E & Editable>(cloned.entities)) {
-        delete entity['dirty']
-        delete entity['invalid']
-        if (process) {
-            process(entity)
-        }
+    const entities = new Map<string, S>()
+    for(const [id, entity] of index.entities) {
+        entities.set(id, entity.toWorkspace())
     }
-    return cloned as IndexedEntities<S>
+
+    return {
+        topLevelIds: toJS(index.topLevelIds),
+        entities
+    }
 }
 
 /**
@@ -102,11 +99,11 @@ function stateIndexToStorage<S extends Identifiable, E extends S | Editable | Hi
  */
 export function newEditableWorkspace(): EditableWorkspace {
     return {
-        requests: { entities: {}, topLevelIds: [] },
-        scenarios: { entities: {}, topLevelIds: [] },
-        authorizations: { entities: {}, topLevelIds: [] },
-        certificates: { entities: {}, topLevelIds: [] },
-        proxies: { entities: {}, topLevelIds: [] },
+        requests: { entities: new Map(), topLevelIds: [] },
+        scenarios: { entities: new Map(), topLevelIds: [] },
+        authorizations: { entities: new Map(), topLevelIds: [] },
+        certificates: { entities: new Map(), topLevelIds: [] },
+        proxies: { entities: new Map(), topLevelIds: [] },
         selectedScenario: NO_SELECTION,
         selectedAuthorization: NO_SELECTION,
         selectedCertificate: NO_SELECTION,
@@ -122,36 +119,44 @@ export function newEditableWorkspace(): EditableWorkspace {
  * @returns 
  */
 export function storedWorkspaceToEditableWorkspace(workspace: Workspace): EditableWorkspace {
-    for (const scenario of Object.values(workspace.scenarios.entities)) {
-        scenario.variables?.forEach(v => {
-            const v1 = v as EditableNameValuePair    
-            v1.id = v1.id ?? GenerateIdentifier()
-        })
-    }
-    
-    for (const request of Object.values(workspace.requests.entities)) {
-        const r = request as EditableWorkbookRequest
-        r.id = r.id ?? GenerateIdentifier()
-        r.headers?.forEach(h => h.id = h.id ?? GenerateIdentifier())
-        r.queryStringParams?.forEach(p => p.id = p.id ?? GenerateIdentifier())
-        if (r.body && r.body.data) {
-            switch (r.body.type) {
-                case WorkbookBodyType.JSON:
-                    r.body.data = JSON.stringify(r.body.data)
-                    break
-                case WorkbookBodyType.Form:
-                    (r.body.data as EditableNameValuePair[])
-                        .forEach(h => h.id = h.id ?? GenerateIdentifier())
-                    break
-            }
-        } else {
-            r.body = {
-                type: WorkbookBodyType.None
-            }
-        }
+    return {
+        requests: {
+            topLevelIds: workspace.requests.topLevelIds,
+            entities: new Map(Object.values(workspace.requests.entities)
+                .map(e => [e.id, EditableWorkbookRequestEntry.fromWorkspace(e)])),
+            childIds: workspace.requests.childIds ? new Map(Object.entries(workspace.requests.childIds)) : undefined
+        },
+        scenarios: {
+            topLevelIds: workspace.scenarios.topLevelIds,
+            entities: new Map(
+                Object.values(workspace.scenarios.entities).map(e => ([e.id, EditableWorkbookScenario.fromWorkspace(e)]))
+            )
+        },
+        authorizations: {
+            topLevelIds: workspace.authorizations.topLevelIds,
+            entities: new Map(
+                Object.values(workspace.authorizations.entities).map(e => ([e.id, EditableWorkbookAuthorizationEntry.fromWorkspace(e)]))
+            )
+        },
+        certificates: {
+            topLevelIds: workspace.certificates.topLevelIds,
+            entities: new Map(
+                Object.values(workspace.certificates.entities).map(e => ([e.id, EditableWorkbookCertificateEntry.fromWorkspace(e)]))
+            )
+        },
+        proxies: {
+            topLevelIds: workspace.proxies.topLevelIds,
+            entities: new Map(
+                Object.values(workspace.proxies.entities).map(e => ([e.id, EditableWorkbookProxy.fromWorkspace(e)]))
+            )
+        },
+        // not supporting top-level selection defaults at this time
+        selectedScenario: NO_SELECTION,
+        selectedAuthorization: NO_SELECTION,
+        selectedCertificate: NO_SELECTION,
+        selectedProxy: NO_SELECTION,
     }
 
-    return workspace as EditableWorkspace
 }
 
 export function editableToNameValuePair(pair: EditableNameValuePair) {
@@ -160,71 +165,6 @@ export function editableToNameValuePair(pair: EditableNameValuePair) {
         value: pair.value,
         disabled: pair.disabled
     }
-}
-
-/**
- * Translate requests into something we can call the Rust library with
- * @param index 
- * @returns 
- */
-export function prepareRequestsForStorage(index: IndexedNestedRequests<EditableWorkbookRequestEntry>) {
-    const cloned = structuredClone(index)
-    for(const entity of Object.values(cloned.entities)) {
-        const stored = entity as EditableWorkbookRequest
-        delete stored.dirty
-        delete stored.invalid
-        let bodyIsValid = false
-        if (stored.body?.data) {
-            switch (stored.body?.type) {
-                case WorkbookBodyType.Form:
-                    const bodyAsForm = stored.body.data as EditableNameValuePair[]
-                    bodyIsValid = bodyAsForm.length > 0
-                    if (bodyIsValid) {
-                        stored.body = {
-                            type: WorkbookBodyType.Form,
-                            data: bodyAsForm.map(editableToNameValuePair)
-                        }
-                    }
-                    break
-                case WorkbookBodyType.JSON:
-                    if (typeof stored.body.data === 'string') {
-                        try {
-                            stored.body.data = JSON.parse(stored.body.data)
-                            bodyIsValid = true
-                        } catch(e) {
-                            throw new Error(`Invalid JSON data - ${(e as Error).message}`)
-                        }
-                    }
-                    break
-                default:
-                    const bodyAsText = stored.body.data as string
-                    bodyIsValid = bodyAsText.length > 0
-                    if (bodyIsValid) {
-                        stored.body = {
-                            type: stored.body.type,
-                            data: bodyAsText
-                        }
-                    }
-                    break
-            }
-        }
-        if (!bodyIsValid) {
-            delete stored.body
-        }
-
-        if ((stored.headers?.length ?? 0) === 0) {
-            delete stored.headers
-        } else {
-            stored.headers?.forEach(h => delete (h as unknown as any).id)
-        }
-        if ((stored.queryStringParams?.length ?? 0) === 0) {
-            delete stored.queryStringParams
-        } else {
-            stored.queryStringParams?.forEach(p => delete (p as unknown as any).id)
-        }
-    }
-    console.log('submitting', cloned)
-    return cloned
 }
 
 /**
@@ -241,40 +181,31 @@ export function prepareRequestsForStorage(index: IndexedNestedRequests<EditableW
  * @returns 
  */
 export function editableWorkspaceToStoredWorkspace(
-    requests: IndexedEntities<EditableWorkbookRequestEntry>,
+    requests: IndexedNestedRequests<EditableWorkbookRequestEntry>,
     scenarios: IndexedEntities<EditableWorkbookScenario>,
-    authorizations: IndexedEntities<EditableWorkbookAuthorization>,
-    certificates: IndexedEntities<EditableWorkbookCertificate>,
+    authorizations: IndexedEntities<EditableWorkbookAuthorizationEntry>,
+    certificates: IndexedEntities<EditableWorkbookCertificateEntry>,
     proxies: IndexedEntities<EditableWorkbookProxy>,
     selectedScenario: Selection,
     selectedAuthorization: Selection,
     selectedCertificate: Selection,
     selectedProxy: Selection,
 ): Workspace {
+    const requestEntities = new Map<string, WorkbookRequestEntry>()
+    for(const [id, request] of requests.entities) {
+        requestEntities.set(id, request.toWorkspace())
+    }
     const result = {
         version: 1.0,
-        requests: prepareRequestsForStorage(requests),
-        scenarios: stateIndexToStorage<WorkbookScenario, EditableWorkbookScenario>(scenarios),
-        authorizations: stateIndexToStorage<WorkbookAuthorization, EditableWorkbookAuthorization>(authorizations),
-        certificates: stateIndexToStorage<WorkbookCertificate, EditableWorkbookCertificate>(certificates, (c) => {
-            const c1 = c as any
-            switch (c.type) {
-                case WorkbookCertificateType.PKCS12:
-                    delete c1['pem']
-                    delete c1['key']
-                    break
-                case WorkbookCertificateType.PKCS8_PEM:
-                    delete c1['pfx']
-                    delete c1['password']
-                    break
-                case WorkbookCertificateType.PEM:
-                    delete c1['pfx']
-                    delete c1['key']
-                    delete c1['password']
-                    break
-                }
-        }),
-        proxies: stateIndexToStorage<WorkbookProxy, EditableWorkbookProxy>(proxies),
+        requests: {
+            topLevelIds: toJS(requests.topLevelIds),
+            entities: requestEntities,
+            childIds: toJS(requests.childIds)
+        },
+        scenarios: editableIndexToStoredWorkspace<WorkbookScenario>(scenarios),
+        authorizations: editableIndexToStoredWorkspace<WorkbookAuthorization>(authorizations),
+        certificates: editableIndexToStoredWorkspace<WorkbookCertificate>(certificates),
+        proxies: editableIndexToStoredWorkspace<WorkbookProxy>(proxies),
         selectedScenario: (selectedScenario === DEFAULT_SELECTION) ? undefined : selectedScenario,
         selectedAuthorization: (selectedAuthorization === DEFAULT_SELECTION) ? undefined : selectedAuthorization,
         selectedCertificate: (selectedCertificate === DEFAULT_SELECTION) ? undefined : selectedCertificate,

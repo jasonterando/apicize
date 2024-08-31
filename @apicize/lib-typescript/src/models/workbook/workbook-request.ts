@@ -1,14 +1,11 @@
 import { Identifiable } from '../identifiable';
 import { Named } from '../named';
-
 import {
     ReferrerPolicy,
     RequestDuplex,
     RequestMode,
     RequestRedirect
 } from 'undici-types'
-import { WorkbookAuthorization } from './workbook-authorization';
-import { Selection } from '../selection';
 import { Executable } from '../executable';
 
 /**
@@ -51,14 +48,20 @@ export enum WorkbookBodyType {
 
 export type WorkbookBodyData = string | WorkbookNameValuePair[]
 
-export const WorkbookBodyTypes = [WorkbookBodyType.None, WorkbookBodyType.Text, WorkbookBodyType.JSON, WorkbookBodyType.XML, WorkbookBodyType.Form, WorkbookBodyType.Raw]
+export const WorkbookBodyTypes = [WorkbookBodyType.None, WorkbookBodyType.Text, WorkbookBodyType.JSON,
+    WorkbookBodyType.XML, WorkbookBodyType.Form, WorkbookBodyType.Raw]
 
 export interface WorkbookBody {
     type?: WorkbookBodyType
     data?: WorkbookBodyData
 }
 
+export enum WorkbookRequestType { Request = 'Request', Group = 'Group' }
+
+export type WorkbookRequestEntry = WorkbookRequest | WorkbookRequestGroup
+
 export interface WorkbookRequest extends Identifiable, Named, Executable {
+    type: WorkbookRequestType.Request
     url: string
     method?: WorkbookMethod
     timeout?: number
@@ -73,4 +76,14 @@ export interface WorkbookRequest extends Identifiable, Named, Executable {
     referrerPolicy?: ReferrerPolicy
     duplex?: RequestDuplex
     test?: string
+}
+
+export enum WorkbookGroupExecution {
+    Sequential = "SEQUENTIAL",
+    Concurrent= "CONCURRENT",
+}
+
+export interface WorkbookRequestGroup extends Identifiable, Named, Executable {
+    type: WorkbookRequestType.Group
+    execution: WorkbookGroupExecution
 }

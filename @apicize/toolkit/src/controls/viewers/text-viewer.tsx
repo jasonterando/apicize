@@ -41,7 +41,7 @@ export function TextViewer(props: { text?: string, extension?: string }) {
         if (props.extension === 'txt') {
             render = render.substring(0, MAX_TEXT_RENDER_LENGTH) + '[...]'
         } else {
-            return (<Typography variant='h3' style={{ marginTop: 0 }}>Sorry, the text length exceeds that which can be rendered</Typography>)
+            return (<Typography variant='h3' style={{ marginTop: 0 }} component='div'>Sorry, the text length exceeds that which can be rendered</Typography>)
         }
     }
 

@@ -4,76 +4,104 @@ import CheckIcon from '@mui/icons-material/Check';
 import BlockIcon from '@mui/icons-material/Block';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { useExecution, WorkbookExecutionResultSummary } from "../../../contexts/execution-context";
-import { useWorkspace } from "../../../contexts/workspace-context";
+import { useExecution, useWorkspace } from "../../../contexts/root.context";
+import { WorkbookExecutionGroupSummary, WorkbookExecutionResult } from "../../../models/workbook/workbook-execution";
+import { observer } from "mobx-react-lite";
+import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
+import { WorkbookRequestEntry, WorkbookRequestType } from "@apicize/lib-typescript";
+import { EditableWorkbookRequestEntry } from "../../../models/workbook/editable-workbook-request-entry";
 
-const ResultSummary = (props: { info: WorkbookExecutionResultSummary }) => {
-    const workspaceCtx = useWorkspace()
+const ResultSummary = (props: { summary: WorkbookExecutionGroupSummary, triggerCopyTextToClipboard: (text?: string) => void }) => {
     let idx = 0
-    let info = []
-    if (props.info.status) {
-        info.push(`${props.info.status} ${props.info.statusText}`)
+    let title = `Group Execution ${props.summary.allTestsSucceeded ? "Completed" : "Failed"}`
+    if (props.summary.milliseconds) {
+        title += ` (${props.summary.milliseconds} ms)`
     }
-    if (props.info.milliseconds && props.info.milliseconds > 0) {
-        info.push(`${props.info.milliseconds.toLocaleString()} ms`)
-    }
-    return (<Box key={`test-summary-${idx++}`} sx={{marginBottom: '1rem'}}>
-        <Typography sx={{ marginTop: 0, paddingTop: 0, color: '#80000' }}>
-            {workspaceCtx.request.getRequest(props.info.requestId)?.name ?? '(Invalid Request ID)'} 
-            <>
-                {info.length === 0 ? '' : ` (${info.join(', ')})`}
-            </>
-        </Typography>
-        {((props.info.errorMessage?.length ?? 0) == 0)
-                ? (<></>)
-                : (<TestInfo isError={true} text={`${props.info.errorMessage}`} />)}
-        {
-        props.info.tests
-            ? (
-                <Box sx={{marginTop: '1rem'}}>
-                    {
-                    props.info.tests.map(test => (<TestResult 
-                        key={`test-${idx++}`} 
-                        name={test.testName} 
-                        success={test.success} 
-                        error={test.error} 
-                        logs={undefined} />))
-                    }
-                </Box>
-            )
-            : (<></>)
-        }
-    </Box>)
+    return (
+        <Stack direction='column' sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>
+            <Typography variant='h2' sx={{ marginTop: 0 }} component='div'>
+                {title}
+                <IconButton
+                    aria-label="Copy Group Results to Clipboard"
+                    title="Copy Group Results to Clipboard"
+                    sx={{ marginLeft: '16px' }}
+                    onClick={_ => props.triggerCopyTextToClipboard(JSON.stringify(props.summary))}>
+                    <ContentCopyIcon />
+                </IconButton>
+            </Typography>
+
+            <Box key={`test-summary-${idx++}`}>
+                {
+                    props.summary.requests?.map(request => {
+                        const subtitleParts: string[] = []
+                        if (request.status) {
+                            subtitleParts.push(`${request.status} ${request.statusText}`)
+                        }
+                        subtitleParts.push(`${request.milliseconds.toLocaleString()} ms`)
+                        const title = `${request.requestName} (${subtitleParts.join(', ')})`
+                        return (
+                            <Box>
+                                <Typography sx={{ marginTop: '0.5rem', marginBottom: '0.25rem', paddingTop: 0, color: '#80000' }} component='div'>
+                                    {title}
+                                </Typography>
+                                {
+                                    request.errorMessage
+                                        ? (<TestInfo isError={true} text={`${request.errorMessage}`} />)
+                                        : null
+                                }
+                                {
+                                    request.tests
+                                        ? (
+                                            <Box>
+                                                {
+                                                    request.tests.map(test => (<TestResult
+                                                        key={`test-${idx++}`}
+                                                        name={test.testName}
+                                                        success={test.success}
+                                                        error={test.error}
+                                                        logs={undefined} />))
+                                                }
+                                            </Box>
+                                        )
+                                        : null
+                                }
+                            </Box>
+                        )
+                    })
+                }
+            </Box>
+        </Stack>
+    )
 }
 
-const ResultDetail = (props: { info: WorkbookExecutionResultSummary }) => {
+const ResultDetail = (props: { result: WorkbookExecutionResult }) => {
     let idx = 0
-    const executedAt = props.info.executedAt > 0 ? `${props.info.executedAt.toLocaleString()}` : '(Start)'
-    return (<Box sx={{marginBottom: '2rem' }}>
+    const executedAt = props.result.executedAt > 0 ? `${props.result.executedAt.toLocaleString()}` : '(Start)'
+    return (<Box sx={{ marginBottom: '2rem' }}>
         <Box sx={{ marginBottom: '1rem' }}>
-            {((props.info.errorMessage?.length ?? 0) == 0)
+            {((props.result.errorMessage?.length ?? 0) == 0)
                 ? (<></>)
-                : (<TestInfo isError={true} text={`${props.info.errorMessage}`} />)}
-            {props.info.status === undefined
-                ? (<></>)
-                : (<TestInfo text={`Status: ${props.info.status} ${props.info.statusText}`} />)}
+                : (<TestInfo isError={true} text={`${props.result.errorMessage}`} />)}
+            {props.result.response
+                ? (<TestInfo text={`Status: ${props.result.response.status} ${props.result.response.statusText}`} />)
+                : (<></>)}
             <TestInfo text={`Executed At: ${executedAt}`} />
-            {(props.info.milliseconds && props.info.milliseconds > 0)
-                ? (<TestInfo text={`Duration: ${props.info.milliseconds.toLocaleString()} ms`} />)
+            {(props.result.milliseconds && props.result.milliseconds > 0)
+                ? (<TestInfo text={`Duration: ${props.result.milliseconds.toLocaleString()} ms`} />)
                 : (<></>)}
             {/* {props.tokenCached
                 ? (<TestInfo text='OAuth bearer token retrieved from cache' />)
                 : (<></>)} */}
         </Box>
         {
-        props.info.tests
-            ? (props.info.tests.map(test => (<TestResult 
-                key={`test-${idx++}`} 
-                name={test.testName} 
-                success={test.success} 
-                error={test.error} 
-                logs={test.logs} />)))
-            : (<></>)
+            props.result.tests
+                ? (props.result.tests.map(test => (<TestResult
+                    key={`test-${idx++}`}
+                    name={test.testName}
+                    success={test.success}
+                    error={test.error}
+                    logs={test.logs} />)))
+                : (<></>)
         }
     </Box>)
 }
@@ -85,7 +113,7 @@ const TestInfo = (props: { isError?: boolean, text: string }) =>
             <Box sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, color: '#80000' }}>
                 {
                     props.isError === true
-                        ? (<Box color='#FF0000' sx={{ ":first-letter": { textTransform: 'capitalize'}, whiteSpace: 'pre-wrap' }}>{props.text}</Box>)
+                        ? (<Box color='#FF0000' sx={{ ":first-letter": { textTransform: 'capitalize' }, whiteSpace: 'pre-wrap' }}>{props.text}</Box>)
                         : (<>{props.text}</>)
                 }
             </Box>
@@ -100,11 +128,11 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
             {props.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
         </Box>
         <Stack direction='column'>
-            <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }}>
+            <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }} component='div'>
                 {props.name.join(' ')}
             </Typography>
-            {(props.error?.length ?? 0) > 0 ? (<Typography 
-                sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, ":first-letter": { textTransform: 'capitalize'} }} color='error'>{props.error}</Typography>) : (<></>)}
+            {(props.error?.length ?? 0) > 0 ? (<Typography
+                sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0, ":first-letter": { textTransform: 'capitalize' } }} color='error'>{props.error}</Typography>) : (<></>)}
             {(props.logs?.length ?? 0) > 0 ? (
                 <Box sx={{ overflow: 'auto', marginTop: '0.25rem', marginBottom: 0 }}>
                     <pre style={{ paddingTop: 0, marginTop: 0, whiteSpace: 'pre-line' }}>{props.logs?.join('\n')}</pre>
@@ -114,69 +142,53 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
     </Stack>
 )
 
-export function ResultInfoViewer(props: {
-    requestOrGroupId: string,
-    resultIndex: number,
-    runIndex: number,
+export const ResultInfoViewer = (props: {
+    requestOrGroupId: string, runIndex: number, resultIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void
-}) {
-    const execution = useExecution()
-    const info = execution.getExecutionInfo(props.requestOrGroupId)
-    const summary = execution.getExecutionSummary(props.requestOrGroupId, props.runIndex, props.resultIndex)
-    const milliseconds = info?.milliseconds
-    
+}) => {
+    const workspaceCtx = useWorkspace()
+    if (!workspaceCtx.active || workspaceCtx.active.entityType !== EditableEntityType.Request || !workspaceCtx.active.id) {
+        return null
+    }
+
+    const request = workspaceCtx.active as EditableWorkbookRequestEntry
+
+
+    const executionCtx = useExecution()
+
     const copyToClipboard = (data: any) => {
         const text = beautify.js_beautify(JSON.stringify(data), {})
         props.triggerCopyTextToClipboard(text)
     }
 
-    if (Array.isArray(summary)) {
-        // let cached = executionResult.response?.authTokenCached === true
-        const allSucceeded = summary.reduce((a, r) => a && r.success, true)
-        let idx = 0
-        let title = `Group Execution ${allSucceeded ? "Completed" : "Failed"}`
-        if (milliseconds) {
-            title += ` (${milliseconds} ms)`
-        }
-        
+    if (request.type === WorkbookRequestType.Group && props.resultIndex === -1) {
+        const summary = executionCtx.getExecutionGroupSummary(props.requestOrGroupId, props.runIndex)
+        if (!summary) return null
         return (
-            <Stack direction='column' sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex'}}>
-                <Typography variant='h2' sx={{ marginTop: 0 }}>
-                    {title}
-                    <IconButton
-                        aria-label="Copy Group Results to Clipboard"
-                        title="Copy Group Results to Clipboard"
-                        sx={{ marginLeft: '16px' }}
-                        onClick={_ => copyToClipboard(summary)}>
-                        <ContentCopyIcon />
-                    </IconButton>
-                </Typography>
-                {
-                    summary.map(request => (
-                        <Box key={`test-grp-${idx++}`}>
-                            <ResultSummary info={request} />
-                        </Box>
-                    ))
-                }
-            </Stack>
+            <ResultSummary summary={summary} triggerCopyTextToClipboard={copyToClipboard} />
         )
-    } else if (summary) {
+    }
+
+    const result = executionCtx.getExecutionResult(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    if (!result) return null
+
+    if (result) {
         return (
-            <Box sx={{position: 'relative', overflow: 'auto', boxSizing: 'border-box', width: '100%', height: '100%'}}>
-                <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }}>
-                    Request Execution {summary.success ? "Completed" : "Failed"}
+            <Box sx={{ position: 'relative', overflow: 'auto', boxSizing: 'border-box', width: '100%', height: '100%' }}>
+                <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>
+                    Request Execution {result.success ? "Completed" : "Failed"}
                     <IconButton
                         aria-label="Copy Results to Clipboard"
                         title="Copy Results to Clipboard"
                         sx={{ marginLeft: '1rem' }}
-                        onClick={_ => copyToClipboard(summary)}>
+                        onClick={_ => copyToClipboard(result)}>
                         <ContentCopyIcon />
                     </IconButton>
                 </Typography>
-                <ResultDetail info={summary} />
+                <ResultDetail result={result} />
             </Box >
         )
     } else {
-        return <></>
+        return null
     }
 }

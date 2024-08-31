@@ -1,5 +1,4 @@
-import { EditableWorkbookRequest } from "./editable-workbook-request"
-import { EditableWorkbookRequestGroup } from "./editable-workbook-request-group"
+import { EditableWorkbookRequest, EditableWorkbookRequestGroup } from "./editable-workbook-request"
 
 export type EditableWorkbookRequestEntry = EditableWorkbookRequest | EditableWorkbookRequestGroup
 

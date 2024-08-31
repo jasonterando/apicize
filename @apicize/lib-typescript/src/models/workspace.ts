@@ -5,7 +5,7 @@ import { WorkbookCertificate } from './workbook/workbook-certificate'
 import { Selection } from './selection'
 import { IndexedEntities } from './indexed-entities'
 import { IndexedNestedRequests } from './indexed-nested-entities'
-import { WorkbookRequestEntry } from './workbook/workbook-request-entry'
+import { WorkbookRequestEntry } from './workbook/workbook-request'
 
 /**
  * A workspace is an indexed view of an Apicize workbook,

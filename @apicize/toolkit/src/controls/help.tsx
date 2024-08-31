@@ -26,30 +26,75 @@ import { OverridableStringUnion } from '@mui/types'
 import { unified } from 'unified';
 import remarkDirective from 'remark-directive';
 import { ExtraProps } from 'hast-util-to-jsx-runtime';
-import { useWindow } from '../contexts/window-context';
-import { useHelp } from '../contexts/help-context';
+import { useWindow, useWorkspace } from '../contexts/root.context';
+import { observer } from 'mobx-react-lite';
+import { reaction } from 'mobx';
+import { autoAction, autorun, when } from 'mobx/dist/internal';
 
 // Register `hName`, `hProperties` types, used when turning markdown to HTML:
 /// <reference types="mdast-util-to-hast" />
 // Register directive nodes in mdast:
 /// <reference types="mdast-util-directive" />
 
-export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: () => void }) {
+export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: string) => Promise<string> }) => {
+    const workspaceCtx = useWorkspace()
     const windowCtx = useWindow()
-    const helpCtx = useHelp()
 
     let name = windowCtx.appName
     let version = windowCtx.appVersion
-    
-    
-    let helpText = helpCtx.helpText
-    let helpTopic = helpCtx.helpTopic
-    let helpHistory = helpCtx.helpTopicHistory
 
+    let [lastTopic, setLastTopic] = useState('')
     let [content, setContent] = useState(createElement(Fragment))
+    // let [showHome, setShowHome] = useState(false)
+    // let [showBack, setShowBack] = useState(false)
 
-    let showBack = helpHistory.length > 1;
-    let showHome = helpTopic !== 'home';
+    let showHome = false
+    let showBack = false
+
+    reaction(
+        () => ({ topic: workspaceCtx.helpTopic, visible: workspaceCtx.helpVisible }),
+        async ({ visible, topic }) => {
+            if (!visible) return
+
+            showHome = topic !== 'home'
+            showBack = workspaceCtx.helpHistory.length > 1
+
+            if (topic === lastTopic) return
+
+            const helpText = await onRenderTopic(topic ?? 'home')
+            if (helpText.length > 0) {
+                const r = await unified()
+                    .use(remarkParse)
+                    .use(remarkDirective)
+                    .use(remarkApicizeDirectives)
+                    .use(remarkRehype)
+                    // @ts-expect-error
+                    .use(rehypeReact, {
+                        Fragment,
+                        jsx,
+                        jsxs,
+                        passNode: true,
+                        components: {
+                            logo,
+                            icon: rehypeTransformIcon,
+                            toolbar: rehypeTransformToolbar,
+                            h1: rehypeTransformHeader,
+                            h2: rehypeTransformHeader,
+                            h3: rehypeTransformHeader,
+                            h4: rehypeTransformHeader,
+                            h5: rehypeTransformHeader,
+                            h6: rehypeTransformHeader,
+                            a: rehypeTranformAnchor,
+                            p: rehypeTransformParagraph,
+                        }
+                    })
+                    .process(helpText)
+                setContent(r.result)
+                setLastTopic(topic)
+            }
+        }
+    )
+
 
     function remarkApicizeDirectives() {
         const handleLogo = (node: LeafDirective) => {
@@ -138,7 +183,7 @@ export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: 
         if (id) {
             id = id.trim().toLowerCase().replace(/[^\s\w]/g, '').replace(/\s/g, '-')
             const name = (attrs.node as Element).tagName as OverridableStringUnion<Variant | 'inherit', TypographyPropsVariantOverrides>
-            return <Typography id={id} variant={name} {...attrs} />
+            return <Typography id={id} component='div' variant={name} {...attrs} />
         } else {
             return <></>
         }
@@ -176,7 +221,7 @@ export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: 
             if (attrs.href.startsWith('help:')) {
                 const topic = attrs.href.substring(5)
                 attrs = { ...attrs, href: '#' }
-                return <Link {...attrs} onClick={() => props.showHelp(topic)} />
+                return <Link {...attrs} onClick={() => workspaceCtx.showHelp(topic)} />
             }
             else if (attrs.href.startsWith('icon:')) {
                 return <DisplaySettingsIcon />
@@ -186,7 +231,7 @@ export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: 
     }
 
     const rehypeTransformParagraph = (attrs: ExtraProps): React.ReactNode => {
-        return <Typography variant='body1' {...attrs} />
+        return <Typography component='div' variant='body1' {...attrs} />
     }
 
     const rehypeTransformToolbar = (attrs: ExtraProps): React.ReactNode => {
@@ -194,56 +239,26 @@ export function HelpPanel(props: { showHelp: (topic: string) => void, hideHelp: 
             <Box className='help-toolbar'>
                 {
                     showHome
-                        ? <IconButton color='primary' size='medium' aria-label='Home' title='Home' onClick={() => props.showHelp('home')}><HomeIcon fontSize='inherit' /></IconButton>
+                        ? <IconButton color='primary' size='medium' aria-label='Home' title='Home' onClick={() => workspaceCtx.showHelp('home')}><HomeIcon fontSize='inherit' /></IconButton>
                         : <></>
                 }
                 {
                     showBack
-                        ? <IconButton color='primary' size='medium' aria-label='Back' title='Back' onClick={() => props.showHelp('\nback')}><ArrowBackIcon fontSize='inherit' /></IconButton>
+                        ? <IconButton color='primary' size='medium' aria-label='Back' title='Back' onClick={() => workspaceCtx.backHelp()}><ArrowBackIcon fontSize='inherit' /></IconButton>
                         : <></>
                 }
-                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => props.hideHelp()}><CloseIcon fontSize='inherit' /></IconButton>
+                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspaceCtx.hideHelp()}><CloseIcon fontSize='inherit' /></IconButton>
             </Box>
         )
     }
 
-    useEffect(() => {
-        (async () => {
-            if (helpText.length > 0) {
-                const r = await unified()
-                    .use(remarkParse)
-                    .use(remarkDirective)
-                    .use(remarkApicizeDirectives)
-                    .use(remarkRehype)
-                    // @ts-expect-error
-                    .use(rehypeReact, {
-                        Fragment,
-                        jsx,
-                        jsxs,
-                        passNode: true,
-                        components: {
-                            logo,
-                            icon: rehypeTransformIcon,
-                            toolbar: rehypeTransformToolbar,
-                            h1: rehypeTransformHeader,
-                            h2: rehypeTransformHeader,
-                            h3: rehypeTransformHeader,
-                            h4: rehypeTransformHeader,
-                            h5: rehypeTransformHeader,
-                            h6: rehypeTransformHeader,
-                            a: rehypeTranformAnchor,
-                            p: rehypeTransformParagraph,
-                        }
-                    })
-                    .process(helpText)
-                setContent(r.result)
-            }
-        })()
-    }, [helpText])
-
-    return <Box className='help'>
-        <Box className='help-text'>
-            {content}
+    if (workspaceCtx.helpVisible) {
+        return <Box className='help'>
+            <Box className='help-text'>
+                {content}
+            </Box>
         </Box>
-    </Box>
-}
+    } else {
+        return null
+    }
+})

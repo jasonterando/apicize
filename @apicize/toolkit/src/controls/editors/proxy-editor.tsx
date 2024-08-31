@@ -2,16 +2,20 @@ import { Stack, TextField, Grid, SxProps } from '@mui/material'
 import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
 import { EditorTitle } from '../editor-title';
 import { PersistenceEditor } from './persistence-editor';
-import { useProxyEditor } from '../../contexts/editors/proxy-editor-context';
+import { useWorkspace } from '../../contexts/root.context';
+import { observer } from 'mobx-react-lite';
+import { EditableEntityType } from '../../models/workbook/editable-entity-type';
+import { EditableWorkbookProxy } from '../../models/workbook/editable-workbook-proxy';
 
-export function ProxyEditor(props: {
-    sx: SxProps,
-}) {
-    const proxyCtx = useProxyEditor()
-
+export const ProxyEditor = observer((props: {
+    sx: SxProps
+}) => {
+    const workspace = useWorkspace()
+    if (workspace.active?.entityType !== EditableEntityType.Proxy || workspace.helpVisible) return null
+    const proxy = workspace.active as EditableWorkbookProxy
     return (
         <Stack direction={'column'} className='editor-panel-no-toolbar' sx={props.sx}>
-            <EditorTitle icon={<AirlineStopsIcon />} name={proxyCtx.name.length > 0 ? proxyCtx.name : '(Unnamed)'} />
+            <EditorTitle icon={<AirlineStopsIcon />} name={proxy.name.length > 0 ? proxy.name : '(Unnamed)'} />
             <Grid container direction={'column'} spacing={3} maxWidth={1000}>
                 <Grid item>
                     <TextField
@@ -19,13 +23,13 @@ export function ProxyEditor(props: {
                         label='Name'
                         aria-label='name'
                         // size='small'
-                        value={proxyCtx.name}
-                        onChange={e => proxyCtx.changeName(e.target.value)}
+                        value={proxy.name}
+                        onChange={e => workspace.setProxyName(e.target.value)}
                         fullWidth
                     />
                 </Grid>
                 <Grid item>
-                    <PersistenceEditor onUpdatePersistence={proxyCtx.changePersistence} persistence={proxyCtx.persistence} />
+                    <PersistenceEditor onUpdatePersistence={workspace.setProxyPersistence} persistence={proxy.persistence} />
                 </Grid>
                 <Grid item>
                     <TextField
@@ -33,12 +37,12 @@ export function ProxyEditor(props: {
                         label='URL'
                         aria-label='url'
                         // size='small'
-                        value={proxyCtx.url}
-                        onChange={e => proxyCtx.changeUrl(e.target.value)}
+                        value={proxy.url}
+                        onChange={e => workspace.setProxyUrl(e.target.value)}
                         fullWidth
                     />
                 </Grid>
             </Grid>
         </Stack >
     )
-}
+})
