@@ -47,6 +47,10 @@ h2 .help-icon {
   vertical-align: middle;
 }
 
+.help-text .MuiTypography-body1 {
+  margin-bottom: 1.0em;
+}
+
 textarea,
 pre {
   /* Make react-simple-code-editor work */

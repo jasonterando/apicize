@@ -4,13 +4,14 @@ import { Stack } from "@mui/system"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
 import { useExecution } from "../../../contexts/root.context";
+import { observer } from "mobx-react-lite";
 
-export function ResultRequestViewer(props: {
+export const ResultRequestViewer = observer((props: {
     requestOrGroupId: string,
     runIndex: number,
     resultIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void
-}) {
+}) => {
     const execution = useExecution()
     const request = execution.getExecutionRequest(props.requestOrGroupId, props.runIndex, props.resultIndex)
     const text = beautify.js_beautify(JSON.stringify(request), {})
@@ -28,4 +29,4 @@ export function ResultRequestViewer(props: {
             <TextViewer text={text} extension='json' />
         </Stack>
     )
-}
+})

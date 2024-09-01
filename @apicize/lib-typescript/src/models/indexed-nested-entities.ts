@@ -31,7 +31,7 @@ export function findParentEntity<T extends Identifiable>(id: string | null, stor
  * Utility to add a request to storage, optionally before the specified ID
  * @param id 
  * @param storage 
- * @param beforeId
+ * @param targetId
  * @param asGroup
  * @returns 
  */
@@ -39,24 +39,22 @@ export function addNestedEntity<T extends Identifiable>(
         entity: T,
         storage: IndexedNestedRequests<T>,
         asGroup: boolean,
-        beforeId?: string | null,
+        targetId?: string | null,
     ) {
     storage.entities.set(entity.id, entity)
-    if (beforeId) {
-        let idx = storage.topLevelIds.indexOf(beforeId)
+    if (targetId) {
+        if (storage.childIds) {
+            const group = storage.childIds.get(targetId)
+            if (group) {
+                group.push(entity.id)
+                return
+            }
+        }
+        
+        let idx = storage.topLevelIds.indexOf(targetId)
         if (idx !== -1) {
             storage.topLevelIds.splice(idx, 0, entity.id)
             return
-        }
-
-        if (storage.childIds) {
-            for(const children of storage.childIds.values()) {
-                let idx = children.indexOf(beforeId)
-                if (idx !== -1) {
-                    children.splice(idx, 0, entity.id)
-                    return
-                }
-            }
         }
     }
     if (asGroup) {

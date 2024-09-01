@@ -1,5 +1,11 @@
 # Change Log
 
+# 0.4.2
+
+* Update open to work with changed Tauri dialog interface
+* Fix request naviagation item insertion/moving
+* Update group summary to scrollable view
+
 # 0.4.1
 
 * Fix run toolbar updating

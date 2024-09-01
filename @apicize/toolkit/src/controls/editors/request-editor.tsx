@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ToggleButtonGroup, ToggleButton, Box, Stack, SxProps } from '@mui/material'
+import { ToggleButtonGroup, ToggleButton, Box, Stack, SxProps, Typography } from '@mui/material'
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
 import FolderIcon from '@mui/icons-material/Folder';
 import ViewListIcon from '@mui/icons-material/ViewList'
@@ -104,6 +104,7 @@ export const RequestEditor = observer((props: {
                 }
             </Stack>
             <RunToolbar triggerRun={props.triggerRun} />
+            {/* <Typography sx={{ marginTop: 0, flexGrow: 0 }} component='div'>ID: {request.id}</Typography> */}
             <ResultsViewer
                 sx={{ paddingTop: '48px', flexGrow: 1 }}
                 triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}

@@ -9,6 +9,7 @@ import "ace-builds/src-noconflict/mode-css"
 import "ace-builds/src-noconflict/mode-text"
 import "ace-builds/src-noconflict/theme-monokai"
 import "ace-builds/src-noconflict/ext-language_tools"
+import { observer } from "mobx-react-lite";
 
 export const MAX_TEXT_RENDER_LENGTH = 64 * 1024 * 1024
 
@@ -30,7 +31,7 @@ const FlexCodeViewer = (props: { text: string, grammar?: Grammar, language?: str
             : (<code>{props.text}</code>)}
     </pre>)
 
-export function TextViewer(props: { text?: string, extension?: string }) {
+export const TextViewer = observer((props: { text?: string, extension?: string }) => {
     const length = props.text?.length ?? 0
     if (!(props.text && length > 0)) {
         return null
@@ -83,4 +84,4 @@ export function TextViewer(props: { text?: string, extension?: string }) {
     //         return (<FlexCodeViewer text={render}  grammar={languages.json} language='json' />)
     //     default:
     //         return (<FlexCodeViewer text={render} />)
-}
+})

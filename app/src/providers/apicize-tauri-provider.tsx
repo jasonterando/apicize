@@ -394,7 +394,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         }
 
         if ((fileName?.length ?? 0) === 0) {
-            const selected = (await dialog.open({
+            fileName = (await dialog.open({
                 multiple: false,
                 title: 'Open Apicize Workbook',
                 defaultPath: settings?.workbookDirectory,
@@ -404,9 +404,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                     extensions: [EXT]
                 }]
             })) as any
-            if (selected) fileName = selected['path']
         }
-
 
         if (!fileName) return
 
@@ -492,8 +490,6 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const doRunRequest = async (runInfo: RunInformation) => {
         try {
             executionCtx.runStart(runInfo.requestId)
-            console.log(`Executing ${runInfo.requestId}`,runInfo.workspace)
-
             let results = await core.invoke<ApicizeExecutionResults>
                 ('run_request', { workspace: runInfo.workspace, requestId: runInfo.requestId } )
             console.log('Run results', results)

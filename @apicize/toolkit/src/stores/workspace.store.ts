@@ -118,6 +118,7 @@ export class WorkspaceStore {
 
     @action
     loadWorkspace(newWorkspace: Workspace) {
+        console.log('Loading workspace....')
         this.workspace = storedWorkspaceToEditableWorkspace(newWorkspace)
         this.requestExecutions.clear()
         this.clearActive()

@@ -50,13 +50,18 @@ export const ResultsViewer = observer((props: {
     const runIndex = requestExecution?.runIndex ?? NaN
     const resultIndex = requestExecution?.resultIndex ?? NaN
 
+    let panel = requestExecution?.panel
+    if (resultIndex === -1 && panel !== 'Info') {
+        panel = 'Info'
+    }
+
     return requestExecution?.runs ? (
         <Stack direction={'row'} sx={props.sx}>
             <ToggleButtonGroup
                 orientation='vertical'
                 exclusive
                 onChange={handlePanelChanged}
-                value={requestExecution.panel}
+                value={panel}
                 sx={{ marginRight: '24px' }}
                 aria-label="text alignment">
                 <ToggleButton value="Info" title="Show Result Info" aria-label='show info' disabled={requestExecution.running}><ScienceIcon color={executionResult?.infoColor ?? groupSummary?.infoColor ?? 'disabled'} /></ToggleButton>
@@ -68,22 +73,22 @@ export const ResultsViewer = observer((props: {
             <Box sx={{ overflow: 'hidden', flexGrow: 1, bottom: '0', position: 'relative' }}>
                 {
                     requestExecution.running ? <RequestRunProgress cancelRequest={props.cancelRequest} /> :
-                        requestExecution.panel === 'Info' ? <ResultInfoViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex}
+                        panel === 'Info' ? <ResultInfoViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex}
                             triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />
-                            : requestExecution.panel === 'Headers' ? <ResponseHeadersViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex} />
-                                : requestExecution.panel === 'Preview' ? <ResultResponsePreview
+                            : panel === 'Headers' ? <ResponseHeadersViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex} />
+                                : panel === 'Preview' ? <ResultResponsePreview
                                     requestOrGroupId={requestOrGroupId}
                                     runIndex={runIndex} resultIndex={resultIndex}
                                     triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
                                     triggerCopyImageToClipboard={props.triggerCopyImageToClipboard}
                                 />
-                                    : requestExecution.panel === 'Text' ? <ResultRawPreview
+                                    : panel === 'Text' ? <ResultRawPreview
                                         requestOrGroupId={requestOrGroupId}
                                         runIndex={runIndex}
                                         resultIndex={resultIndex}
                                         triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
                                     />
-                                        : requestExecution.panel === 'Request' ? <ResultRequestViewer
+                                        : panel === 'Request' ? <ResultRequestViewer
                                             requestOrGroupId={requestOrGroupId}
                                             runIndex={runIndex}
                                             resultIndex={resultIndex}

@@ -8,76 +8,59 @@ import { useExecution, useWorkspace } from "../../../contexts/root.context";
 import { WorkbookExecutionGroupSummary, WorkbookExecutionResult } from "../../../models/workbook/workbook-execution";
 import { observer } from "mobx-react-lite";
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
-import { WorkbookRequestEntry, WorkbookRequestType } from "@apicize/lib-typescript";
+import { WorkbookRequestType } from "@apicize/lib-typescript";
 import { EditableWorkbookRequestEntry } from "../../../models/workbook/editable-workbook-request-entry";
 
-const ResultSummary = (props: { summary: WorkbookExecutionGroupSummary, triggerCopyTextToClipboard: (text?: string) => void }) => {
+const ResultSummary = (props: { sx: SxProps, summary: WorkbookExecutionGroupSummary }) => {
     let idx = 0
-    let title = `Group Execution ${props.summary.allTestsSucceeded ? "Completed" : "Failed"}`
-    if (props.summary.milliseconds) {
-        title += ` (${props.summary.milliseconds} ms)`
-    }
     return (
-        <Stack direction='column' sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>
-            <Typography variant='h2' sx={{ marginTop: 0 }} component='div'>
-                {title}
-                <IconButton
-                    aria-label="Copy Group Results to Clipboard"
-                    title="Copy Group Results to Clipboard"
-                    sx={{ marginLeft: '16px' }}
-                    onClick={_ => props.triggerCopyTextToClipboard(JSON.stringify(props.summary))}>
-                    <ContentCopyIcon />
-                </IconButton>
-            </Typography>
-
-            <Box key={`test-summary-${idx++}`}>
-                {
-                    props.summary.requests?.map(request => {
-                        const subtitleParts: string[] = []
-                        if (request.status) {
-                            subtitleParts.push(`${request.status} ${request.statusText}`)
-                        }
-                        subtitleParts.push(`${request.milliseconds.toLocaleString()} ms`)
-                        const title = `${request.requestName} (${subtitleParts.join(', ')})`
-                        return (
-                            <Box>
-                                <Typography sx={{ marginTop: '0.5rem', marginBottom: '0.25rem', paddingTop: 0, color: '#80000' }} component='div'>
-                                    {title}
-                                </Typography>
-                                {
-                                    request.errorMessage
-                                        ? (<TestInfo isError={true} text={`${request.errorMessage}`} />)
-                                        : null
-                                }
-                                {
-                                    request.tests
-                                        ? (
-                                            <Box>
-                                                {
-                                                    request.tests.map(test => (<TestResult
-                                                        key={`test-${idx++}`}
-                                                        name={test.testName}
-                                                        success={test.success}
-                                                        error={test.error}
-                                                        logs={undefined} />))
-                                                }
-                                            </Box>
-                                        )
-                                        : null
-                                }
-                            </Box>
-                        )
-                    })
-                }
-            </Box>
-        </Stack>
+        <Box key={`test-summary-${idx++}`} sx={props.sx}>
+            {
+                props.summary.requests?.map(request => {
+                    const subtitleParts: string[] = []
+                    if (request.status) {
+                        subtitleParts.push(`${request.status} ${request.statusText}`)
+                    }
+                    subtitleParts.push(`${request.milliseconds.toLocaleString()} ms`)
+                    const title = `${request.requestName} (${subtitleParts.join(', ')})`
+                    return (
+                        <Box key={`test-summary-${idx++}`}>
+                            <Typography sx={{ marginTop: '0.5rem', marginBottom: '0.25rem', paddingTop: 0, color: '#80000' }} component='div'>
+                                {title}
+                            </Typography>
+                            {
+                                request.errorMessage
+                                    ? (<TestInfo isError={true} text={`${request.errorMessage}`} />)
+                                    : null
+                            }
+                            {
+                                request.tests
+                                    ? (
+                                        <Box>
+                                            {
+                                                request.tests.map(test => (<TestResult
+                                                    key={`test-${idx++}`}
+                                                    name={test.testName}
+                                                    success={test.success}
+                                                    error={test.error}
+                                                    logs={undefined} />))
+                                            }
+                                        </Box>
+                                    )
+                                    : null
+                            }
+                        </Box>
+                    )
+                })
+            }
+        </Box>
     )
 }
 
-const ResultDetail = (props: { result: WorkbookExecutionResult }) => {
+const ResultDetail = (props: { result: WorkbookExecutionResult, sx: SxProps }) => {
     let idx = 0
     const executedAt = props.result.executedAt > 0 ? `${props.result.executedAt.toLocaleString()}` : '(Start)'
-    return (<Box sx={{ marginBottom: '2rem' }}>
+    return (<Box sx={props.sx}>
         <Box sx={{ marginBottom: '1rem' }}>
             {((props.result.errorMessage?.length ?? 0) == 0)
                 ? (<></>)
@@ -142,7 +125,7 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
     </Stack>
 )
 
-export const ResultInfoViewer = (props: {
+export const ResultInfoViewer = observer((props: {
     requestOrGroupId: string, runIndex: number, resultIndex: number,
     triggerCopyTextToClipboard: (text?: string) => void
 }) => {
@@ -152,8 +135,6 @@ export const ResultInfoViewer = (props: {
     }
 
     const request = workspaceCtx.active as EditableWorkbookRequestEntry
-
-
     const executionCtx = useExecution()
 
     const copyToClipboard = (data: any) => {
@@ -161,34 +142,49 @@ export const ResultInfoViewer = (props: {
         props.triggerCopyTextToClipboard(text)
     }
 
-    if (request.type === WorkbookRequestType.Group && props.resultIndex === -1) {
-        const summary = executionCtx.getExecutionGroupSummary(props.requestOrGroupId, props.runIndex)
-        if (!summary) return null
-        return (
-            <ResultSummary summary={summary} triggerCopyTextToClipboard={copyToClipboard} />
-        )
+    let summary: WorkbookExecutionGroupSummary | undefined
+    let result: WorkbookExecutionResult | undefined
+    let title: string | null = null
+
+    if ((request.type === WorkbookRequestType.Group && props.resultIndex === -1)) {
+        summary = executionCtx.getExecutionGroupSummary(props.requestOrGroupId, props.runIndex)
+        if (summary) {
+            title = `Group Execution ${summary.allTestsSucceeded ? "Completed" : "Failed"}`
+            if (summary.milliseconds) {
+                title += ` (${summary.milliseconds} ms)`
+            }
+        }
+        result = undefined
+    } else {
+        result = executionCtx.getExecutionResult(props.requestOrGroupId, props.runIndex, props.resultIndex)
+        if (result) {
+            title = `Request Execution ${result.success ? "Completed" : "Failed"}`
+        }
     }
 
-    const result = executionCtx.getExecutionResult(props.requestOrGroupId, props.runIndex, props.resultIndex)
-    if (!result) return null
-
-    if (result) {
-        return (
-            <Box sx={{ position: 'relative', overflow: 'auto', boxSizing: 'border-box', width: '100%', height: '100%' }}>
-                <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>
-                    Request Execution {result.success ? "Completed" : "Failed"}
-                    <IconButton
-                        aria-label="Copy Results to Clipboard"
-                        title="Copy Results to Clipboard"
-                        sx={{ marginLeft: '1rem' }}
-                        onClick={_ => copyToClipboard(result)}>
-                        <ContentCopyIcon />
-                    </IconButton>
-                </Typography>
-                <ResultDetail result={result} />
-            </Box >
-        )
-    } else {
+    if (!title || (!(result || summary))) {
         return null
     }
-}
+
+    return (
+        <Stack sx={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '100%', overflow: 'hidden', display: 'flex' }}>
+            <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>
+                {title}
+                <IconButton
+                    aria-label="Copy Results to Clipboard"
+                    title="Copy Results to Clipboard"
+                    sx={{ marginLeft: '1rem' }}
+                    onClick={_ => copyToClipboard(result ?? summary)}>
+                    <ContentCopyIcon />
+                </IconButton>
+            </Typography>
+            {(
+                result ? <ResultDetail result={result} sx={{ overflow: 'auto', bottom: 0, position: 'relative' }}  /> : null
+            )}
+            {(
+                summary ? <ResultSummary summary={summary} sx={{ overflow: 'auto', bottom: 0, position: 'relative' }} /> : null
+            )}
+
+        </Stack >
+    )
+})
