@@ -53,7 +53,7 @@ export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: s
 
     reaction(
         () => ({ topic: workspaceCtx.helpTopic, visible: workspaceCtx.helpVisible }),
-        async ({ visible, topic }) => {
+        async ({ topic, visible }) => {
             if (!visible) return
 
             showHome = topic !== 'home'

@@ -20,8 +20,6 @@ import { EditableEntityType } from '../../models/workbook/editable-entity-type';
 
 export const ResultsViewer = observer((props: {
     sx: SxProps<Theme>,
-    requestOrGroupId: string,
-    isGroup: boolean,
     triggerCopyTextToClipboard: (text?: string) => void,
     triggerCopyImageToClipboard: (base64?: string) => void,
     cancelRequest: (id: string) => void
@@ -29,9 +27,10 @@ export const ResultsViewer = observer((props: {
     const workspaceCtx = useWorkspace()
     const executionCtx = useExecution()
 
-    if (workspaceCtx.active?.entityType !== EditableEntityType.Request) {
+    if ((! workspaceCtx.active) || (workspaceCtx.active.entityType !== EditableEntityType.Request)) {
         return null
     }
+    const requestOrGroupId = workspaceCtx.active.id
 
     const requestExecution = executionCtx.requestExecutions.get(workspaceCtx.active.id)
     const executionResult = executionCtx.getExecutionResult(workspaceCtx.active.id,
@@ -41,7 +40,7 @@ export const ResultsViewer = observer((props: {
     
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: string) => {
         if (newValue) {
-            executionCtx.changePanel(props.requestOrGroupId, newValue)
+            executionCtx.changePanel(requestOrGroupId, newValue)
         }
     }
 
@@ -69,23 +68,23 @@ export const ResultsViewer = observer((props: {
             <Box sx={{ overflow: 'hidden', flexGrow: 1, bottom: '0', position: 'relative' }}>
                 {
                     requestExecution.running ? <RequestRunProgress cancelRequest={props.cancelRequest} /> :
-                        requestExecution.panel === 'Info' ? <ResultInfoViewer requestOrGroupId={props.requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex}
+                        requestExecution.panel === 'Info' ? <ResultInfoViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex}
                             triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />
-                            : requestExecution.panel === 'Headers' ? <ResponseHeadersViewer requestOrGroupId={props.requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex} />
+                            : requestExecution.panel === 'Headers' ? <ResponseHeadersViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex} />
                                 : requestExecution.panel === 'Preview' ? <ResultResponsePreview
-                                    requestOrGroupId={props.requestOrGroupId}
+                                    requestOrGroupId={requestOrGroupId}
                                     runIndex={runIndex} resultIndex={resultIndex}
                                     triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
                                     triggerCopyImageToClipboard={props.triggerCopyImageToClipboard}
                                 />
                                     : requestExecution.panel === 'Text' ? <ResultRawPreview
-                                        requestOrGroupId={props.requestOrGroupId}
+                                        requestOrGroupId={requestOrGroupId}
                                         runIndex={runIndex}
                                         resultIndex={resultIndex}
                                         triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
                                     />
                                         : requestExecution.panel === 'Request' ? <ResultRequestViewer
-                                            requestOrGroupId={props.requestOrGroupId}
+                                            requestOrGroupId={requestOrGroupId}
                                             runIndex={runIndex}
                                             resultIndex={resultIndex}
                                             triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />

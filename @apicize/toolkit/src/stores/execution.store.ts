@@ -5,6 +5,20 @@ import { WorkbookExecution, WorkbookExecutionGroupSummary, WorkbookExecutionGrou
 import { ApicizeResponseBody } from "@apicize/lib-typescript/dist/models/lib/apicize-response";
 import { MAX_TEXT_RENDER_LENGTH } from "../controls/viewers/text-viewer";
 
+class WorkbookExecutionEntry implements WorkbookExecution {
+    @observable accessor running = false
+    @observable accessor runIndex = NaN
+    @observable accessor resultIndex = NaN
+    @observable accessor runs: WorkbookExecutionRunMenuItem[] = []
+
+    @observable accessor panel = 'Info'
+    @observable accessor results = new Map<string, WorkbookExecutionResult>()
+
+    constructor() {
+        makeObservable(this)
+    }
+}
+
 export class ExecutionStore {
     @observable accessor requestExecutions = new Map<string, WorkbookExecution>()
 
@@ -15,9 +29,7 @@ export class ExecutionStore {
     getExecution(requestOrGroupId: string) {
         let execution = this.requestExecutions.get(requestOrGroupId)
         if (!execution) {
-            execution = {
-                running: false,
-            }
+            execution = new WorkbookExecutionEntry()
             this.requestExecutions.set(requestOrGroupId, execution)
         }
         return execution
@@ -53,9 +65,9 @@ export class ExecutionStore {
         if (match) {
             match.running = true
         } else {
-            this.requestExecutions.set(requestOrGroupId, {
-                running: true,
-            })
+            const newExecution = new WorkbookExecutionEntry()
+            newExecution.running = true
+            this.requestExecutions.set(requestOrGroupId, newExecution)
         }
     }
 

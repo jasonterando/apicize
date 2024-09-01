@@ -50,12 +50,12 @@ export interface WorkbookExecutionRunMenuItem {
 
 export interface WorkbookExecution {
      running: boolean
-     runIndex?: number
-     resultIndex?: number
-     runs?: WorkbookExecutionRunMenuItem[]
+     runIndex: number
+     resultIndex: number
+     runs: WorkbookExecutionRunMenuItem[]
 
-     panel?: string
-     results?: Map<string, WorkbookExecutionResult>
+     panel: string
+     results: Map<string, WorkbookExecutionResult>
 }
 
 export type InfoColorType = OverridableStringUnion<
