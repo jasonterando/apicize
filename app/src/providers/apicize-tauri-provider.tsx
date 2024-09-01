@@ -11,6 +11,8 @@ import {
     useWindow,
     EditableEntityType,
     useToast,
+    ClipboardContentType,
+    useClipboard,
 } from "@apicize/toolkit"
 import { ApicizeExecutionResults, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
 import { join, resourceDir } from "@tauri-apps/api/path"
@@ -43,13 +45,13 @@ const getWindow = async () => {
 export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const workspaceCtx = useWorkspace()
     const executionCtx = useExecution()
+    const clipboardCtx = useClipboard()
     const confirm = useConfirmation()
     const toast = useToast()
 
     const windowCtx = useWindow()
 
     const _forceClose = useRef(false)
-    const _internalDirty = useRef(false)
 
     const [sshPath, setSshPath] = useState('')
     const [bodyDataPath, setBodyDataPath] = useState('')
@@ -80,15 +82,12 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                     }
                 } catch (e) {
                     toast.open(`${e}`, ToastSeverity.Error)
-                } finally {
-                    // workspaceCtx.changeShowNavigation(true)
-                    // workbookStore.dispatch(navigationActions.setShowLanding(true))
                 }
 
                 // Set up close event hook, warn user if "dirty"
                 const currentWindow = await getWindow()
                 currentWindow.onCloseRequested((e) => {
-                    if (_internalDirty.current && (!_forceClose.current)) {
+                    if (windowCtx.dirty && (!_forceClose.current)) {
                         e.preventDefault();
                         (async () => {
                             if (await confirm({
@@ -124,17 +123,17 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         })
 
         let unlistenClipboardUpdate: Promise<UnlistenFn> | null = null
-        // clipboard.startListening().then(async () => {
-        //     unlistenClipboardUpdate = clipboard.onSomethingUpdate((types) => {
-        //         const ctypes: ClipboardContentType[] = []
-        //         if (types.text) ctypes.push(ClipboardContentType.Text)
-        //         if (types.imageBinary) ctypes.push(ClipboardContentType.Image)
-        //         clipboardCtx.changeTypes(types.text === true, types.imageBinary === true)
-        //     })
-        // })
+        clipboard.startListening().then(async () => {
+            unlistenClipboardUpdate = clipboard.onSomethingUpdate((types) => {
+                const ctypes: ClipboardContentType[] = []
+                if (types.text) ctypes.push(ClipboardContentType.Text)
+                if (types.imageBinary) ctypes.push(ClipboardContentType.Image)
+                clipboardCtx.changeTypes(types.text === true, types.imageBinary === true)
+            })
+        })
 
         return () => {
-            // if (unlistenClipboardUpdate) unlistenClipboardUpdate.then(f => f())
+            if (unlistenClipboardUpdate) unlistenClipboardUpdate.then(f => f())
             unlistenRun.then(f => f())
             unlistenOpenFile.then(f => f())
             unlistenAction.then(f => f())

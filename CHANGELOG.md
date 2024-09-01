@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.4.3
+
+* Fix close applciation warning on pending changes
+* Restore clipboard image paste, since it appears to be working again
+
 # 0.4.2
 
 * Update open to work with changed Tauri dialog interface

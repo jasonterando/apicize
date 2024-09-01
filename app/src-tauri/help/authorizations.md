@@ -11,8 +11,7 @@ Your authorization information can be stored in a Workbook, Private Workbook Par
 
 Authorizations can be assigned to any [Request](help:requests) or [Group](help:groups).
 
-To add a new Authorization parameter, click on the Plus sign next to Authentications in the navigation pane..  Provide
-a name for your authorization, select a type, and fill in the information.
+To add a new Authorization parameter, click on the Plus sign next to Authentications in the navigation pane.  Provide a name for your authorization, select a type, and fill in the information.
 
 To delete an Authorization parameter, select it in the navigation pane, and in its context menu, select "Delete Authorization".
 

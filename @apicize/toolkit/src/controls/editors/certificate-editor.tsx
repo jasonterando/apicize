@@ -73,7 +73,7 @@ export const CertificateEditor = observer((props: {
                                     WorkbookCertificateType.PEM | WorkbookCertificateType.PKCS8_PEM | WorkbookCertificateType.PKCS12)}
                             >
                                 <MenuItem value={WorkbookCertificateType.PKCS8_PEM}>PKCS 8 (PEM)</MenuItem>
-                                <MenuItem value={WorkbookCertificateType.PKCS12}>PKCS 12 (PKCS)</MenuItem>
+                                <MenuItem value={WorkbookCertificateType.PKCS12}>PKCS 12 (PFX)</MenuItem>
                                 <MenuItem value={WorkbookCertificateType.PEM}>PEM</MenuItem>
                             </Select>
                         </FormControl>
