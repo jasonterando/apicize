@@ -17,7 +17,7 @@ export abstract class Editable<T> implements EditableItem {
     @observable accessor id: string = ''
     @observable accessor name: string = ''
     @observable accessor dirty: boolean = false
-    @observable accessor invalid: boolean = false
+    abstract accessor invalid: boolean
 
     public abstract readonly entityType: EditableEntityType
 

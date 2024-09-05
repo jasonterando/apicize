@@ -9,7 +9,7 @@ import { WorkbookExecutionGroupSummary, WorkbookExecutionResult } from "../../..
 import { observer } from "mobx-react-lite";
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
 import { WorkbookRequestType } from "@apicize/lib-typescript";
-import { EditableWorkbookRequestEntry } from "../../../models/workbook/editable-workbook-request-entry";
+import { EditableWorkbookRequest } from "../../../models/workbook/editable-workbook-request";
 
 const ResultSummary = (props: { sx: SxProps, summary: WorkbookExecutionGroupSummary }) => {
     let idx = 0
@@ -134,7 +134,7 @@ export const ResultInfoViewer = observer((props: {
         return null
     }
 
-    const request = workspaceCtx.active as EditableWorkbookRequestEntry
+    const request = workspaceCtx.active as EditableWorkbookRequest
     const executionCtx = useExecution()
 
     const copyToClipboard = (data: any) => {

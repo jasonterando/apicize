@@ -22,7 +22,7 @@ import { useWorkspace } from '../../contexts/root.context';
 import { WorkbookRequestType } from '@apicize/lib-typescript';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
-import { EditableWorkbookRequestEntry } from '../../models/workbook/editable-workbook-request';
+import { EditableWorkbookRequest } from '../../models/workbook/editable-workbook-request';
 import { RunInformation } from '../../models/workbook/run-information';
 import { RunToolbar } from '../run-toolbar';
 
@@ -39,7 +39,7 @@ export const RequestEditor = observer((props: {
 
     const workspace = useWorkspace()
     const request = (workspace.active?.entityType === EditableEntityType.Request && !workspace.helpVisible)
-        ? workspace.active as EditableWorkbookRequestEntry
+        ? workspace.active as EditableWorkbookRequest
         : null
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: string) => {

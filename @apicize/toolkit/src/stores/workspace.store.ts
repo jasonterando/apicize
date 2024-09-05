@@ -2,19 +2,18 @@ import { action, makeObservable, observable, toJS } from "mobx"
 import { DEFAULT_SELECTION_ID, NO_SELECTION, NO_SELECTION_ID } from "../models/store"
 import { WorkbookExecution } from "../models/workbook/workbook-execution"
 import { editableWorkspaceToStoredWorkspace, newEditableWorkspace, stateToGlobalSettingsStorage, storedWorkspaceToEditableWorkspace } from "../services/apicize-serializer"
-import { EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request-entry"
+import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request"
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario"
-import { EditableWorkbookApiKeyAuthorization, EditableWorkbookAuthorizationEntry, EditableWorkbookBasicAuthorization, EditableWorkbookOAuth2ClientAuthorization } from "../models/workbook/editable-workbook-authorization"
-import { EditableWorkbookCertificateEntry, EditableWorkbookPkcs12Certificate, EditableWorkbookPkcs8PemCertificate } from "../models/workbook/editable-workbook-certificate"
+import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization"
+import { EditableWorkbookCertificate } from "../models/workbook/editable-workbook-certificate"
 import { EditableWorkbookProxy } from "../models/workbook/editable-workbook-proxy"
 import { RootStore } from "./root.store"
 import { Identifiable, Named, IndexedEntities, GetTitle, WorkbookRequestType, Persistence, addNestedEntity, removeNestedEntity, moveNestedEntity, getNestedEntity, WorkbookGroupExecution, addEntity, removeEntity, moveEntity, WorkbookBodyType, WorkbookMethod, WorkbookBodyData, WorkbookOAuth2ClientAuthorization, WorkbookAuthorizationType, WorkbookApiKeyAuthorization, WorkbookCertificateType, findParentEntity, Workspace } from "@apicize/lib-typescript"
 import { EntitySelection } from "../models/workbook/entity-selection"
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair"
-import { EditableWorkbookRequest, EditableWorkbookRequestGroup } from "../models/workbook/editable-workbook-request"
 import { GenerateIdentifier } from "../services/random-identifier-generator"
 import { EditableEntityType } from "../models/workbook/editable-entity-type"
-import { Editable, EditableItem } from "../models/editable"
+import { EditableItem } from "../models/editable"
 import { RunInformation } from "../models/workbook/run-information"
 
 const encodeFormData = (data: EditableNameValuePair[]) =>
@@ -73,6 +72,25 @@ export class WorkspaceStore {
         makeObservable(this)
     }
 
+    anyInvalid() {
+        for(const entity of this.workspace.requests.entities.values()) {
+            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        }
+        for(const entity of this.workspace.scenarios.entities.values()) {
+            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        }
+        for(const entity of this.workspace.authorizations.entities.values()) {
+            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        }
+        for(const entity of this.workspace.certificates.entities.values()) {
+            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        }
+        for(const entity of this.workspace.proxies.entities.values()) {
+            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        }
+        return false
+    }
+
     @action
     showHelp(topic: string) {
         const historyLength = this.helpHistory.length
@@ -113,6 +131,8 @@ export class WorkspaceStore {
     newWorkspace() {
         this.workspace = newEditableWorkspace()
         this.requestExecutions.clear()
+        this.root.execution.clear()
+        this.root.window.clearInvalid()
         this.clearActive()
     }
 
@@ -121,6 +141,23 @@ export class WorkspaceStore {
         console.log('Loading workspace....')
         this.workspace = storedWorkspaceToEditableWorkspace(newWorkspace)
         this.requestExecutions.clear()
+        this.root.execution.clear()
+        this.root.window.clearInvalid()
+        for(const entity of this.workspace.requests.entities.values()) {
+            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        }
+        for(const entity of this.workspace.scenarios.entities.values()) {
+            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        }
+        for(const entity of this.workspace.authorizations.entities.values()) {
+            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        }
+        for(const entity of this.workspace.certificates.entities.values()) {
+            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        }
+        for(const entity of this.workspace.proxies.entities.values()) {
+            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        }
         this.clearActive()
     }
 
@@ -261,7 +298,7 @@ export class WorkspaceStore {
     @action
     copyRequest(id: string) {
         // Return the ID of the duplicated entry
-        const copyEntry = (entry: EditableWorkbookRequestEntry) => {
+        const copyEntry = (entry: EditableWorkbookRequest) => {
             const dupe = structuredClone(entry)
             // For some reason, structuredClone doesn't work with requests reliably
             // const dupe = JSON.parse(JSON.stringify(entry))
@@ -277,12 +314,11 @@ export class WorkspaceStore {
                 return request
             }
 
-            const group = dupe as EditableWorkbookRequestGroup
             if (this.workspace.requests.childIds) {
                 const sourceChildIDs = this.workspace.requests.childIds?.get(source.id)
                 if (sourceChildIDs && sourceChildIDs.length > 0) {
                     const dupedChildIDs: string[] = []
-                    this.workspace.requests.childIds.set(group.id, dupedChildIDs)
+                    this.workspace.requests.childIds.set(dupe.id, dupedChildIDs)
 
                     sourceChildIDs.forEach(childID => {
                         const childEntry = this.workspace.requests.entities.get(childID)
@@ -293,8 +329,8 @@ export class WorkspaceStore {
                     })
                 }
             }
-            this.workspace.requests.entities.set(group.id, group)
-            return group
+            this.workspace.requests.entities.set(dupe.id, dupe)
+            return dupe
         }
 
         const source = getNestedEntity(id, this.workspace.requests)
@@ -335,7 +371,7 @@ export class WorkspaceStore {
     @action
     setRequestName(value: string) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const request = this.active as EditableWorkbookRequestEntry
+            const request = this.active as EditableWorkbookRequest
             request.name = value
             this.root.window.changeDirty(true)
         }
@@ -344,9 +380,8 @@ export class WorkspaceStore {
     @action
     setRequestUrl(value: string) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Request) {
-                const request = requestEntry as EditableWorkbookRequest
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Request) {
                 request.url = value
                 this.root.window.changeDirty(true)
             }
@@ -356,9 +391,8 @@ export class WorkspaceStore {
     @action
     setRequestMethod(value: WorkbookMethod) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Request) {
-                const request = requestEntry as EditableWorkbookRequest
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Request) {
                 request.method = value
                 this.root.window.changeDirty(true)
             }
@@ -368,9 +402,8 @@ export class WorkspaceStore {
     @action
     setRequestTimeout(value: number) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Request) {
-                const request = requestEntry as EditableWorkbookRequest
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Request) {
                 request.timeout = value
                 this.root.window.changeDirty(true)
             }
@@ -380,9 +413,8 @@ export class WorkspaceStore {
     @action
     setRequestQueryStringParams(value: EditableNameValuePair[]) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Request) {
-                const request = requestEntry as EditableWorkbookRequest
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Request) {
                 request.queryStringParams = value
                 this.root.window.changeDirty(true)
             }
@@ -392,9 +424,8 @@ export class WorkspaceStore {
     @action
     setRequestHeaders(value: EditableNameValuePair[] | undefined) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Request) {
-                const request = requestEntry as EditableWorkbookRequest
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Request) {
                 request.headers = value ?? []
                 this.root.window.changeDirty(true)
             }
@@ -404,9 +435,8 @@ export class WorkspaceStore {
     @action
     setRequestBodyType(value: WorkbookBodyType | undefined) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Request) {
-                const request = requestEntry as EditableWorkbookRequest
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Request) {
                 let oldBodyType = request.body?.type ?? WorkbookBodyType.None
                 let newBodyData = request.body?.data
                 let newBodyType = value ?? WorkbookBodyType.None
@@ -447,9 +477,8 @@ export class WorkspaceStore {
     @action
     setRequestBodyData(value: WorkbookBodyData | undefined) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Request) {
-                const request = requestEntry as EditableWorkbookRequest
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Request) {
                 if (request.body) {
                     request.body.data = value
                 } else {
@@ -463,7 +492,7 @@ export class WorkspaceStore {
     @action
     setRequestRuns(value: number) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
+            const requestEntry = this.active as EditableWorkbookRequest
             requestEntry.runs = value
             this.root.window.changeDirty(true)
         }
@@ -472,9 +501,8 @@ export class WorkspaceStore {
     @action
     setRequestTest(value: string | undefined) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Request) {
-                const request = requestEntry as EditableWorkbookRequest
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Request) {
                 request.test = value ?? ''
                 this.root.window.changeDirty(true)
             }
@@ -484,8 +512,8 @@ export class WorkspaceStore {
     @action
     setRequestSelectedScenarioId(entityId: string) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            requestEntry.selectedScenario = entityId === DEFAULT_SELECTION_ID
+            const request = this.active as EditableWorkbookRequest
+            request.selectedScenario = entityId === DEFAULT_SELECTION_ID
                 ? undefined
                 : entityId == NO_SELECTION_ID
                     ? NO_SELECTION
@@ -497,8 +525,8 @@ export class WorkspaceStore {
     @action
     setRequestSelectedAuthorizationId(entityId: string) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            requestEntry.selectedAuthorization = entityId === DEFAULT_SELECTION_ID
+            const request = this.active as EditableWorkbookRequest
+            request.selectedAuthorization = entityId === DEFAULT_SELECTION_ID
                 ? undefined
                 : entityId == NO_SELECTION_ID
                     ? NO_SELECTION
@@ -510,8 +538,8 @@ export class WorkspaceStore {
     @action
     setRequestSelectedCertificateId(entityId: string) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            requestEntry.selectedCertificate = entityId === DEFAULT_SELECTION_ID
+            const request = this.active as EditableWorkbookRequest
+            request.selectedCertificate = entityId === DEFAULT_SELECTION_ID
                 ? undefined
                 : entityId == NO_SELECTION_ID
                     ? NO_SELECTION
@@ -523,8 +551,8 @@ export class WorkspaceStore {
     @action
     setRequestSelectedProxyId(entityId: string) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            requestEntry.selectedProxy = entityId === DEFAULT_SELECTION_ID
+            const request = this.active as EditableWorkbookRequest
+            request.selectedProxy = entityId === DEFAULT_SELECTION_ID
                 ? undefined
                 : entityId == NO_SELECTION_ID
                     ? NO_SELECTION
@@ -541,8 +569,8 @@ export class WorkspaceStore {
 
         // Determine the active credentials by working our way up the hierarchy
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            let e = findParentEntity(requestEntry.id, this.workspace.requests)
+            const request = this.active as EditableWorkbookRequest
+            let e = findParentEntity(request.id, this.workspace.requests)
             while (e) {
                 let r = e as (EditableWorkbookRequest & EditableWorkbookRequest)
                 if (activeScenarioId === DEFAULT_SELECTION_ID && r.selectedScenario) {
@@ -605,9 +633,9 @@ export class WorkspaceStore {
 
     getRequestRunInformation(): RunInformation | null {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
+            const request = this.active as EditableWorkbookRequest
             const result = {
-                requestId: requestEntry.id,
+                requestId: request.id,
                 workspace: editableWorkspaceToStoredWorkspace(
                     this.workspace.requests,
                     this.workspace.scenarios,
@@ -628,7 +656,7 @@ export class WorkspaceStore {
 
     @action
     addGroup(targetID?: string | null) {
-        const entry = new EditableWorkbookRequestGroup()
+        const entry = new EditableWorkbookRequest()
         entry.id = GenerateIdentifier()
         entry.type = WorkbookRequestType.Group
         entry.runs = 1
@@ -655,9 +683,9 @@ export class WorkspaceStore {
     @action
     setGroupExecution(value: WorkbookGroupExecution) {
         if (this.active?.entityType === EditableEntityType.Request) {
-            const requestEntry = this.active as EditableWorkbookRequestEntry
-            if (requestEntry.type === WorkbookRequestType.Group) {
-                (requestEntry as EditableWorkbookRequestGroup).execution = value
+            const request = this.active as EditableWorkbookRequest
+            if (request.type === WorkbookRequestType.Group) {
+                request.execution = value
                 this.root.window.changeDirty(true)
             }
         }
@@ -743,7 +771,7 @@ export class WorkspaceStore {
 
     @action
     addAuthorization(targetID?: string | null) {
-        const authorization = new EditableWorkbookBasicAuthorization()
+        const authorization = new EditableWorkbookAuthorization()
         authorization.id = GenerateIdentifier()
 
         this.workspace.authorizations.entities.set(authorization.id, authorization)
@@ -768,7 +796,7 @@ export class WorkspaceStore {
 
     @action
     moveAuthorization(id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) {
-        moveEntity<EditableWorkbookAuthorizationEntry>(id, destinationID, onLowerHalf, onLeft, this.workspace.authorizations)
+        moveEntity<EditableWorkbookAuthorization>(id, destinationID, onLowerHalf, onLeft, this.workspace.authorizations)
         this.root.window.changeDirty(true)
         // if (selectedAuthorizationId !== id) {
         //     activateAuthorization(id)
@@ -810,7 +838,7 @@ export class WorkspaceStore {
     @action
     setAuthorizationName(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
+            const auth = this.active as EditableWorkbookAuthorization
             auth.name = value
             this.root.window.changeDirty(true)
         }
@@ -819,7 +847,7 @@ export class WorkspaceStore {
     @action
     setAuthorizationType(value: WorkbookAuthorizationType.ApiKey | WorkbookAuthorizationType.Basic | WorkbookAuthorizationType.OAuth2Client) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
+            const auth = this.active as EditableWorkbookAuthorization
             auth.type = value
             this.root.window.changeDirty(true)
         }
@@ -828,8 +856,8 @@ export class WorkspaceStore {
     @action
     setAuthorizationUsername(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookBasicAuthorization).username = value
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.username = value
             this.root.window.changeDirty(true)
         }
     }
@@ -837,8 +865,8 @@ export class WorkspaceStore {
     @action
     setAuthorizationPassword(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookBasicAuthorization).password = value
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.password = value
             this.root.window.changeDirty(true)
         }
     }
@@ -846,16 +874,16 @@ export class WorkspaceStore {
     @action
     setAuthorizatinoAccessTokenUrl(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookOAuth2ClientAuthorization).accessTokenUrl = value
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.accessTokenUrl = value
             this.root.window.changeDirty(true)
         }
     }
     @action
     setAuthorizationClientId(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookOAuth2ClientAuthorization).clientId = value
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.clientId = value
             this.root.window.changeDirty(true)
         }
     }
@@ -863,8 +891,8 @@ export class WorkspaceStore {
     @action
     setAuthorizationClientSecret(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookOAuth2ClientAuthorization).clientSecret = value
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.clientSecret = value
             this.root.window.changeDirty(true)
         }
     }
@@ -872,8 +900,8 @@ export class WorkspaceStore {
     @action
     setAuthorizationScope(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookOAuth2ClientAuthorization).scope = value
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.scope = value
             this.root.window.changeDirty(true)
         }
     }
@@ -881,8 +909,8 @@ export class WorkspaceStore {
     @action
     setAuthorizationSelectedCertificateId(entityId: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookOAuth2ClientAuthorization).selectedCertificate =
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.selectedCertificate =
                 entityId === DEFAULT_SELECTION_ID
                     ? undefined
                     : entityId == NO_SELECTION_ID
@@ -895,8 +923,8 @@ export class WorkspaceStore {
     @action
     setAuthorizationSelectedProxyId(entityId: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookOAuth2ClientAuthorization).selectedProxy =
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.selectedProxy =
                 entityId === DEFAULT_SELECTION_ID
                     ? undefined
                     : entityId == NO_SELECTION_ID
@@ -909,8 +937,8 @@ export class WorkspaceStore {
     @action
     setAuthorizationHeader(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookApiKeyAuthorization).header = value
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.header = value
             this.root.window.changeDirty(true)
         }
     }
@@ -918,8 +946,8 @@ export class WorkspaceStore {
     @action
     setAuthorizationValue(value: string) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
-            (auth as EditableWorkbookApiKeyAuthorization).value = value
+            const auth = this.active as EditableWorkbookAuthorization
+            auth.value = value
             this.root.window.changeDirty(true)
         }
     }
@@ -927,7 +955,7 @@ export class WorkspaceStore {
     @action
     setAuthorizationPersistence(value: Persistence) {
         if (this.active?.entityType === EditableEntityType.Authorization) {
-            const auth = this.active as EditableWorkbookAuthorizationEntry
+            const auth = this.active as EditableWorkbookAuthorization
             auth.persistence = value
             this.root.window.changeDirty(true)
         }
@@ -935,7 +963,7 @@ export class WorkspaceStore {
 
     @action
     addCertificate(targetID?: string | null) {
-        const certificate = new EditableWorkbookPkcs8PemCertificate()
+        const certificate = new EditableWorkbookCertificate()
         certificate.id = GenerateIdentifier()
         this.workspace.certificates.entities.set(certificate.id, certificate)
         addEntity(certificate, this.workspace.certificates, targetID)
@@ -988,7 +1016,7 @@ export class WorkspaceStore {
     @action
     setCertificateName(value: string) {
         if (this.active?.entityType === EditableEntityType.Certificate) {
-            const certificate = this.active as EditableWorkbookCertificateEntry
+            const certificate = this.active as EditableWorkbookCertificate
             certificate.name = value
             this.root.window.changeDirty(true)
         }
@@ -997,7 +1025,7 @@ export class WorkspaceStore {
     @action
     setCertificatePersistence(value: Persistence) {
         if (this.active?.entityType === EditableEntityType.Certificate) {
-            const certificate = this.active as EditableWorkbookCertificateEntry
+            const certificate = this.active as EditableWorkbookCertificate
             certificate.persistence = value
             this.root.window.changeDirty(true)
         }
@@ -1006,7 +1034,7 @@ export class WorkspaceStore {
     @action
     setCertificateType(value: WorkbookCertificateType.PEM | WorkbookCertificateType.PKCS8_PEM | WorkbookCertificateType.PKCS12) {
         if (this.active?.entityType === EditableEntityType.Certificate) {
-            const certificate = this.active as EditableWorkbookCertificateEntry
+            const certificate = this.active as EditableWorkbookCertificate
             certificate.type = value
             this.root.window.changeDirty(true)
         }
@@ -1015,8 +1043,8 @@ export class WorkspaceStore {
     @action
     setCertificatePem(value: string) {
         if (this.active?.entityType === EditableEntityType.Certificate) {
-            const certificate = this.active as EditableWorkbookCertificateEntry
-            (certificate as EditableWorkbookPkcs8PemCertificate).pem = value
+            const certificate = this.active as EditableWorkbookCertificate
+            certificate.pem = value
             this.root.window.changeDirty(true)
         }
     }
@@ -1024,8 +1052,8 @@ export class WorkspaceStore {
     @action
     setCertificateKey(value: string | undefined) {
         if (this.active?.entityType === EditableEntityType.Certificate) {
-            const certificate = this.active as EditableWorkbookCertificateEntry
-            (certificate as EditableWorkbookPkcs8PemCertificate).key = value || ''
+            const certificate = this.active as EditableWorkbookCertificate
+            certificate.key = value || ''
             this.root.window.changeDirty(true)
         }
     }
@@ -1033,8 +1061,8 @@ export class WorkspaceStore {
     @action
     setCertificatePfx(value: string) {
         if (this.active?.entityType === EditableEntityType.Certificate) {
-            const certificate = this.active as EditableWorkbookCertificateEntry
-            (certificate as EditableWorkbookPkcs12Certificate).pfx = value
+            const certificate = this.active as EditableWorkbookCertificate
+            certificate.pfx = value
             this.root.window.changeDirty(true)
         }
     }
@@ -1042,8 +1070,8 @@ export class WorkspaceStore {
     @action
     setCertificatePassword(value: string) {
         if (this.active?.entityType === EditableEntityType.Certificate) {
-            const certificate = this.active as EditableWorkbookCertificateEntry
-            (certificate as EditableWorkbookPkcs12Certificate).password = value
+            const certificate = this.active as EditableWorkbookCertificate
+            certificate.password = value
             this.root.window.changeDirty(true)
         }
     }

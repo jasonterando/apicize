@@ -1,4 +1,4 @@
-import { action, makeObservable, observable } from "mobx";
+import { action, computed, makeObservable, observable } from "mobx";
 import { RootStore } from "./root.store";
 
 export class WindowStore {
@@ -7,6 +7,7 @@ export class WindowStore {
     @observable accessor workbookFullName = ''
     @observable accessor workbookDisplayName = '(New Workbook)'
     @observable accessor dirty: boolean = false
+    @observable accessor invalidItems = new Set<string>()
 
     constructor(private readonly root: RootStore) {
         makeObservable(this)
@@ -25,7 +26,22 @@ export class WindowStore {
         this.dirty = false
     }
 
-    @action changeDirty(onOff: boolean) {
+    @action
+    changeDirty(onOff: boolean) {
         this.dirty = onOff
+    }
+
+    @action 
+    clearInvalid() {
+        this.invalidItems.clear()
+    }
+
+    @action
+    changeInvalid(id: string, onOff: boolean) {
+        if (onOff) {
+            this.invalidItems.add(id)
+        } else {
+            this.invalidItems.delete(id)
+        }
     }
 }

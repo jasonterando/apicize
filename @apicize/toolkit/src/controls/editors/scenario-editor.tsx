@@ -24,6 +24,8 @@ export const ScenarioEditor = observer((props: {sx: SxProps}) => {
                         // size='small'
                         value={scenario.name}
                         onChange={e => workspace.setScenarioName(e.target.value)}
+                        error={scenario.nameInvalid}
+                        helperText={scenario.nameInvalid ? 'Scenario name is required' : ''}
                         fullWidth
                     />
                 </Grid>

@@ -19,10 +19,7 @@ export default function Home() {
   const darkTheme = createTheme({
     typography: {
       fontSize: 12,
-      fontFamily: [
-        'Open Sans',
-        'sans',
-      ].join(',')
+      fontFamily: "'Open Sans','sans'"
     },
     components: {
       MuiOutlinedInput: {

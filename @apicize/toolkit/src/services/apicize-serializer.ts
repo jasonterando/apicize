@@ -1,14 +1,14 @@
 import { StoredGlobalSettings, Workspace, Identifiable, Selection, WorkbookAuthorization, WorkbookCertificate, WorkbookScenario, WorkbookProxy, IndexedNestedRequests, WorkbookRequest, WorkbookRequestEntry } from "@apicize/lib-typescript";
-import { EditableWorkbookAuthorizationEntry } from "../models/workbook/editable-workbook-authorization";
+import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization";
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario";
 import { IndexedEntities } from '@apicize/lib-typescript/src/models/indexed-entities'
 import { Editable } from "../models/editable";
-import { EditableWorkbookRequestEntry, } from "../models/workbook/editable-workbook-request";
+import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request";
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair";
 import { EditableWorkspace } from "../models/workbook/editable-workspace";
 import { EditableWorkbookProxy } from "../models/workbook/editable-workbook-proxy";
 import { DEFAULT_SELECTION, NO_SELECTION } from "../models/store";
-import { EditableWorkbookCertificateEntry } from "../models/workbook/editable-workbook-certificate";
+import { EditableWorkbookCertificate } from "../models/workbook/editable-workbook-certificate";
 import { toJS } from "mobx";
 
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -83,7 +83,7 @@ function editableIndexToStoredWorkspace<S extends Identifiable>(
     index: IndexedEntities<Editable<S>>
 ): IndexedEntities<S> {
     const entities = new Map<string, S>()
-    for(const [id, entity] of index.entities) {
+    for (const [id, entity] of index.entities) {
         entities.set(id, entity.toWorkspace())
     }
 
@@ -123,7 +123,9 @@ export function storedWorkspaceToEditableWorkspace(workspace: Workspace): Editab
         requests: {
             topLevelIds: workspace.requests.topLevelIds,
             entities: new Map(Object.values(workspace.requests.entities)
-                .map(e => [e.id, EditableWorkbookRequestEntry.fromWorkspace(e)])),
+                .map(e => 
+                    [e.id,  EditableWorkbookRequest.fromWorkspace(e)]
+                )),
             childIds: workspace.requests.childIds ? new Map(Object.entries(workspace.requests.childIds)) : undefined
         },
         scenarios: {
@@ -135,13 +137,13 @@ export function storedWorkspaceToEditableWorkspace(workspace: Workspace): Editab
         authorizations: {
             topLevelIds: workspace.authorizations.topLevelIds,
             entities: new Map(
-                Object.values(workspace.authorizations.entities).map(e => ([e.id, EditableWorkbookAuthorizationEntry.fromWorkspace(e)]))
+                Object.values(workspace.authorizations.entities).map(e => ([e.id, EditableWorkbookAuthorization.fromWorkspace(e)]))
             )
         },
         certificates: {
             topLevelIds: workspace.certificates.topLevelIds,
             entities: new Map(
-                Object.values(workspace.certificates.entities).map(e => ([e.id, EditableWorkbookCertificateEntry.fromWorkspace(e)]))
+                Object.values(workspace.certificates.entities).map(e => ([e.id, EditableWorkbookCertificate.fromWorkspace(e)]))
             )
         },
         proxies: {
@@ -181,10 +183,10 @@ export function editableToNameValuePair(pair: EditableNameValuePair) {
  * @returns 
  */
 export function editableWorkspaceToStoredWorkspace(
-    requests: IndexedNestedRequests<EditableWorkbookRequestEntry>,
+    requests: IndexedNestedRequests<EditableWorkbookRequest>,
     scenarios: IndexedEntities<EditableWorkbookScenario>,
-    authorizations: IndexedEntities<EditableWorkbookAuthorizationEntry>,
-    certificates: IndexedEntities<EditableWorkbookCertificateEntry>,
+    authorizations: IndexedEntities<EditableWorkbookAuthorization>,
+    certificates: IndexedEntities<EditableWorkbookCertificate>,
     proxies: IndexedEntities<EditableWorkbookProxy>,
     selectedScenario: Selection,
     selectedAuthorization: Selection,
@@ -192,7 +194,7 @@ export function editableWorkspaceToStoredWorkspace(
     selectedProxy: Selection,
 ): Workspace {
     const requestEntities = new Map<string, WorkbookRequestEntry>()
-    for(const [id, request] of requests.entities) {
+    for (const [id, request] of requests.entities) {
         requestEntities.set(id, request.toWorkspace())
     }
     const result = {

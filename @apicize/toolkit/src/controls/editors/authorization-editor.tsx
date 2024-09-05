@@ -4,7 +4,7 @@ import { WorkbookAuthorizationType, WorkbookOAuth2ClientAuthorization } from '@a
 import { EditorTitle } from '../editor-title';
 import { PersistenceEditor } from './persistence-editor';
 import { useWorkspace } from '../../contexts/root.context';
-import { EditableWorkbookApiKeyAuthorization, EditableWorkbookAuthorization, EditableWorkbookBasicAuthorization, EditableWorkbookOAuth2ClientAuthorization } from '../../models/workbook/editable-workbook-authorization';
+import { EditableWorkbookAuthorization } from '../../models/workbook/editable-workbook-authorization';
 import { EntitySelection } from '../../models/workbook/entity-selection';
 import { NO_SELECTION_ID } from '../../models/store';
 import { observer } from 'mobx-react-lite';
@@ -36,6 +36,8 @@ export const AuthorizationEditor = observer((props: {
                         aria-label='name'
                         // size='small'
                         value={auth.name}
+                        error={auth.nameInvalid}
+                        helperText={auth.nameInvalid ? 'Name is required' : ''}
                         onChange={e => workspace.setAuthorizationName(e.target.value)}
                         fullWidth
                     />
@@ -69,7 +71,9 @@ export const AuthorizationEditor = observer((props: {
                                         id='auth-header'
                                         label="Header"
                                         aria-label='header'
-                                        value={(auth as EditableWorkbookApiKeyAuthorization).header}
+                                        value={auth.header}
+                                        error={auth.headerInvalid}
+                                        helperText={auth.headerInvalid ? 'Header is required' : ''}
                                         onChange={e => workspace.setAuthorizationHeader(e.target.value)}
                                         fullWidth
                                     />
@@ -79,7 +83,9 @@ export const AuthorizationEditor = observer((props: {
                                         id='auth-value'
                                         label="Value"
                                         aria-label='value'
-                                        value={(auth as EditableWorkbookApiKeyAuthorization).value}
+                                        value={auth.value}
+                                        error={auth.valueInvalid}
+                                        helperText={auth.valueInvalid ? 'Value is required' : ''}
                                         onChange={e => workspace.setAuthorizationValue(e.target.value)}
                                         fullWidth
                                     />
@@ -92,7 +98,9 @@ export const AuthorizationEditor = observer((props: {
                                             id='auth-username'
                                             label="Username"
                                             aria-label='username'
-                                            value={(auth as EditableWorkbookBasicAuthorization).username}
+                                            value={auth.username}
+                                            error={auth.usernameInvalid}
+                                            helperText={auth.usernameInvalid ? 'Username is required' : ''}
                                             onChange={e => workspace.setAuthorizationUsername(e.target.value)}
                                             fullWidth
                                         />
@@ -102,7 +110,7 @@ export const AuthorizationEditor = observer((props: {
                                             id='auth-password'
                                             label="Password"
                                             aria-label='password'
-                                            value={(auth as EditableWorkbookBasicAuthorization).password}
+                                            value={auth.password}
                                             onChange={e => workspace.setAuthorizationPassword(e.target.value)}
                                             fullWidth
                                         />
@@ -115,7 +123,9 @@ export const AuthorizationEditor = observer((props: {
                                                 id='auth-oauth2-access-token-url'
                                                 label='Access Token URL'
                                                 aria-label='access token url'
-                                                value={(auth as EditableWorkbookOAuth2ClientAuthorization).accessTokenUrl}
+                                                value={auth.accessTokenUrl}
+                                                error={auth.accessTokenUrlInvalid}
+                                                helperText={auth.accessTokenUrlInvalid ? 'Access Token URL is required' : ''}
                                                 onChange={e => workspace.setAuthorizatinoAccessTokenUrl(e.target.value)}
                                                 fullWidth
                                             />
@@ -125,7 +135,9 @@ export const AuthorizationEditor = observer((props: {
                                                 id='auth-oauth2-client-id'
                                                 label='Client ID'
                                                 aria-label='client id'
-                                                value={(auth as EditableWorkbookOAuth2ClientAuthorization).clientId}
+                                                value={auth.clientId}
+                                                error={auth.clientIdInvalid}
+                                                helperText={auth.clientIdInvalid ? 'Client ID is required' : ''}
                                                 onChange={e => workspace.setAuthorizationClientId(e.target.value)}
                                                 fullWidth
                                             />
@@ -135,7 +147,7 @@ export const AuthorizationEditor = observer((props: {
                                                 id='auth-oauth2-client-secret'
                                                 label='Client Secret'
                                                 aria-label='client secret'
-                                                value={(auth as EditableWorkbookOAuth2ClientAuthorization).clientSecret}
+                                                value={auth.clientSecret}
                                                 onChange={e => workspace.setAuthorizationClientSecret(e.target.value)}
                                                 fullWidth
                                             />
@@ -145,7 +157,7 @@ export const AuthorizationEditor = observer((props: {
                                                 id='auth-oauth2-scope'
                                                 label='Scope'
                                                 aria-label='scope'
-                                                value={(auth as EditableWorkbookOAuth2ClientAuthorization).scope}
+                                                value={auth.scope}
                                                 onChange={e => workspace.setAuthorizationScope(e.target.value)}
                                                 fullWidth
                                             />
@@ -157,7 +169,7 @@ export const AuthorizationEditor = observer((props: {
                                                     labelId='cred-cert-label'
                                                     id='cred-cert'
                                                     label='Certificate'
-                                                    value={(auth as EditableWorkbookOAuth2ClientAuthorization).selectedCertificate?.id ?? NO_SELECTION_ID}
+                                                    value={auth.selectedCertificate?.id ?? NO_SELECTION_ID}
                                                     onChange={(e) => workspace.setAuthorizationSelectedCertificateId(e.target.value)}
                                                     fullWidth
                                                 >
@@ -172,7 +184,7 @@ export const AuthorizationEditor = observer((props: {
                                                     labelId='cred-proxy-label'
                                                     id='cred-proxy'
                                                     label='Proxy'
-                                                    value={(auth as EditableWorkbookOAuth2ClientAuthorization).selectedProxy?.id ?? NO_SELECTION_ID}
+                                                    value={auth.selectedProxy?.id ?? NO_SELECTION_ID}
                                                     onChange={(e) => workspace.setAuthorizationSelectedProxyId(e.target.value)}
                                                     fullWidth
                                                 >

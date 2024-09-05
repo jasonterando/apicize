@@ -25,6 +25,8 @@ export const ProxyEditor = observer((props: {
                         // size='small'
                         value={proxy.name}
                         onChange={e => workspace.setProxyName(e.target.value)}
+                        error={proxy.nameInvalid}
+                        helperText={proxy.nameInvalid ? 'Proxy name is required' : ''}
                         fullWidth
                     />
                 </Grid>
@@ -39,6 +41,8 @@ export const ProxyEditor = observer((props: {
                         // size='small'
                         value={proxy.url}
                         onChange={e => workspace.setProxyUrl(e.target.value)}
+                        error={proxy.urlInvalid}
+                        helperText={proxy.urlInvalid ? 'URL must include http/https/socks5 protocol prefix and address' : ''}
                         fullWidth
                     />
                 </Grid>

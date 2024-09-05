@@ -2,7 +2,7 @@ import { WorkbookRequestType } from '@apicize/lib-typescript'
 import { useWorkspace } from '../../../contexts/root.context'
 import { NameValueEditor } from '../name-value-editor'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
-import { EditableWorkbookRequest, EditableWorkbookRequestEntry } from '../../../models/workbook/editable-workbook-request'
+import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { observer } from 'mobx-react-lite'
 
 export const RequestQueryStringEditor = observer(() => {
@@ -12,7 +12,7 @@ export const RequestQueryStringEditor = observer(() => {
     return null
   }
 
-  const requestEntry = workspace.active as EditableWorkbookRequestEntry
+  const requestEntry = workspace.active as EditableWorkbookRequest
   if (requestEntry.type !== WorkbookRequestType.Request) {
     return null
   }

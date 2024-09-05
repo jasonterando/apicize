@@ -5,6 +5,7 @@ import FolderIcon from '@mui/icons-material/Folder'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
 import PostAddIcon from '@mui/icons-material/PostAdd'
 import SaveIcon from '@mui/icons-material/Save'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import SaveAsIcon from '@mui/icons-material/SaveAs'
 import HelpIcon from '@mui/icons-material/Help'
 import SendIcon from '@mui/icons-material/Send'
@@ -299,7 +300,17 @@ export const Navigation = observer((props: {
                                 ? <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
                                 : null
                         }
-                        <Box className='nav-node-text' sx={{ verticalAlign: 'middle' }}>{GetTitle(props.item)}</Box>
+                        <Box 
+                            className='nav-node-text' 
+                            sx={{  display: 'flex', alignItems: 'center' }}
+                        >
+                            {
+                                props.item.invalid ? (<WarningAmberIcon sx={{color: '#FFFF00', marginRight: '0.25em'}}  />) : null
+                            }
+                            {
+                                GetTitle(props.item)
+                            }
+                        </Box>
                         <IconButton
                             sx={{
                                 visibility: props.item.id === workspaceCtx.active?.id ? 'normal' : 'hidden'

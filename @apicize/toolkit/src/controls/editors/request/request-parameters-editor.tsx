@@ -3,7 +3,7 @@ import { MenuItem, FormControl, InputLabel, Select } from '@mui/material'
 import { Stack } from '@mui/system'
 import { useWorkspace } from '../../../contexts/root.context'
 import { DEFAULT_SELECTION_ID } from '../../../models/store'
-import { EditableWorkbookRequestEntry } from '../../../models/workbook/editable-workbook-request'
+import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
 import { observer } from 'mobx-react-lite'
 
@@ -14,7 +14,7 @@ export const RequestParametersEditor = observer(() => {
         return null
     }
 
-    const requestEntry = workspace.active as EditableWorkbookRequestEntry
+    const requestEntry = workspace.active as EditableWorkbookRequest
 
     let credIndex = 0
     const itemsFromSelections = (selections: EntitySelection[]) => {

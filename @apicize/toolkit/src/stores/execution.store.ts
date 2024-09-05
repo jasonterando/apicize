@@ -26,6 +26,11 @@ export class ExecutionStore {
         makeObservable(this)
     }
 
+    @action
+    clear() {
+        this.requestExecutions.clear()
+    }
+
     getExecution(requestOrGroupId: string) {
         let execution = this.requestExecutions.get(requestOrGroupId)
         if (!execution) {

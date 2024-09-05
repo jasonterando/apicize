@@ -1,4 +1,4 @@
-# Parameter Storage in Apicize
+# :toolbar Parameter Storage in Apicize
 
 [Requests](help:requests) and [Groups](help:groups) are always stored in Workbooks.  Parameters including
 [Authorizations](help:authorizations), [Scenarios](help:scenarios), [Certificates](help:certificates) and [Proxies](help:proxies)

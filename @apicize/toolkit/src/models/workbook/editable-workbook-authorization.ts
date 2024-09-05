@@ -1,34 +1,47 @@
 import {
-    Persistence, WorkbookApiKeyAuthorization, WorkbookAuthorization, WorkbookAuthorizationType, WorkbookBaseAuthorization,
+    Persistence, WorkbookApiKeyAuthorization, WorkbookAuthorization, WorkbookAuthorizationType,
     WorkbookBasicAuthorization, WorkbookOAuth2ClientAuthorization, Selection
 } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { observable } from "mobx"
+import { computed, observable } from "mobx"
 import { NO_SELECTION } from "../store"
 import { EditableEntityType } from "./editable-entity-type"
 
-export type EditableWorkbookAuthorization = EditableWorkbookApiKeyAuthorization | EditableWorkbookBasicAuthorization | EditableWorkbookOAuth2ClientAuthorization
-
-export abstract class EditableWorkbookAuthorizationEntry extends Editable<WorkbookAuthorization> implements WorkbookBaseAuthorization {
+export class EditableWorkbookAuthorization extends Editable<WorkbookAuthorization> {
     public readonly entityType = EditableEntityType.Authorization
-    abstract type: WorkbookAuthorizationType
+    @observable accessor type: WorkbookAuthorizationType = WorkbookAuthorizationType.Basic
     @observable accessor persistence = Persistence.Private
+    // API Key
+    @observable accessor header: string = ''
+    @observable accessor value: string = ''
+    // Basic
+    @observable accessor username: string = ''
+    @observable accessor password: string = ''
+    // OAuth2 Client
+    @observable accessor accessTokenUrl = ''
+    @observable accessor clientId = ''
+    @observable accessor clientSecret = ''
+    @observable accessor scope = ''
+    @observable accessor selectedCertificate: Selection | undefined = undefined
+    @observable accessor selectedProxy: Selection | undefined = undefined
 
     static fromWorkspace(entry: WorkbookAuthorization): EditableWorkbookAuthorization {
-        let result: EditableWorkbookAuthorization
+        let result = new EditableWorkbookAuthorization()
+        result.id = entry.id
+        result.name = entry.name ?? ''
+        result.persistence = entry.persistence ?? Persistence.Private
+        result.type = entry.type
+
         switch (entry.type) {
             case WorkbookAuthorizationType.ApiKey:
-                result = new EditableWorkbookApiKeyAuthorization()
                 result.header = entry.header
                 result.value = entry.value
                 break
             case WorkbookAuthorizationType.Basic:
-                result = new EditableWorkbookBasicAuthorization()
                 result.username = entry.username
                 result.password = entry.password
                 break
             case WorkbookAuthorizationType.OAuth2Client:
-                result = new EditableWorkbookOAuth2ClientAuthorization()
                 result.accessTokenUrl = entry.accessTokenUrl
                 result.clientId = entry.clientId
                 result.clientSecret = entry.clientSecret
@@ -40,9 +53,6 @@ export abstract class EditableWorkbookAuthorizationEntry extends Editable<Workbo
                 throw new Error('Invalid authorization type')
         }
 
-        result.id = entry.id
-        result.name = entry.name ?? ''
-        result.persistence = entry.persistence ?? Persistence.Private
         return result
     }
 
@@ -50,31 +60,28 @@ export abstract class EditableWorkbookAuthorizationEntry extends Editable<Workbo
         let result: WorkbookAuthorization
         switch (this.type) {
             case WorkbookAuthorizationType.ApiKey:
-                const a1 = this as unknown as EditableWorkbookApiKeyAuthorization
                 result = {
                     type: WorkbookAuthorizationType.ApiKey,
-                    header: a1.header,
-                    value: a1.value
+                    header: this.header,
+                    value: this.value
                 } as WorkbookApiKeyAuthorization
                 break
             case WorkbookAuthorizationType.Basic:
-                const a2 = this as unknown as EditableWorkbookBasicAuthorization
                 result = {
                     type: WorkbookAuthorizationType.Basic,
-                    username: a2.username,
-                    password: a2.password
+                    username: this.username,
+                    password: this.password
                 } as WorkbookBasicAuthorization
                 break
             case WorkbookAuthorizationType.OAuth2Client:
-                const a3 = this as unknown as EditableWorkbookOAuth2ClientAuthorization    
                 result = {
                     type: WorkbookAuthorizationType.OAuth2Client,
-                    accessTokenUrl: a3.accessTokenUrl,
-                    clientId: a3.clientId,
-                    clientSecret: a3.clientSecret,
-                    scope: a3.scope,
-                    selectedCertificate: a3.selectedCertificate ?? NO_SELECTION,
-                    selectedProxy: a3.selectedProxy ?? NO_SELECTION
+                    accessTokenUrl: this.accessTokenUrl,
+                    clientId: this.clientId,
+                    clientSecret: this.clientSecret,
+                    scope: this.scope,
+                    selectedCertificate: this.selectedCertificate ?? NO_SELECTION,
+                    selectedProxy: this.selectedProxy ?? NO_SELECTION
                 } as WorkbookOAuth2ClientAuthorization
                 break
             default:
@@ -86,33 +93,45 @@ export abstract class EditableWorkbookAuthorizationEntry extends Editable<Workbo
         result.persistence = this.persistence ?? Persistence.Private
         return result
     }
-}
 
-export class EditableWorkbookApiKeyAuthorization extends EditableWorkbookAuthorizationEntry implements WorkbookApiKeyAuthorization {
-    public readonly entityType = EditableEntityType.Authorization
-    @observable accessor type: WorkbookAuthorizationType.ApiKey = WorkbookAuthorizationType.ApiKey
-    @observable accessor persistence = Persistence.Private
-    @observable accessor header: string = ''
-    @observable accessor value: string = ''
-}
+    @computed get nameInvalid() {
+        return ((this.name?.length ?? 0) === 0)
+    }
 
-export class EditableWorkbookBasicAuthorization extends EditableWorkbookAuthorizationEntry implements WorkbookBasicAuthorization {
-    public readonly entityType = EditableEntityType.Authorization
-    @observable accessor type: WorkbookAuthorizationType.Basic = WorkbookAuthorizationType.Basic
-    @observable accessor persistence = Persistence.Private
-    @observable accessor username: string = ''
-    @observable accessor password: string = ''
-}
+    @computed get headerInvalid() {
+        return ((this.header?.length ?? 0) === 0)
+    }
 
-export class EditableWorkbookOAuth2ClientAuthorization extends EditableWorkbookAuthorizationEntry implements WorkbookOAuth2ClientAuthorization {
-    public readonly entityType = EditableEntityType.Authorization
-    @observable accessor type: WorkbookAuthorizationType.OAuth2Client = WorkbookAuthorizationType.OAuth2Client
-    @observable accessor persistence = Persistence.Private
-    @observable accessor accessTokenUrl = ''
-    @observable accessor clientId = ''
-    @observable accessor clientSecret = ''
-    @observable accessor scope = ''
-    @observable accessor selectedCertificate: Selection | undefined = undefined
-    @observable accessor selectedProxy: Selection | undefined = undefined
-    // sendCredentialsInBody: boolean}
+    @computed get valueInvalid() {
+        return ((this.value?.length ?? 0) === 0)
+    }
+
+    @computed get usernameInvalid() {
+        return ((this.username?.length ?? 0) === 0)
+    }
+
+    @computed get accessTokenUrlInvalid() {
+        return ! /(?:https?):\/\/(\w+:?\w*)?(\S+)(:\d+)?(\/|\/([\w#!:.?+=&%!\-\/]))?/.test(this.accessTokenUrl)
+    }
+
+    @computed get clientIdInvalid() {
+        return ((this.clientId?.length ?? 0) === 0)
+    }
+    @computed get invalid() {
+        switch (this.type) {
+            case WorkbookAuthorizationType.ApiKey:
+                return this.nameInvalid
+                    || this.headerInvalid
+                    || this.valueInvalid
+            case WorkbookAuthorizationType.Basic:
+                return this.nameInvalid
+                    || this.usernameInvalid
+            case WorkbookAuthorizationType.OAuth2Client:
+                return this.nameInvalid
+                    || this.accessTokenUrlInvalid
+                    || this.clientIdInvalid
+            default:
+                return false
+        }
+    }
 }

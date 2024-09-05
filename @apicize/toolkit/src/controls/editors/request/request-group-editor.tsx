@@ -2,7 +2,7 @@ import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select } f
 import { WorkbookGroupExecution, WorkbookRequestType } from '@apicize/lib-typescript';
 import { useWorkspace } from '../../../contexts/root.context';
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type';
-import { EditableWorkbookRequestEntry, EditableWorkbookRequestGroup } from '../../../models/workbook/editable-workbook-request';
+import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request';
 import { observer } from 'mobx-react-lite';
 
 export const RequestGroupEditor = observer((props: {
@@ -14,12 +14,10 @@ export const RequestGroupEditor = observer((props: {
         return null
     }
 
-    const requestEntry = workspace.active as EditableWorkbookRequestEntry
-    if (requestEntry.type !== WorkbookRequestType.Group) {
+    const request = workspace.active as EditableWorkbookRequest
+    if (request.type !== WorkbookRequestType.Group) {
         return null
     }
-
-    const group = requestEntry as EditableWorkbookRequestGroup
 
     return (
         <Grid container direction='column' spacing={3} maxWidth={1000} sx={props.sx}>
@@ -31,7 +29,7 @@ export const RequestGroupEditor = observer((props: {
                     sx={{ flexGrow: 1 }}
                     fullWidth
                     // size='small'
-                    value={group.name}
+                    value={request.name}
                     onChange={e => workspace.setRequestName(e.target.value)}
                 />
             </Grid>
@@ -41,7 +39,7 @@ export const RequestGroupEditor = observer((props: {
                     <Select
                         labelId='execution-id'
                         id='execution'
-                        value={group.execution}
+                        value={request.execution}
                         label='Type'
                         onChange={e => workspace.setGroupExecution(e.target.value as WorkbookGroupExecution)}
                     >

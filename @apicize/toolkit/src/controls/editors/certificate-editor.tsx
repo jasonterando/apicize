@@ -9,7 +9,7 @@ import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import { base64Decode, base64Encode } from '../../services/apicize-serializer';
 import { useClipboard } from '../../contexts/clipboard.context';
 import { useWorkspace } from '../../contexts/root.context';
-import { EditableWorkbookCertificate, EditableWorkbookPkcs12Certificate, EditableWorkbookPkcs8PemCertificate } from '../../models/workbook/editable-workbook-certificate';
+import { EditableWorkbookCertificate } from '../../models/workbook/editable-workbook-certificate';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
 
@@ -24,22 +24,19 @@ export const CertificateEditor = observer((props: {
     if (workspace.active?.entityType !== EditableEntityType.Certificate || workspace.helpVisible) return null
     const certificate = workspace.active as EditableWorkbookCertificate
 
-    const pkcs8 = certificate as EditableWorkbookPkcs8PemCertificate
-    const pkcs12 = certificate as EditableWorkbookPkcs12Certificate
-
     let pemToView: string = ''
-    if (pkcs8.pem && (pkcs8.pem.length > 0)) {
+    if (certificate.pem && (certificate.pem.length > 0)) {
         try {
-            pemToView = (new TextDecoder('ascii')).decode(base64Decode(pkcs8.pem))
+            pemToView = (new TextDecoder('ascii')).decode(base64Decode(certificate.pem))
         } catch {
             pemToView = '(Invalid)'
         }
     }
 
     let keyToView: string = ''
-    if (pkcs8.key) {
+    if (certificate.key) {
         try {
-            keyToView = (new TextDecoder('ascii')).decode(base64Decode(pkcs8.key))
+            keyToView = (new TextDecoder('ascii')).decode(base64Decode(certificate.key))
         } catch {
             keyToView = '(Invalid)'
         }
@@ -135,7 +132,7 @@ export const CertificateEditor = observer((props: {
                                             multiline
                                             inputProps={{ className: "code", readOnly: true }}
                                             rows={8}
-                                            value={pkcs12.pfx ? base64Encode(Buffer.from(pkcs12.pfx)) : ''}
+                                            value={certificate.pfx ? base64Encode(Buffer.from(certificate.pfx)) : ''}
                                             fullWidth
                                         />
                                         <IconButton color='primary' size='medium' aria-label='open-pfx' title='Open Certificate PFX File' onClick={() => {
@@ -146,7 +143,7 @@ export const CertificateEditor = observer((props: {
                                         id='cert-key'
                                         label='Certificate Key'
                                         inputProps={{ className: "password" }}
-                                        value={pkcs12.password}
+                                        value={certificate.password}
                                         onChange={e => workspace.setCertificatePassword(e.target.value)}
                                         fullWidth
                                     />

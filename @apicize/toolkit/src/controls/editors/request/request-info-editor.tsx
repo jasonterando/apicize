@@ -2,7 +2,7 @@ import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Box } from 
 import { WorkbookMethod, WorkbookMethods, WorkbookRequestType } from '@apicize/lib-typescript'
 import { useWorkspace } from '../../../contexts/root.context'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
-import { EditableWorkbookRequest, EditableWorkbookRequestEntry } from '../../../models/workbook/editable-workbook-request'
+import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { observer } from 'mobx-react-lite'
 
 export const RequestInfoEditor = observer(() => {
@@ -12,7 +12,7 @@ export const RequestInfoEditor = observer(() => {
         return null
     }
 
-    const requestEntry = workspace.active as EditableWorkbookRequestEntry
+    const requestEntry = workspace.active as EditableWorkbookRequest
     if (requestEntry.type !== WorkbookRequestType.Request) {
         return null
     }
@@ -32,9 +32,12 @@ export const RequestInfoEditor = observer(() => {
                     id='request-name'
                     label="Name"
                     aria-label='Request name'
+                    required
                     // size="small"
                     value={request.name}
                     onChange={e => workspace.setRequestName(e.target.value)}
+                    error={request.nameInvalid}
+                    helperText={request.nameInvalid ? 'Request name is required' : ''}
                     fullWidth
                 />
             </Grid>
@@ -43,9 +46,12 @@ export const RequestInfoEditor = observer(() => {
                     id='request-url'
                     label="URL"
                     aria-label='Request url'
+                    required
                     // size="small"
                     value={request.url}
                     onChange={e => workspace.setRequestUrl(e.target.value)}
+                    error={request.urlInvalid}
+                    helperText={request.urlInvalid ? 'URL must include http/https protocol prefix and address' : ''}
                     fullWidth
                 />
             </Grid>

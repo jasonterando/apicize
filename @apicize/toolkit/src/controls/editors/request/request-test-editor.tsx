@@ -9,7 +9,7 @@ import "ace-builds/src-noconflict/mode-javascript"
 import { useWorkspace } from '../../../contexts/root.context'
 import { WorkbookRequestType } from '@apicize/lib-typescript'
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
-import { EditableWorkbookRequest, EditableWorkbookRequestEntry } from "../../../models/workbook/editable-workbook-request";
+import { EditableWorkbookRequest } from "../../../models/workbook/editable-workbook-request";
 import { observer } from "mobx-react-lite";
 
 export const RequestTestEditor = observer(() => {
@@ -19,7 +19,7 @@ export const RequestTestEditor = observer(() => {
     return null
   }
 
-  const requestEntry = workspace.active as EditableWorkbookRequestEntry
+  const requestEntry = workspace.active as EditableWorkbookRequest
   if (requestEntry.type !== WorkbookRequestType.Request) {
     return null
   }

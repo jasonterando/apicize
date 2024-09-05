@@ -5,7 +5,7 @@ Apicize supports the following types of client certificates for authentication:
 * PKCS #8: With either separate or embedded certificate key
 * PKCS #12:  PFX with password
 
-Certificates may be used in conjunction with other types of [authorization](help:authorization)
+Certificates may be used in conjunction with other types of [authorization](help:authorizations)
 
 ## Configuration
 
@@ -16,6 +16,4 @@ To delete a Certificate, select it in the navigation pane, and in its context me
 ### See Also
 
 * [**Requests**](help:requests)
-* [**Request Groups**](help:groups)
-* [**OAuth2 Client Authorization**](help:authorization/oauth2-client)
 

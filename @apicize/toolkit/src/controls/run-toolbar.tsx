@@ -1,24 +1,18 @@
 import { ButtonGroup, ToggleButton, Grid, TextField, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { Stack } from "@mui/system";
-import { request } from "http";
 import { observer } from "mobx-react-lite";
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { RunInformation } from "../models/workbook/run-information";
 import { useWorkspace, useExecution } from "../contexts/root.context";
 import { EditableEntityType } from "../models/workbook/editable-entity-type";
-import { EditableWorkbookRequestEntry } from "../models/workbook/editable-workbook-request";
-import { WorkbookExecutionResultMenuItem, WorkbookExecutionRunMenuItem } from "../models/workbook/workbook-execution";
-import { computed, reaction } from "mobx";
-import { useState } from "react";
-import { useToast } from "../services/toast-service";
-import { ToastSeverity } from "./toast";
+import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request";
 
 export const RunToolbar = observer((props: {
     triggerRun: (info: RunInformation) => {}
 }) => {
     const workspace = useWorkspace()
     const request = (workspace.active?.entityType === EditableEntityType.Request && !workspace.helpVisible)
-        ? workspace.active as EditableWorkbookRequestEntry
+        ? workspace.active as EditableWorkbookRequest
         : null
 
     const executionCtx = useExecution()

@@ -1,11 +1,11 @@
 import { Persistence, WorkbookScenario } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { observable, toJS } from "mobx"
+import { computed, observable, toJS } from "mobx"
 import { EditableNameValuePair } from "./editable-name-value-pair"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EditableEntityType } from "./editable-entity-type"
 
-export class EditableWorkbookScenario extends Editable<WorkbookScenario> implements WorkbookScenario {
+export class EditableWorkbookScenario extends Editable<WorkbookScenario> {
     public readonly entityType = EditableEntityType.Scenario
     @observable accessor persistence = Persistence.Private
     @observable accessor variables: EditableNameValuePair[] = []
@@ -32,5 +32,13 @@ export class EditableWorkbookScenario extends Editable<WorkbookScenario> impleme
             variables: toJS(this.variables)
         }
     }
+
+    @computed get nameInvalid() {
+        return ((this.name?.length ?? 0) === 0)
+    }
+
+    @computed get invalid() {
+        return this.nameInvalid
+    }    
 }
 

@@ -16,7 +16,7 @@ import "ace-builds/src-noconflict/ext-language_tools"
 import { WorkbookBodyType, WorkbookBodyTypes, WorkbookRequestType } from '@apicize/lib-typescript'
 import { useWorkspace } from '../../../contexts/root.context'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
-import { EditableWorkbookRequest, EditableWorkbookRequestEntry } from '../../../models/workbook/editable-workbook-request'
+import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { observer } from 'mobx-react-lite'
 
 export const RequestBodyEditor = observer((props: {
@@ -29,7 +29,7 @@ export const RequestBodyEditor = observer((props: {
     return null
   }
 
-  const requestEntry = workspace.active as EditableWorkbookRequestEntry
+  const requestEntry = workspace.active as EditableWorkbookRequest
   if (requestEntry.type !== WorkbookRequestType.Request) {
     return null
   }

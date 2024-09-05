@@ -107,7 +107,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             })()
         }
 
-        const unlistenRun = listen('run', async (event: Event<RunInformation>) => { await doRunRequest(event.payload)})
+        const unlistenRun = listen('run', async (event: Event<RunInformation>) => { await doRunRequest(event.payload) })
         const unlistenOpenFile = listen('openFile', async (event: Event<{ destination: ContentDestination, id: string }>) => { await doOpenFile(event.payload.destination, event.payload.id) })
         const unlistenAction = listen('action', async (event: Event<string>) => { await doRouteAction(event.payload) })
 
@@ -373,6 +373,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
         const settings = await loadSettings()
         workspaceCtx.newWorkspace()
+        _forceClose.current = false
         toast.open('Created New Workbook', ToastSeverity.Success)
     }
 
@@ -415,6 +416,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             if (doUpdateSettings) {
                 await updateSettings({ lastWorkbookFileName: fileName })
             }
+            _forceClose.current = false
             toast.open(`Opened ${fileName}`, ToastSeverity.Success)
         } catch (e) {
             toast.open(`${e}`, ToastSeverity.Error)
@@ -425,6 +427,18 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         try {
             if (!(windowCtx.workbookFullName && windowCtx.workbookFullName.length > 0)) {
                 return
+            }
+
+            if (workspaceCtx.anyInvalid()) {
+                if (! await confirm({
+                    title: 'Save Workbook',
+                    message: 'Your workspace has one or more errors, are you sure you want to save?',
+                    okButton: 'Yes',
+                    cancelButton: 'No',
+                    defaultToCancel: true
+                })) {
+                    return
+                }
             }
             const workspace = workspaceCtx.getWorkspace()
 
@@ -443,6 +457,18 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
 
     const doSaveWorkbookAs = async () => {
         try {
+            if (workspaceCtx.anyInvalid()) {
+                if (! await confirm({
+                    title: 'Save Workbook',
+                    message: 'Your workspace has one or more errors, are you sure you want to save?',
+                    okButton: 'Yes',
+                    cancelButton: 'No',
+                    defaultToCancel: true
+                })) {
+                    return
+                }
+            }
+
             const settings = await loadSettings()
 
             let fileName = await dialog.save({
@@ -490,7 +516,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         try {
             executionCtx.runStart(runInfo.requestId)
             let results = await core.invoke<ApicizeExecutionResults>
-                ('run_request', { workspace: runInfo.workspace, requestId: runInfo.requestId } )
+                ('run_request', { workspace: runInfo.workspace, requestId: runInfo.requestId })
             console.log('Run results', results)
             executionCtx.runComplete(runInfo.requestId, results)
         } catch (e) {
