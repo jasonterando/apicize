@@ -7,7 +7,6 @@ import 'prismjs/themes/prism-tomorrow.css'
 import AceEditor from "react-ace"
 import "ace-builds/src-noconflict/mode-javascript"
 import { useWorkspace } from '../../../contexts/root.context'
-import { WorkbookRequestType } from '@apicize/lib-typescript'
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
 import { EditableWorkbookRequest } from "../../../models/workbook/editable-workbook-request";
 import { observer } from "mobx-react-lite";
@@ -19,12 +18,7 @@ export const RequestTestEditor = observer(() => {
     return null
   }
 
-  const requestEntry = workspace.active as EditableWorkbookRequest
-  if (requestEntry.type !== WorkbookRequestType.Request) {
-    return null
-  }
-
-  const request = requestEntry as EditableWorkbookRequest
+  const request = workspace.active as EditableWorkbookRequest
 
   return (
     <AceEditor

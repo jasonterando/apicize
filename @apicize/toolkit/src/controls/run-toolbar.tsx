@@ -11,7 +11,8 @@ export const RunToolbar = observer((props: {
     triggerRun: (info: RunInformation) => {}
 }) => {
     const workspace = useWorkspace()
-    const request = (workspace.active?.entityType === EditableEntityType.Request && !workspace.helpVisible)
+    const request = ((workspace.active?.entityType === EditableEntityType.Request || workspace.active?.entityType === EditableEntityType.Group)
+        && !workspace.helpVisible)
         ? workspace.active as EditableWorkbookRequest
         : null
 

@@ -7,11 +7,11 @@ import { WorkbookCertificateType } from '@apicize/lib-typescript';
 import { PersistenceEditor } from './persistence-editor';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import { base64Decode, base64Encode } from '../../services/apicize-serializer';
-import { useClipboard } from '../../contexts/clipboard.context';
 import { useWorkspace } from '../../contexts/root.context';
 import { EditableWorkbookCertificate } from '../../models/workbook/editable-workbook-certificate';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
+import { useClipboard } from '../../contexts/clipboard.context';
 
 export const CertificateEditor = observer((props: {
     sx: SxProps,
@@ -53,7 +53,7 @@ export const CertificateEditor = observer((props: {
                         aria-label='name'
                         // size='small'
                         value={certificate.name}
-                        onChange={e => workspace.setCertificateName(e.target.value)}
+                        onChange={e => workspace.setName(e.target.value)}
                         fullWidth
                     />
                 </Grid>

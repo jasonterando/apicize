@@ -9,12 +9,12 @@ export { Navigation } from './controls/navigation'
 export { HelpPanel } from './controls/help'
 // Note - don't export store actions, publish method in WorkspaceContext instead, so we can abstract use of redux and other stuff
 export { ClipboardContentType, ContentDestination } from './models/store'
-export { ConfirmationServiceProvider, useConfirmation } from './services/confirmation-service'
-export { useToast, ToastProvider, ToastContext, ToastStore } from './services/toast-service'
 export { editableWorkspaceToStoredWorkspace as stateToWorkspace, storedWorkspaceToEditableWorkspace as workspaceToState, base64Decode, base64Encode } from './services/apicize-serializer'
-export { ToastSeverity } from './controls/toast'
 export { DndContext } from '@dnd-kit/core'
-export { ClipboardProvider, useClipboard } from './contexts/clipboard.context'
 export { EditableEntityType } from './models/workbook/editable-entity-type'
 
 export { RootProvider, useWorkspace, useWindow, useExecution } from './contexts/root.context'
+
+export { useToast, ToastContext, ToastStore, ToastSeverity } from './contexts/toast.context'
+export { useClipboard, ClipboardContext, ClipboardStore } from './contexts/clipboard.context'
+export { useConfirmation, ConfirmationContext, ConfirmationStore, ConfirmationOptions } from './contexts/confirmation.context'

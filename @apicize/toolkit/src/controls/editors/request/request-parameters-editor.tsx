@@ -10,7 +10,7 @@ import { observer } from 'mobx-react-lite'
 export const RequestParametersEditor = observer(() => {
     const workspace = useWorkspace()
 
-    if (workspace.active?.entityType !== EditableEntityType.Request) {
+    if (workspace.active?.entityType !== EditableEntityType.Request && workspace.active?.entityType !== EditableEntityType.Group) {
         return null
     }
 

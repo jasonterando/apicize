@@ -1,5 +1,5 @@
 import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Box } from '@mui/material'
-import { WorkbookMethod, WorkbookMethods, WorkbookRequestType } from '@apicize/lib-typescript'
+import { WorkbookMethod, WorkbookMethods } from '@apicize/lib-typescript'
 import { useWorkspace } from '../../../contexts/root.context'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
@@ -12,12 +12,7 @@ export const RequestInfoEditor = observer(() => {
         return null
     }
 
-    const requestEntry = workspace.active as EditableWorkbookRequest
-    if (requestEntry.type !== WorkbookRequestType.Request) {
-        return null
-    }
-
-    const request = requestEntry as EditableWorkbookRequest
+    const request = workspace.active as EditableWorkbookRequest
 
     const methodMenuItems = () => {
         return WorkbookMethods.map(method => (
@@ -35,7 +30,7 @@ export const RequestInfoEditor = observer(() => {
                     required
                     // size="small"
                     value={request.name}
-                    onChange={e => workspace.setRequestName(e.target.value)}
+                    onChange={e => workspace.setName(e.target.value)}
                     error={request.nameInvalid}
                     helperText={request.nameInvalid ? 'Request name is required' : ''}
                     fullWidth

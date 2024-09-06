@@ -8,8 +8,9 @@ import { useExecution, useWorkspace } from "../../../contexts/root.context";
 import { WorkbookExecutionGroupSummary, WorkbookExecutionResult } from "../../../models/workbook/workbook-execution";
 import { observer } from "mobx-react-lite";
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
-import { WorkbookRequestType } from "@apicize/lib-typescript";
-import { EditableWorkbookRequest } from "../../../models/workbook/editable-workbook-request";
+import { EditableWorkbookRequest, EditableWorkbookRequestGroup } from "../../../models/workbook/editable-workbook-request";
+import { useClipboard } from "../../../contexts/clipboard.context";
+import { toJS } from "mobx";
 
 const ResultSummary = (props: { sx: SxProps, summary: WorkbookExecutionGroupSummary }) => {
     let idx = 0
@@ -126,27 +127,36 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
 )
 
 export const ResultInfoViewer = observer((props: {
-    requestOrGroupId: string, runIndex: number, resultIndex: number,
-    triggerCopyTextToClipboard: (text?: string) => void
-}) => {
+    requestOrGroupId: string, runIndex: number, resultIndex: number
+ }) => {
     const workspaceCtx = useWorkspace()
-    if (!workspaceCtx.active || workspaceCtx.active.entityType !== EditableEntityType.Request || !workspaceCtx.active.id) {
+    const clipboardCtx = useClipboard()
+    
+    const request = workspaceCtx.active?.entityType === EditableEntityType.Request
+        ? workspaceCtx.active as EditableWorkbookRequest
+        : null
+
+
+    const group = workspaceCtx.active?.entityType === EditableEntityType.Group
+        ? workspaceCtx.active as EditableWorkbookRequestGroup
+        : null
+
+    if (! (request || group)) {
         return null
     }
 
-    const request = workspaceCtx.active as EditableWorkbookRequest
     const executionCtx = useExecution()
 
     const copyToClipboard = (data: any) => {
         const text = beautify.js_beautify(JSON.stringify(data), {})
-        props.triggerCopyTextToClipboard(text)
+        clipboardCtx.copyTextToClipboard(text)
     }
 
     let summary: WorkbookExecutionGroupSummary | undefined
     let result: WorkbookExecutionResult | undefined
     let title: string | null = null
 
-    if ((request.type === WorkbookRequestType.Group && props.resultIndex === -1)) {
+    if ((group && props.resultIndex === -1)) {
         summary = executionCtx.getExecutionGroupSummary(props.requestOrGroupId, props.runIndex)
         if (summary) {
             title = `Group Execution ${summary.allTestsSucceeded ? "Completed" : "Failed"}`

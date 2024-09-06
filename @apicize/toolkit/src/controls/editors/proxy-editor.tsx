@@ -24,7 +24,7 @@ export const ProxyEditor = observer((props: {
                         aria-label='name'
                         // size='small'
                         value={proxy.name}
-                        onChange={e => workspace.setProxyName(e.target.value)}
+                        onChange={e => workspace.setName(e.target.value)}
                         error={proxy.nameInvalid}
                         helperText={proxy.nameInvalid ? 'Proxy name is required' : ''}
                         fullWidth

@@ -1,9 +1,10 @@
 import { action, makeObservable, observable } from "mobx";
 import { RootStore } from "./root.store";
-import { ApicizeExecutionResults, ApicizeRequest, ApicizeResult, ApicizeTestResult, WorkbookGroupExecution, WorkbookRequestGroup, WorkbookRequestType } from "@apicize/lib-typescript";
+import { ApicizeExecutionResults, ApicizeRequest, ApicizeResult, ApicizeTestResult, WorkbookGroupExecution, WorkbookRequestGroup } from "@apicize/lib-typescript";
 import { WorkbookExecution, WorkbookExecutionGroupSummary, WorkbookExecutionGroupSummaryRequest, WorkbookExecutionResult, WorkbookExecutionRun, WorkbookExecutionRunMenuItem } from "../models/workbook/workbook-execution";
 import { ApicizeResponseBody } from "@apicize/lib-typescript/dist/models/lib/apicize-response";
 import { MAX_TEXT_RENDER_LENGTH } from "../controls/viewers/text-viewer";
+import { EditableEntityType } from "../models/workbook/editable-entity-type";
 
 class WorkbookExecutionEntry implements WorkbookExecution {
     @observable accessor running = false
@@ -88,7 +89,7 @@ export class ExecutionStore {
     runComplete(requestOrGroupId: string, executionResults: ApicizeExecutionResults | undefined) {
         const execution = this.requestExecutions.get(requestOrGroupId)
         const request = this.root.workspace.getRequest(requestOrGroupId)
-        const group = request?.type === WorkbookRequestType.Group
+        const group = request?.entityType === EditableEntityType.Group
             ? request as WorkbookRequestGroup
             : null
 

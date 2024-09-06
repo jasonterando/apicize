@@ -1,8 +1,8 @@
 "use client"
 
-import { ReactNode, useContext, useEffect, useRef, useState } from "react"
+import { ReactNode, useEffect, useRef, useState } from "react"
 import {
-    ToastContext, ToastStore, ToastSeverity,
+    ToastSeverity,
     useConfirmation,
     base64Encode,
     ContentDestination,
@@ -11,20 +11,18 @@ import {
     useWindow,
     EditableEntityType,
     useToast,
-    ClipboardContentType,
     useClipboard,
 } from "@apicize/toolkit"
 import { ApicizeExecutionResults, StoredGlobalSettings, Workspace } from "@apicize/lib-typescript"
-import { join, resourceDir } from "@tauri-apps/api/path"
 import { Window } from "@tauri-apps/api/window"
 import * as app from '@tauri-apps/api/app'
 import * as core from '@tauri-apps/api/core'
 import * as path from '@tauri-apps/api/path'
 import { listen, Event, UnlistenFn } from "@tauri-apps/api/event"
-import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
+import { exists, readFile } from "@tauri-apps/plugin-fs"
 import * as dialog from '@tauri-apps/plugin-dialog'
 import clipboard, { writeImageBase64, writeText } from "tauri-plugin-clipboard-api"
-import { autorun, reaction } from "mobx"
+import { reaction } from "mobx"
 import { RunInformation } from "@apicize/toolkit/dist/models/workbook/run-information"
 
 const EXT = 'apicize';
@@ -45,11 +43,11 @@ const getWindow = async () => {
 export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
     const workspaceCtx = useWorkspace()
     const executionCtx = useExecution()
-    const clipboardCtx = useClipboard()
     const confirm = useConfirmation()
     const toast = useToast()
 
     const windowCtx = useWindow()
+    const clipboardCtx = useClipboard()
 
     const _forceClose = useRef(false)
 
@@ -81,7 +79,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                         await doOpenWorkbook(settings.lastWorkbookFileName, false)
                     }
                 } catch (e) {
-                    toast.open(`${e}`, ToastSeverity.Error)
+                    toast(`${e}`, ToastSeverity.Error)
                 }
 
                 // Set up close event hook, warn user if "dirty"
@@ -107,29 +105,20 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             })()
         }
 
+        let unlistenClipboardUpdate: Promise<UnlistenFn> | null = null
+        clipboard.startListening().then(async () => {
+            unlistenClipboardUpdate = clipboard.onSomethingUpdate((types) => {
+                clipboardCtx.hasText = types?.text === true
+                clipboardCtx.hasImage = types?.imageBinary === true
+            })
+        })
+
         const unlistenRun = listen('run', async (event: Event<RunInformation>) => { await doRunRequest(event.payload) })
         const unlistenOpenFile = listen('openFile', async (event: Event<{ destination: ContentDestination, id: string }>) => { await doOpenFile(event.payload.destination, event.payload.id) })
         const unlistenAction = listen('action', async (event: Event<string>) => { await doRouteAction(event.payload) })
 
-        const unlistenCopyTextToClipboard = listen<string | undefined>('copyText', async (event) => {
-            await doCopyTextToClipboard(event.payload)
-        })
-        const unlistenCopyImageToClipboard = listen<string | undefined>('copyImage', async (event) => {
-            await doCopyImageToClipboard(event.payload)
-        })
-
-        const unlistenPastFromClipboard = listen<{ destination: ContentDestination, id: string }>('pasteFromClipboard', async (event) => {
+        const unlistenePasteFromClipboard = listen<{ destination: ContentDestination, id: string }>('pasteFromClipboard', async (event) => {
             await doPasteTextFromClipboard(event.payload.destination, event.payload.id)
-        })
-
-        let unlistenClipboardUpdate: Promise<UnlistenFn> | null = null
-        clipboard.startListening().then(async () => {
-            unlistenClipboardUpdate = clipboard.onSomethingUpdate((types) => {
-                const ctypes: ClipboardContentType[] = []
-                if (types.text) ctypes.push(ClipboardContentType.Text)
-                if (types.imageBinary) ctypes.push(ClipboardContentType.Image)
-                clipboardCtx.changeTypes(types.text === true, types.imageBinary === true)
-            })
         })
 
         return () => {
@@ -137,9 +126,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             unlistenRun.then(f => f())
             unlistenOpenFile.then(f => f())
             unlistenAction.then(f => f())
-            unlistenCopyTextToClipboard.then(f => f())
-            unlistenCopyImageToClipboard.then(f => f())
-            unlistenPastFromClipboard.then(f => f())
+            unlistenePasteFromClipboard.then(f => f())
         }
     })
 
@@ -247,7 +234,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 extensionName = ''
                 break
             default:
-                toast.open('Invalid destination type', ToastSeverity.Error)
+                toast('Invalid destination type', ToastSeverity.Error)
                 return
         }
 
@@ -302,10 +289,10 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                     if (pathName.length > 0) setBodyDataPath(pathName)
                     break
             }
-            toast.open(`Data read from from ${fileName}`, ToastSeverity.Success)
+            toast(`Data read from from ${fileName}`, ToastSeverity.Success)
 
         } catch (e) {
-            toast.open(`Unable to open ${fileName}, ${e}`, ToastSeverity.Error)
+            toast(`Unable to open ${fileName}, ${e}`, ToastSeverity.Error)
         }
     }
 
@@ -318,7 +305,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                     return null
                 }
             } catch (e) {
-                toast.open(`${e}`, ToastSeverity.Error)
+                toast(`${e}`, ToastSeverity.Error)
                 return null
             }
         }
@@ -327,7 +314,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 return await core.invoke<string>('get_clipboard_image_base64')
                 // return await clipboard.readImageBase64()
             } catch (e) {
-                toast.open(`Unable to copy image from clipboard: ${e}`, ToastSeverity.Error)
+                toast(`Unable to copy image from clipboard: ${e}`, ToastSeverity.Error)
                 return null
             }
         }
@@ -374,7 +361,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         const settings = await loadSettings()
         workspaceCtx.newWorkspace()
         _forceClose.current = false
-        toast.open('Created New Workbook', ToastSeverity.Success)
+        toast('Created New Workbook', ToastSeverity.Success)
     }
 
     // Triggers opening a workbook
@@ -417,9 +404,9 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 await updateSettings({ lastWorkbookFileName: fileName })
             }
             _forceClose.current = false
-            toast.open(`Opened ${fileName}`, ToastSeverity.Success)
+            toast(`Opened ${fileName}`, ToastSeverity.Success)
         } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
+            toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -445,13 +432,13 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             await core.invoke('save_workspace', { workspace, path: windowCtx.workbookFullName })
 
             await updateSettings({ lastWorkbookFileName: windowCtx.workbookFullName })
-            toast.open(`Saved ${windowCtx.workbookFullName}`, ToastSeverity.Success)
+            toast(`Saved ${windowCtx.workbookFullName}`, ToastSeverity.Success)
             windowCtx.changeWorkbook(
                 windowCtx.workbookFullName,
                 await getDisplayName(windowCtx.workbookFullName)
             )
         } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
+            toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -493,13 +480,13 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             await core.invoke('save_workspace', { workspace, path: fileName })
 
             await updateSettings({ lastWorkbookFileName: fileName })
-            toast.open(`Saved ${fileName}`, ToastSeverity.Success)
+            toast(`Saved ${fileName}`, ToastSeverity.Success)
             windowCtx.changeWorkbook(
                 fileName,
                 await getDisplayName(fileName)
             )
         } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
+            toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -517,11 +504,10 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             executionCtx.runStart(runInfo.requestId)
             let results = await core.invoke<ApicizeExecutionResults>
                 ('run_request', { workspace: runInfo.workspace, requestId: runInfo.requestId })
-            console.log('Run results', results)
             executionCtx.runComplete(runInfo.requestId, results)
         } catch (e) {
             let msg1 = `${e}`
-            toast.open(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
+            toast(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
             executionCtx.runCancel(runInfo.requestId)
         }
     }
@@ -534,7 +520,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                 id: requestId
             })
         } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
+            toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -546,41 +532,16 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
                     authorization_id: authorizationId
                 })
                 if (result) {
-                    toast.open('Token cleared for this authorization', ToastSeverity.Success)
+                    toast('Token cleared for this authorization', ToastSeverity.Success)
                 } else {
-                    toast.open('No token for this authorization to clear', ToastSeverity.Info)
+                    toast('No token for this authorization to clear', ToastSeverity.Info)
                 }
             }
         } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
+            toast(`${e}`, ToastSeverity.Error)
         }
     }
 
-    const doCopyImageToClipboard = async (base64?: string) => {
-        try {
-            if (base64 && (base64.length > 0)) {
-                const m = base64.length % 4
-                if (m) {
-                    base64 += '==='.substring(0, 4 - m)
-                }
-                await writeImageBase64(base64)
-                toast.open('Image copied to clipboard', ToastSeverity.Success)
-            }
-        } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
-        }
-    }
-
-    const doCopyTextToClipboard = async (text?: string) => {
-        try {
-            if (text && (text.length ?? 0) > 0) {
-                await writeText(text)
-                toast.open('Text copied to clipboard', ToastSeverity.Success)
-            }
-        } catch (e) {
-            toast.open(`${e}`, ToastSeverity.Error)
-        }
-    }
 
     const loadSettings = async () => {
         if (_settings.current) return _settings.current
@@ -593,7 +554,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
             settings = {
                 workbookDirectory: await path.join(await path.documentDir(), 'apicize'),
             }
-            toast.open(`Unable to access settings: ${e}`, ToastSeverity.Error)
+            toast(`Unable to access settings: ${e}`, ToastSeverity.Error)
         }
 
         _settings.current = settings
@@ -616,7 +577,7 @@ export const ApicizeTauriProvider = (props: { children?: ReactNode }) => {
         try {
             await core.invoke<StoredGlobalSettings>('save_settings', { settings: newSettings })
         } catch (e) {
-            toast.open(`Unable to save settings: ${e}`, ToastSeverity.Error)
+            toast(`Unable to save settings: ${e}`, ToastSeverity.Error)
         }
     }
 

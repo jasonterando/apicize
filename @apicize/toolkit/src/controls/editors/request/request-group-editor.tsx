@@ -1,8 +1,7 @@
 import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select } from '@mui/material'
-import { WorkbookGroupExecution, WorkbookRequestType } from '@apicize/lib-typescript';
+import { WorkbookGroupExecution } from '@apicize/lib-typescript';
 import { useWorkspace } from '../../../contexts/root.context';
-import { EditableEntityType } from '../../../models/workbook/editable-entity-type';
-import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request';
+import { EditableWorkbookRequestGroup } from '../../../models/workbook/editable-workbook-request';
 import { observer } from 'mobx-react-lite';
 
 export const RequestGroupEditor = observer((props: {
@@ -10,14 +9,7 @@ export const RequestGroupEditor = observer((props: {
 }) => {
     const workspace = useWorkspace()
 
-    if (workspace.active?.entityType !== EditableEntityType.Request) {
-        return null
-    }
-
-    const request = workspace.active as EditableWorkbookRequest
-    if (request.type !== WorkbookRequestType.Group) {
-        return null
-    }
+    const group = workspace.active as EditableWorkbookRequestGroup
 
     return (
         <Grid container direction='column' spacing={3} maxWidth={1000} sx={props.sx}>
@@ -29,8 +21,8 @@ export const RequestGroupEditor = observer((props: {
                     sx={{ flexGrow: 1 }}
                     fullWidth
                     // size='small'
-                    value={request.name}
-                    onChange={e => workspace.setRequestName(e.target.value)}
+                    value={group.name}
+                    onChange={e => workspace.setName(e.target.value)}
                 />
             </Grid>
             <Grid item>
@@ -39,7 +31,7 @@ export const RequestGroupEditor = observer((props: {
                     <Select
                         labelId='execution-id'
                         id='execution'
-                        value={request.execution}
+                        value={group.execution}
                         label='Type'
                         onChange={e => workspace.setGroupExecution(e.target.value as WorkbookGroupExecution)}
                     >

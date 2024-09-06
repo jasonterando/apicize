@@ -3,7 +3,7 @@ import { EditableWorkbookAuthorization } from "../models/workbook/editable-workb
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario";
 import { IndexedEntities } from '@apicize/lib-typescript/src/models/indexed-entities'
 import { Editable } from "../models/editable";
-import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request";
+import { EditableWorkbookRequest, EditableWorkbookRequestGroup } from "../models/workbook/editable-workbook-request";
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair";
 import { EditableWorkspace } from "../models/workbook/editable-workspace";
 import { EditableWorkbookProxy } from "../models/workbook/editable-workbook-proxy";
@@ -123,9 +123,10 @@ export function storedWorkspaceToEditableWorkspace(workspace: Workspace): Editab
         requests: {
             topLevelIds: workspace.requests.topLevelIds,
             entities: new Map(Object.values(workspace.requests.entities)
-                .map(e => 
-                    [e.id,  EditableWorkbookRequest.fromWorkspace(e)]
-                )),
+                .map(e => [e.id, e['url'] === undefined
+                    ? EditableWorkbookRequestGroup.fromWorkspace(e)
+                    : EditableWorkbookRequest.fromWorkspace(e)
+                ])),
             childIds: workspace.requests.childIds ? new Map(Object.entries(workspace.requests.childIds)) : undefined
         },
         scenarios: {
@@ -183,7 +184,7 @@ export function editableToNameValuePair(pair: EditableNameValuePair) {
  * @returns 
  */
 export function editableWorkspaceToStoredWorkspace(
-    requests: IndexedNestedRequests<EditableWorkbookRequest>,
+    requests: IndexedNestedRequests<EditableWorkbookRequest | EditableWorkbookRequestGroup>,
     scenarios: IndexedEntities<EditableWorkbookScenario>,
     authorizations: IndexedEntities<EditableWorkbookAuthorization>,
     certificates: IndexedEntities<EditableWorkbookCertificate>,
@@ -215,7 +216,6 @@ export function editableWorkspaceToStoredWorkspace(
     }
     return result
 }
-
 
 export function stateToGlobalSettingsStorage(
     workbookDirectory: string,

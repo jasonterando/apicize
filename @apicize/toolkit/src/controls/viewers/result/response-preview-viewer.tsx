@@ -4,15 +4,16 @@ import { IconButton, Stack, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
 import { useExecution } from "../../../contexts/root.context";
+import { useClipboard } from "../../../contexts/clipboard.context";
 
 export function ResultResponsePreview(props: {
     requestOrGroupId: string,
     runIndex: number,
     resultIndex: number,
-    triggerCopyTextToClipboard: (text?: string) => void,
-    triggerCopyImageToClipboard: (base64?: string) => void,
 }) {
     const execution = useExecution()
+    const clipboard = useClipboard()
+
     const headers = execution.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
     const body = execution.getExecutionResultBody(props.requestOrGroupId, props.runIndex, props.resultIndex)
 
@@ -60,7 +61,7 @@ export function ResultResponsePreview(props: {
                         aria-label="Copy Image to Clipboard"
                         title="Copy Image to Clipboard"
                         sx={{ marginLeft: '16px' }}
-                        onClick={_ => props.triggerCopyImageToClipboard(body?.data)}>
+                        onClick={_ => { if (body?.data) clipboard.copyImageToClipboard(body.data) } } >
                         <ContentCopyIcon />
                     </IconButton>)
                     : showTextCopy
@@ -68,7 +69,7 @@ export function ResultResponsePreview(props: {
                             aria-label="Copy Text to Clipboard"
                             title="Copy Text to Clipboard"
                             sx={{ marginLeft: '16px' }}
-                            onClick={_ => props.triggerCopyTextToClipboard(text)}>
+                            onClick={_ => clipboard.copyTextToClipboard(text)}>
                             <ContentCopyIcon />
                         </IconButton>)
                         : (<></>)

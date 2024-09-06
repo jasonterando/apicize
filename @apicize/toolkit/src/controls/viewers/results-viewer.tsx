@@ -17,17 +17,18 @@ import { RequestRunProgress } from "./result/requuest-run-progress";
 import { observer } from 'mobx-react-lite';
 import { useExecution, useWorkspace } from '../../contexts/root.context';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
+import { toJS } from "mobx";
 
 export const ResultsViewer = observer((props: {
     sx: SxProps<Theme>,
-    triggerCopyTextToClipboard: (text?: string) => void,
-    triggerCopyImageToClipboard: (base64?: string) => void,
     cancelRequest: (id: string) => void
 }) => {
     const workspaceCtx = useWorkspace()
     const executionCtx = useExecution()
 
-    if ((! workspaceCtx.active) || (workspaceCtx.active.entityType !== EditableEntityType.Request)) {
+    if ((! workspaceCtx.active) ||
+        (workspaceCtx.active.entityType !== EditableEntityType.Request 
+            && workspaceCtx.active.entityType !== EditableEntityType.Group)) {
         return null
     }
     const requestOrGroupId = workspaceCtx.active.id
@@ -35,9 +36,10 @@ export const ResultsViewer = observer((props: {
     const requestExecution = executionCtx.requestExecutions.get(workspaceCtx.active.id)
     const executionResult = executionCtx.getExecutionResult(workspaceCtx.active.id,
         requestExecution?.runIndex ?? NaN, requestExecution?.resultIndex ?? 0)
+
     const groupSummary = executionCtx.getExecutionGroupSummary(workspaceCtx.active.id,
         requestExecution?.runIndex ?? NaN)
-    
+
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: string) => {
         if (newValue) {
             executionCtx.changePanel(requestOrGroupId, newValue)
@@ -55,7 +57,7 @@ export const ResultsViewer = observer((props: {
         panel = 'Info'
     }
 
-    return requestExecution?.runs ? (
+    return requestExecution && (executionResult || groupSummary) ? (
         <Stack direction={'row'} sx={props.sx}>
             <ToggleButtonGroup
                 orientation='vertical'
@@ -73,26 +75,21 @@ export const ResultsViewer = observer((props: {
             <Box sx={{ overflow: 'hidden', flexGrow: 1, bottom: '0', position: 'relative' }}>
                 {
                     requestExecution.running ? <RequestRunProgress cancelRequest={props.cancelRequest} /> :
-                        panel === 'Info' ? <ResultInfoViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex}
-                            triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />
+                        panel === 'Info' ? <ResultInfoViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex} />
                             : panel === 'Headers' ? <ResponseHeadersViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex} />
                                 : panel === 'Preview' ? <ResultResponsePreview
                                     requestOrGroupId={requestOrGroupId}
                                     runIndex={runIndex} resultIndex={resultIndex}
-                                    triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
-                                    triggerCopyImageToClipboard={props.triggerCopyImageToClipboard}
                                 />
                                     : panel === 'Text' ? <ResultRawPreview
                                         requestOrGroupId={requestOrGroupId}
                                         runIndex={runIndex}
                                         resultIndex={resultIndex}
-                                        triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
                                     />
                                         : panel === 'Request' ? <ResultRequestViewer
                                             requestOrGroupId={requestOrGroupId}
                                             runIndex={runIndex}
-                                            resultIndex={resultIndex}
-                                            triggerCopyTextToClipboard={props.triggerCopyTextToClipboard} />
+                                            resultIndex={resultIndex} />
                                             : null
                 }
             </Box>

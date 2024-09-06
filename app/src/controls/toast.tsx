@@ -2,13 +2,6 @@ import MuiAlert, { AlertProps } from '@mui/material/Alert';
 import React from 'react';
 import { Snackbar } from '@mui/material';
 
-export enum ToastSeverity {
-    Error = 'error',
-    Warning = 'warning',
-    Info = 'info',
-    Success = 'success'
-}
-
 export interface ToastOptions {
     severity: ToastSeverity
     message: string

@@ -23,7 +23,7 @@ export const ScenarioEditor = observer((props: {sx: SxProps}) => {
                         aria-label='name'
                         // size='small'
                         value={scenario.name}
-                        onChange={e => workspace.setScenarioName(e.target.value)}
+                        onChange={e => workspace.setName(e.target.value)}
                         error={scenario.nameInvalid}
                         helperText={scenario.nameInvalid ? 'Scenario name is required' : ''}
                         fullWidth

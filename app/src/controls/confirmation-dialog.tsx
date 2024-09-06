@@ -4,15 +4,7 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogTitle from '@mui/material/DialogTitle'
-
-export interface ConfirmationOptions {
-    // catchOnCancel?: boolean,
-    title?: string,
-    message?: string,
-    okButton?: string,
-    defaultToCancel?: boolean,
-    cancelButton?: string
-}
+import { ConfirmationOptions } from '@apicize/toolkit'
 
 interface ConfirmationDialogProps extends ConfirmationOptions {
     open: boolean

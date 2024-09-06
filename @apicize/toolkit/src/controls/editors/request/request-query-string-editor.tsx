@@ -1,4 +1,3 @@
-import { WorkbookRequestType } from '@apicize/lib-typescript'
 import { useWorkspace } from '../../../contexts/root.context'
 import { NameValueEditor } from '../name-value-editor'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
@@ -12,12 +11,7 @@ export const RequestQueryStringEditor = observer(() => {
     return null
   }
 
-  const requestEntry = workspace.active as EditableWorkbookRequest
-  if (requestEntry.type !== WorkbookRequestType.Request) {
-    return null
-  }
-
-  const request = requestEntry as EditableWorkbookRequest
+  const request = workspace.active as EditableWorkbookRequest
   return (<NameValueEditor
     values={request.queryStringParams}
     nameHeader='Parameter'

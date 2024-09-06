@@ -38,7 +38,7 @@ export const AuthorizationEditor = observer((props: {
                         value={auth.name}
                         error={auth.nameInvalid}
                         helperText={auth.nameInvalid ? 'Name is required' : ''}
-                        onChange={e => workspace.setAuthorizationName(e.target.value)}
+                        onChange={e => workspace.setName(e.target.value)}
                         fullWidth
                     />
                 </Grid>

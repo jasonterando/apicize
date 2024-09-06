@@ -56,12 +56,9 @@ export interface WorkbookBody {
     data?: WorkbookBodyData
 }
 
-export enum WorkbookRequestType { Request = 'Request', Group = 'Group' }
-
 export type WorkbookRequestEntry = WorkbookRequest | WorkbookRequestGroup
 
 export interface WorkbookRequest extends Identifiable, Named, Executable {
-    type: WorkbookRequestType.Request
     url: string
     method?: WorkbookMethod
     timeout?: number
@@ -84,6 +81,5 @@ export enum WorkbookGroupExecution {
 }
 
 export interface WorkbookRequestGroup extends Identifiable, Named, Executable {
-    type: WorkbookRequestType.Group
     execution: WorkbookGroupExecution
 }

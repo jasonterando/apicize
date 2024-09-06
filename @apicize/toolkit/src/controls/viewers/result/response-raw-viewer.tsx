@@ -2,14 +2,16 @@ import { TextViewer } from "../text-viewer";
 import { IconButton, Stack, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useExecution } from "../../../contexts/root.context";
+import { useClipboard } from "../../../contexts/clipboard.context";
 
 export function ResultRawPreview(props: {
     requestOrGroupId: string,
     runIndex: number,
     resultIndex: number,
-    triggerCopyTextToClipboard: (text?: string) => void
 }) {
     const execution = useExecution()
+    const clipboard = useClipboard()
+
     const body = execution.getExecutionResultBody(props.requestOrGroupId, props.runIndex, props.resultIndex)
     let has_text = body?.text !== undefined
     let preview = has_text ? body?.text : body?.data
@@ -21,7 +23,7 @@ export function ResultRawPreview(props: {
                     aria-label="Copy Text to Clipboard"
                     title="Copy Text to Clipboard"
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => props.triggerCopyTextToClipboard(preview)}>
+                    onClick={_ => { if (preview) clipboard.copyTextToClipboard(preview) }}>
                     <ContentCopyIcon />
                 </IconButton>)
                 : (<></>)

@@ -1,4 +1,4 @@
-export { WorkbookNameValuePair, WorkbookBody, WorkbookBodyType, WorkbookBodyTypes, WorkbookBodyData, WorkbookMethod, WorkbookMethods, WorkbookRequestEntry, WorkbookRequestType, 
+export { WorkbookNameValuePair, WorkbookBody, WorkbookBodyType, WorkbookBodyTypes, WorkbookBodyData, WorkbookMethod, WorkbookMethods, WorkbookRequestEntry, 
     WorkbookRequest, WorkbookRequestGroup, WorkbookGroupExecution } from './models/workbook/workbook-request'
 export { ApicizeRequest } from './models/lib/apicize-request'
 export { ApicizeResponse } from './models/lib/apicize-response'

@@ -10,24 +10,22 @@ import SaveAsIcon from '@mui/icons-material/SaveAs'
 import HelpIcon from '@mui/icons-material/Help'
 import SendIcon from '@mui/icons-material/Send'
 import LockIcon from '@mui/icons-material/Lock'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
 import SecurityIcon from '@mui/icons-material/Security';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import LanguageIcon from '@mui/icons-material/Language'
-import { TreeView } from '@mui/x-tree-view/TreeView'
+import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
 import { TreeItem } from '@mui/x-tree-view/TreeItem'
 import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import React, { ReactNode, SyntheticEvent, useContext, useState } from 'react'
-import { useConfirmation } from '../services/confirmation-service'
 import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensors, useSensor, PointerSensor, DragCancelEvent, DragMoveEvent } from '@dnd-kit/core'
 import { GetTitle } from '@apicize/lib-typescript';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
 import { EditableItem } from "../models/editable";
 import { EditableEntityType } from "../models/workbook/editable-entity-type";
+import { useConfirmation } from "../contexts/confirmation.context";
 
 interface MenuPosition {
     id: string
@@ -47,6 +45,22 @@ export const Navigation = observer((props: {
     const windowCtx = useWindow()
     const confirm = useConfirmation()
 
+    const nodesToExpand = ['hdr-r', 'hdr-s', 'hdr-a', 'hdr-c', 'hdr-p']
+    const expandRequestsWithChildren = (item: EditableItem) => {
+        if (item.entityType === EditableEntityType.Group) {
+            const childIDs = workspaceCtx.workspace.requests.childIds?.get(item.id)
+            if (childIDs && childIDs.length > 0) {
+                nodesToExpand.push(`tree-${item.id}`)
+                childIDs
+                    .map(id => workspaceCtx.workspace.requests.entities.get(id))
+                    .filter(e => e !== undefined)
+                    .forEach(expandRequestsWithChildren)
+            }
+        }
+    }
+    workspaceCtx.workspace.requests.entities.forEach(expandRequestsWithChildren)
+    // console.log('Nodes to expand', nodesToExpand)
+
     const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>(undefined)
     const [reqMenu, setReqMenu] = useState<MenuPosition | undefined>(undefined)
     const [authMenu, setAuthMenu] = useState<MenuPosition | undefined>(undefined)
@@ -54,6 +68,7 @@ export const Navigation = observer((props: {
     const [certMenu, setCertMenu] = useState<MenuPosition | undefined>(undefined)
     const [proxyMenu, setProxyMenu] = useState<MenuPosition | undefined>(undefined)
 
+    const [expandedItems, setExpandedItems] = useState(nodesToExpand)
     enum DragPosition {
         None = 'NONE',
         Left = 'LEFT',
@@ -88,19 +103,19 @@ export const Navigation = observer((props: {
     )
 
     interface DraggableData {
-        type: string,
+        type: EditableEntityType,
         move: (destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => void
     }
 
     interface DroppableData {
         isHeader: boolean
-        acceptsType: string
+        acceptsType: EditableEntityType
         depth: number
     }
 
     function NavTreeSection(props: {
         children?: ReactNode | undefined
-        type: string
+        type: EditableEntityType
         title: string
         helpTopic: string
         onAdd: () => void
@@ -114,7 +129,7 @@ export const Navigation = observer((props: {
         })
 
         return (<TreeItem
-            nodeId={`hdr-${props.type}`}
+            itemId={`hdr-${props.type}`}
             key={`hdr-${props.type}`}
             id={`hdr-${props.type}`}
             onClick={e => handleSelectHeader(e, props.helpTopic)}
@@ -133,18 +148,18 @@ export const Navigation = observer((props: {
                     sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
                 >
                     {
-                        props.type === 'request' ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
-                            props.type === 'auth' ? (<LockIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
-                                props.type === 'scenario' ? (<LanguageIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
-                                    props.type === 'proxy' ? (<AirlineStopsIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
-                                        props.type === 'cert' ? (<SecurityIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                        props.type === EditableEntityType.Request || EditableEntityType.Group ? (<SendIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                            props.type === EditableEntityType.Authorization ? (<LockIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                                props.type === EditableEntityType.Scenario ? (<LanguageIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                                    props.type === EditableEntityType.Proxy ? (<AirlineStopsIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
+                                        props.type === EditableEntityType.Certificate ? (<SecurityIcon sx={{ flexGrow: 0, marginRight: '10px' }} />) :
                                             (<></>)
                     }
                     <Box className='nav-node-text' sx={{ flexGrow: 1 }}>
                         {props.title}
                     </Box>
                     {
-                        props.type === 'request' ?
+                        props.type === EditableEntityType.Request ?
                             (
                                 <IconButton sx={{ flexGrow: 0, minHeight: '40px' }} onClick={(e) => handleShowRequestsMenu(e, 'menu-auth')}>
                                     <MoreVertIcon />
@@ -170,20 +185,20 @@ export const Navigation = observer((props: {
     }
 
     const NavTreeItem = observer((props: {
-        type: string,
+        type: EditableEntityType,
         item: EditableItem,
         depth: number,
-        onSelect?: (id: string) => void,
+        // onSelect?: (id: string) => void,
         onMenu?: (event: React.MouseEvent, id: string) => void,
         onMove?: (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => void
     }) => {
         const { attributes, listeners, setNodeRef: setDragRef, transform } = useDraggable({
-            id: props.item.id,
+            id: `${props.item.id}`,
             data: {
                 type: props.type,
                 move: (destinationID: string, onLowerHalf: boolean, onLeft: boolean) => {
                     if (props.onMove) {
-                        props.onMove(props.item.id, destinationID, onLowerHalf, onLeft)
+                        props.onMove(`${props.item.id}`, destinationID, onLowerHalf, onLeft)
                     }
                 }
             } as DraggableData
@@ -204,32 +219,28 @@ export const Navigation = observer((props: {
 
         // Requests can be hierarchical
         let children: EditableItem[] | undefined
-        if (props.item.entityType === EditableEntityType.Request) {
+        if (props.item.entityType === EditableEntityType.Group) {
             const childIds = workspaceCtx.workspace.requests.childIds?.get(props.item.id)
-            children = childIds?.map(id => 
+            children = childIds?.map(id =>
                 workspaceCtx.workspace.requests.entities.get(id)
             )?.filter(e => e !== undefined)
         }
 
-        return children && children.length > 0
+        return children /*&& children.length > 0*/
             ?
             (
                 <TreeItem
-                    nodeId={props.item.id}
+                    itemId={`${props.type}-${props.item.id}`}
+                    key={`${props.item.id}`}
                     {...listeners}
                     {...attributes}
                     sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
-                    onClick={(e) => {
-                        // Prevent label from expanding/collapsing
-                        e.preventDefault()
-                        e.stopPropagation()
-                        if (props.onSelect) props.onSelect(props.item.id)
-                    }}
-                    onFocusCapture={e => e.stopPropagation()}
+                    // Add a selected class so that we can mark expandable tree items as selected and have them show up properly
+                    className={workspaceCtx.active?.id === props.item.id ? 'selected': ''}
                     label={(
                         <Box
-                            key={props.item.id}
-                            id={props.item.id}
+                            key={`lbl-${props.item.id}`}
+                            id={`lbl-${props.item.id}`}
                             ref={useCombinedRefs(setDragRef, setDropRef)}
                             style={dragStyle}
                             component='span'
@@ -237,9 +248,12 @@ export const Navigation = observer((props: {
                             justifyContent='space-between'
                             alignItems='center'
                             onClick={(e) => {
+                                // Override click behavior to set active item, but not to propogate upward
+                                // because we don't want to toggle expansion on anything other than the
+                                // lefticon click
+                                workspaceCtx.changeActive(props.item.entityType, props.item.id)
                                 e.preventDefault()
                                 e.stopPropagation()
-                                if (props.onSelect) props.onSelect(props.item.id)
                             }}
                         >
                             <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
@@ -258,73 +272,77 @@ export const Navigation = observer((props: {
                             </IconButton>
                         </Box>
                     )}>
-                    {children.map(c => (
-                        <NavTreeItem
-                            type={props.type}
-                            depth={props.depth + 1}
-                            item={c}
-                            key={`nav-${c.id}`}
-                            onSelect={props.onSelect}
-                            onMenu={props.onMenu}
-                            onMove={props.onMove}
-                        />
-                    ))}
+                        {children.map(c => (
+                            <NavTreeItem
+                                type={props.type}
+                                depth={props.depth + 1}
+                                item={c}
+                                // onSelect={props.onSelect}
+                                onMenu={props.onMenu}
+                                onMove={props.onMove}
+                            />
+                        ))}
                 </TreeItem>
             )
             :
-            (<TreeItem
-                nodeId={props.item.id}
-                key={props.item.id}
-                ref={useCombinedRefs(setDragRef, setDropRef)}
-                id={props.item.id}
-                style={dragStyle}
-                {...listeners}
-                {...attributes}
-                onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    if (props.onSelect) props.onSelect(props.item.id)
-                }}
-                onFocusCapture={e => e.stopPropagation()}
-                sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
-                label={(
-                    <Box
-                        component='span'
-                        display='flex'
-                        justifyContent='space-between'
-                        alignItems='center'
-                        onFocusCapture={e => e.stopPropagation()}
-                    >
-                        {
-                            Array.isArray(children)
-                                ? <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
-                                : null
-                        }
-                        <Box 
-                            className='nav-node-text' 
-                            sx={{  display: 'flex', alignItems: 'center' }}
+            (
+                <TreeItem
+                    itemId={`${props.type}-${props.item.id}`}
+                    key={props.item.id}
+                    ref={useCombinedRefs(setDragRef, setDropRef)}
+                    style={dragStyle}
+                    {...listeners}
+                    {...attributes}
+                    // onSelect={(e) => {
+                    //     if (props.onSelect) props.onSelect(props.item.id)
+                    // }}
+                    // !!! xxx !!!!
+                    // onClick={(e) => {
+                    //     e.preventDefault()
+                    //     e.stopPropagation()
+                    //     if (props.onSelect) props.onSelect(props.item.id)
+                    // }}
+                    // onFocusCapture={e => e.stopPropagation()}
+                    sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
+                    label={(
+                        <Box
+                            component='span'
+                            display='flex'
+                            justifyContent='space-between'
+                            alignItems='center'
+                        // onFocusCapture={e => e.stopPropagation()}
                         >
                             {
-                                props.item.invalid ? (<WarningAmberIcon sx={{color: '#FFFF00', marginRight: '0.25em'}}  />) : null
+                                Array.isArray(children)
+                                    ? <FolderIcon sx={{ flexGrow: 0, marginRight: '10px' }} />
+                                    : null
                             }
-                            {
-                                GetTitle(props.item)
-                            }
+                            <Box
+                                className='nav-node-text'
+                                sx={{ display: 'flex', alignItems: 'center' }}
+                            >
+                                {
+                                    props.item.invalid ? (<WarningAmberIcon sx={{ color: '#FFFF00', marginRight: '0.25em' }} />) : null
+                                }
+                                {
+                                    GetTitle(props.item)
+                                }
+                            </Box>
+                            <IconButton
+                                sx={{
+                                    visibility: props.item.id === workspaceCtx.active?.id ? 'normal' : 'hidden'
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    if (props.onMenu) props.onMenu(e, props.item.id)
+                                }}
+                            >
+                                <MoreVertIcon />
+                            </IconButton>
                         </Box>
-                        <IconButton
-                            sx={{
-                                visibility: props.item.id === workspaceCtx.active?.id ? 'normal' : 'hidden'
-                            }}
-                            onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                if (props.onMenu) props.onMenu(e, props.item.id)
-                            }}
-                        >
-                            <MoreVertIcon />
-                        </IconButton>
-                    </Box>
-                )} />)
+                    )} />
+            )
     })
 
     const clearAllSelections = () => {
@@ -451,7 +469,7 @@ export const Navigation = observer((props: {
 
     }
 
-    const selectRequest = (id: string) => {
+    const selectRequestOrGroup = (id: string) => {
         workspaceCtx.changeActive(EditableEntityType.Request, id)
     }
 
@@ -505,7 +523,9 @@ export const Navigation = observer((props: {
     const handleDeleteRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (!workspaceCtx.active?.id || (workspaceCtx.active?.entityType !== EditableEntityType.Request)) return
+        if (!workspaceCtx.active?.id || (workspaceCtx.active?.entityType !== EditableEntityType.Request
+            && workspaceCtx.active?.entityType !== EditableEntityType.Group
+        )) return
         const id = workspaceCtx.active?.id
         confirm({
             title: 'Delete Request',
@@ -595,7 +615,8 @@ export const Navigation = observer((props: {
     const handleDupeRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (workspaceCtx.active?.entityType === EditableEntityType.Request && workspaceCtx.active?.id) workspaceCtx.copyRequest(workspaceCtx.active?.id)
+        if ((workspaceCtx.active?.entityType === EditableEntityType.Request || workspaceCtx.active?.entityType === EditableEntityType.Group)
+            && workspaceCtx.active?.id) workspaceCtx.copyRequest(workspaceCtx.active?.id)
     }
 
     const handleDupeScenario = () => {
@@ -619,7 +640,7 @@ export const Navigation = observer((props: {
     }
 
     const handleMoveRequest = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
-        selectRequest(id)
+        selectRequestOrGroup(id)
         workspaceCtx.moveRequest(id, destinationID, onLowerHalf, onLeft)
     }
 
@@ -920,20 +941,6 @@ export const Navigation = observer((props: {
         setDragPosition(DragPosition.None)
     }
 
-    const defaultExpanded = ['hdr-request', 'hdr-scenario', 'hdr-auth', 'hdr-cert', 'hdr-proxy']
-    const expandRequestsWithChildren = (item: EditableItem) => {
-        if (item.entityType === EditableEntityType.Request)  {
-            const childIDs = workspaceCtx.workspace.requests.childIds?.get(item.id)
-            if (childIDs && childIDs.length > 0) {
-                defaultExpanded.push(item.id)
-                childIDs
-                    .map(id => workspaceCtx.workspace.requests.entities.get(id))
-                    .filter(e => e !== undefined)
-                    .forEach(expandRequestsWithChildren)
-            }
-        }
-    }
-    workspaceCtx.workspace.requests.entities.forEach(expandRequestsWithChildren)
 
     return (
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '4px', paddingRight: '20px', backgroundColor: '#202020' }}>
@@ -957,39 +964,61 @@ export const Navigation = observer((props: {
                 </Box>
             </Box>
             <DndContext onDragMove={onDragMove} onDragCancel={onDragCancel} onDragEnd={onDragEnd} sensors={sensors}>
-                <TreeView
-                    disableSelection
+                <SimpleTreeView
                     id='navigation'
                     key='navigation'
                     aria-label='request navigator'
-                    defaultCollapseIcon={<ExpandMoreIcon />}
-                    defaultExpandIcon={<ChevronRightIcon />}
-                    defaultExpanded={defaultExpanded}
-                    selected={workspaceCtx.active?.id ?? ''}
+                    // defaultCollapseIcon={<ExpandMoreIcon />}
+                    // defaultExpandIcon={<ChevronRightIcon />}
+                    expandedItems={expandedItems}
+                    selectedItems={workspaceCtx.active ? `${workspaceCtx.active.entityType}-${workspaceCtx.active.id}` : ''}
                     multiSelect={false}
+                    onItemExpansionToggle={(_, itemId, isExpanded) => {
+                        // console.log(`Expanding ${itemId} (${isExpanded})`)
+                        let expanded = new Set(expandedItems)
+                        if (isExpanded) {
+                            expanded.add(itemId)
+                        } else {
+                            expanded.delete(itemId)
+                        }
+                        setExpandedItems([...expanded])
+                    }}
+                    onSelectedItemsChange={(_, itemId) => {
+                        if (itemId) {
+                            // console.log(`Selecting item ${itemId})`)
+                            const i = itemId.indexOf('-')
+                            if (i !== -1) {
+                                const type = itemId.substring(0, i) as EditableEntityType
+                                const id = itemId.substring(i + 1)
+                                console.log(`Selecting ${type} ${id}`)
+                                workspaceCtx.changeActive(type, id)
+                                return
+                            }
+                        }
+                        workspaceCtx.clearActive()
+                    }}
                     sx={{ height: '100vh', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
                 >
-                    <NavTreeSection key='nav-section-request' type='request' title='Requests' helpTopic='requests' onAdd={() => { }}>
+                    <NavTreeSection key='nav-section-request' type={EditableEntityType.Request} title='Requests' helpTopic='requests' onAdd={() => { }}>
                         {
-                            // xxx
                             workspaceCtx.workspace.requests.topLevelIds.map((id) =>
                                 workspaceCtx.workspace.requests.entities.get(id)
-                            )   
+                            )
                                 .filter(e => e !== undefined)
                                 .map(e => (
                                     <NavTreeItem
                                         item={e}
                                         depth={0}
-                                        type='request'
-                                        key={`nav-section-${e.id}`}
-                                        onSelect={selectRequest}
+                                        type={EditableEntityType.Request}
+                                        // key={`nav-section-${e.id}`}
+                                        // onSelect={selectRequestOrGroup}
                                         onMenu={handleShowRequestMenu}
                                         onMove={handleMoveRequest}
                                     />)
                                 )
                         }
                     </NavTreeSection>
-                    <NavTreeSection key='nav-section-scenario' type='scenario' title='Scenarios' helpTopic='scenarios' onAdd={handleAddScenario}>
+                    <NavTreeSection key='nav-section-scenario' type={EditableEntityType.Scenario} title='Scenarios' helpTopic='scenarios' onAdd={handleAddScenario}>
                         {
                             workspaceCtx.workspace.scenarios.topLevelIds.map((id) =>
                                 workspaceCtx.workspace.scenarios.entities.get(id)
@@ -999,16 +1028,16 @@ export const Navigation = observer((props: {
                                     <NavTreeItem
                                         item={e}
                                         depth={0}
-                                        type='scenario'
-                                        key={`nav-section-${e.id}`}
-                                        onSelect={selectScenario}
+                                        type={EditableEntityType.Scenario}
+                                        // key={`nav-section-${e.id}`}
+                                        // onSelect={selectScenario}
                                         onMenu={handleShowScenarioMenu}
                                         onMove={handleMoveScenario}
                                     />)
                                 )
                         }
                     </NavTreeSection>
-                    <NavTreeSection key='nav-section-auth' type='auth' title='Authorizations' helpTopic='authorizations' onAdd={handleAddAuth}>
+                    <NavTreeSection key='nav-section-auth' type={EditableEntityType.Authorization} title='Authorizations' helpTopic='authorizations' onAdd={handleAddAuth}>
                         {
                             workspaceCtx.workspace.authorizations.topLevelIds.map((id) =>
                                 workspaceCtx.workspace.authorizations.entities.get(id)
@@ -1018,16 +1047,16 @@ export const Navigation = observer((props: {
                                     <NavTreeItem
                                         item={e}
                                         depth={0}
-                                        type='auth'
-                                        key={`nav-section-${e.id}`}
-                                        onSelect={selectAuthorization}
+                                        type={EditableEntityType.Authorization}
+                                        // key={`nav-section-${e.id}`}
+                                        // onSelect={selectAuthorization}
                                         onMenu={handleShowAuthMenu}
                                         onMove={handleMoveAuth}
                                     />)
                                 )
                         }
                     </NavTreeSection>
-                    <NavTreeSection key='nav-section-cert' type='cert' title='Certificates' helpTopic='certificates' onAdd={handleAddCert}>
+                    <NavTreeSection key='nav-section-cert' type={EditableEntityType.Certificate} title='Certificates' helpTopic='certificates' onAdd={handleAddCert}>
                         {
                             workspaceCtx.workspace.certificates.topLevelIds.map((id) =>
                                 workspaceCtx.workspace.certificates.entities.get(id)
@@ -1037,16 +1066,16 @@ export const Navigation = observer((props: {
                                     <NavTreeItem
                                         item={e}
                                         depth={0}
-                                        type='cert'
-                                        key={`nav-section-${e.id}`}
-                                        onSelect={selectCertificate}
+                                        type={EditableEntityType.Certificate}
+                                        // key={`nav-section-${e.id}`}
+                                        // onSelect={selectCertificate}
                                         onMenu={handleShowCertMenu}
                                         onMove={handleMoveCert}
                                     />)
                                 )
                         }
                     </NavTreeSection>
-                    <NavTreeSection key='nav-section-proxy' type='proxy' title='Proxies' helpTopic='proxies' onAdd={handleAddProxy}>
+                    <NavTreeSection key='nav-section-proxy' type={EditableEntityType.Proxy} title='Proxies' helpTopic='proxies' onAdd={handleAddProxy}>
                         {
                             workspaceCtx.workspace.proxies.topLevelIds.map((id) =>
                                 workspaceCtx.workspace.proxies.entities.get(id)
@@ -1056,16 +1085,16 @@ export const Navigation = observer((props: {
                                     <NavTreeItem
                                         item={e}
                                         depth={0}
-                                        type='proxy'
-                                        key={`nav-section-${e.id}`}
-                                        onSelect={selectProxy}
+                                        type={EditableEntityType.Proxy}
+                                        // key={`nav-section-${e.id}`}
+                                        // onSelect={selectProxy}
                                         onMenu={handleShowProxyMenu}
                                         onMove={handleMoveProxy}
                                     />)
                                 )
                         }
                     </NavTreeSection>
-                </TreeView>
+                </SimpleTreeView>
             </DndContext>
             <RequestsMenu />
             <RequestMenu />
@@ -1073,6 +1102,7 @@ export const Navigation = observer((props: {
             <AuthMenu />
             <CertMenu />
             <ProxyMenu />
+            <>Selected: {workspaceCtx.active ? `${workspaceCtx.active.entityType}-${workspaceCtx.active.id}` : "(None)"}</>
         </Stack>
     )
 })

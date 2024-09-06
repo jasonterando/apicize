@@ -13,7 +13,7 @@ import "ace-builds/src-noconflict/mode-json"
 import "ace-builds/src-noconflict/mode-xml"
 import "ace-builds/src-noconflict/theme-monokai"
 import "ace-builds/src-noconflict/ext-language_tools"
-import { WorkbookBodyType, WorkbookBodyTypes, WorkbookRequestType } from '@apicize/lib-typescript'
+import { WorkbookBodyType, WorkbookBodyTypes } from '@apicize/lib-typescript'
 import { useWorkspace } from '../../../contexts/root.context'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
@@ -29,12 +29,7 @@ export const RequestBodyEditor = observer((props: {
     return null
   }
 
-  const requestEntry = workspace.active as EditableWorkbookRequest
-  if (requestEntry.type !== WorkbookRequestType.Request) {
-    return null
-  }
-
-  const request = requestEntry as EditableWorkbookRequest
+  const request = workspace.active as EditableWorkbookRequest
 
   const headerDoesNotMatchType = (bodyType: WorkbookBodyType | undefined | null) => {
     let needsContextHeaderUpdate = true

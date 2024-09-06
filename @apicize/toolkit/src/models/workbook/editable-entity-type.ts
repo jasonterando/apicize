@@ -2,10 +2,11 @@
  * Identifies
  */
 export enum EditableEntityType {
-    None,
-    Request,
-    Scenario,
-    Authorization,
-    Certificate,
-    Proxy
+    None = 'n',
+    Request = 'r',
+    Group = 'g',
+    Scenario = 's',
+    Authorization = 'a',
+    Certificate = 'c',
+    Proxy = 'p'
 }

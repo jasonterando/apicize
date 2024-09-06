@@ -52,12 +52,6 @@ const Pane = (() =>
             sx={{ display: 'block', flexGrow: 1 }}
             triggerRun={(info: RunInformation) => emit('run', info)}
             triggerCancel={() => emit('action', 'cancel')}
-            triggerCopyTextToClipboard={(text?: string) => {
-                emit('copyText', text)
-            }}
-            triggerCopyImageToClipboard={(base64?: string) => {
-                emit('copyImage', base64)
-            }}
             triggerOpenFile={(destination: ContentDestination, id: string) => emit('openFile', { destination, id })}
             triggerPasteFromClipboard={(destination: ContentDestination, id: string) => emit('pasteFromClipboard', { destination, id })}
         />

@@ -19,10 +19,9 @@ import { RequestGroupEditor } from './request/request-group-editor';
 import { EditorTitle } from '../editor-title';
 import { RequestParametersEditor } from './request/request-parameters-editor';
 import { useWorkspace } from '../../contexts/root.context';
-import { WorkbookRequestType } from '@apicize/lib-typescript';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
-import { EditableWorkbookRequest } from '../../models/workbook/editable-workbook-request';
+import { EditableWorkbookRequest, EditableWorkbookRequestGroup } from '../../models/workbook/editable-workbook-request';
 import { RunInformation } from '../../models/workbook/run-information';
 import { RunToolbar } from '../run-toolbar';
 
@@ -30,27 +29,34 @@ export const RequestEditor = observer((props: {
     sx: SxProps,
     triggerRun: (info: RunInformation) => {},
     triggerCancel: () => {},
-    triggerCopyTextToClipboard: (text?: string) => void
-    triggerCopyImageToClipboard: (base64?: string) => void,
     triggerOpenFile: (destination: ContentDestination, id: string) => {},
     triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
 }) => {
     const [panel, setPanel] = React.useState<string>('Info')
 
     const workspace = useWorkspace()
+
     const request = (workspace.active?.entityType === EditableEntityType.Request && !workspace.helpVisible)
         ? workspace.active as EditableWorkbookRequest
+        : null
+
+    const group = (workspace.active?.entityType === EditableEntityType.Group && !workspace.helpVisible)
+        ? workspace.active as EditableWorkbookRequestGroup
         : null
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: string) => {
         if (newValue) setPanel(newValue)
     }
 
-    return request ? (
+    if (! (request || group)) {
+        return null
+    }
+
+    return  (
         <Stack direction='column' className='editor-panel' sx={{ ...props.sx, display: 'flex' }}>
             <Stack sx={{ height: '50vh', paddingBottom: '48px', flexBasis: 2 }}>
                 {
-                    request.type === WorkbookRequestType.Group
+                    group
                         ? (
                             <Box sx={{ display: "flex", bottom: 0 }}>
                                 <ToggleButtonGroup
@@ -65,52 +71,51 @@ export const RequestEditor = observer((props: {
                                     <ToggleButton value="Parameters" title="Show Group Parameters" aria-label='show test'><AltRouteIcon /></ToggleButton>
                                 </ToggleButtonGroup>
                                 <Box className='panels' sx={{ flexGrow: 1 }}>
-                                    <EditorTitle icon={<FolderIcon />} name={request.name.length ?? 0 > 0 ? `${request.name} - ${panel}` : '(Unnamed)'} />
+                                    <EditorTitle icon={<FolderIcon />} name={group.name.length ?? 0 > 0 ? `${group.name} - ${panel}` : '(Unnamed)'} />
                                     {panel === 'Info' ? <RequestGroupEditor />
                                         : panel === 'Parameters' ? <RequestParametersEditor />
                                             : null}
                                 </Box>
                             </Box>
                         )
-                        : (
-                            <Box sx={{ display: "flex", bottom: 0 }}>
-                                <ToggleButtonGroup
-                                    className='button-column'
-                                    orientation='vertical'
-                                    exclusive
-                                    onChange={handlePanelChanged}
-                                    value={panel}
-                                    sx={{ marginRight: '24px' }}
-                                    aria-label="text alignment">
-                                    <ToggleButton value="Info" title="Show Request Info" aria-label='show info'><DisplaySettingsIcon /></ToggleButton>
-                                    <ToggleButton value="Query String" title="Show Request Query String" aria-label='show query string'><ViewListIcon /></ToggleButton>
-                                    <ToggleButton value="Headers" title="Show Request Headers" aria-label='show headers'><ViewListOutlinedIcon /></ToggleButton>
-                                    <ToggleButton value="Body" title="Show Request Body" aria-label='show body'><ArticleOutlinedIcon /></ToggleButton>
-                                    <ToggleButton value="Test" title="Show Request Test" aria-label='show test'><ScienceIcon /></ToggleButton>
-                                    <ToggleButton value="Parameters" title="Show Request Parameters" aria-label='show test'><AltRouteIcon /></ToggleButton>
-                                </ToggleButtonGroup>
-                                <Box className='panels' sx={{ flexGrow: 1 }}>
-                                    <EditorTitle icon={<SendIcon />} name={(request.name.length > 0) ? `${request.name} - ${panel}` : `(Unnamed) - ${panel}`} />
-                                    {panel === 'Info' ? <RequestInfoEditor />
-                                        : panel === 'Headers' ? <RequestHeadersEditor />
-                                            : panel === 'Query String' ? <RequestQueryStringEditor />
-                                                : panel === 'Body' ? <RequestBodyEditor triggerOpenFile={props.triggerOpenFile} triggerPasteFromClipboard={props.triggerPasteFromClipboard} />
-                                                    : panel === 'Test' ? <RequestTestEditor />
-                                                        : panel === 'Parameters' ? <RequestParametersEditor />
-                                                            : null}
+                        : request ?
+                            (
+                                <Box sx={{ display: "flex", bottom: 0 }}>
+                                    <ToggleButtonGroup
+                                        className='button-column'
+                                        orientation='vertical'
+                                        exclusive
+                                        onChange={handlePanelChanged}
+                                        value={panel}
+                                        sx={{ marginRight: '24px' }}
+                                        aria-label="text alignment">
+                                        <ToggleButton value="Info" title="Show Request Info" aria-label='show info'><DisplaySettingsIcon /></ToggleButton>
+                                        <ToggleButton value="Query String" title="Show Request Query String" aria-label='show query string'><ViewListIcon /></ToggleButton>
+                                        <ToggleButton value="Headers" title="Show Request Headers" aria-label='show headers'><ViewListOutlinedIcon /></ToggleButton>
+                                        <ToggleButton value="Body" title="Show Request Body" aria-label='show body'><ArticleOutlinedIcon /></ToggleButton>
+                                        <ToggleButton value="Test" title="Show Request Test" aria-label='show test'><ScienceIcon /></ToggleButton>
+                                        <ToggleButton value="Parameters" title="Show Request Parameters" aria-label='show test'><AltRouteIcon /></ToggleButton>
+                                    </ToggleButtonGroup>
+                                    <Box className='panels' sx={{ flexGrow: 1 }}>
+                                        <EditorTitle icon={<SendIcon />} name={(request.name.length > 0) ? `${request.name} - ${panel}` : `(Unnamed) - ${panel}`} />
+                                        {panel === 'Info' ? <RequestInfoEditor />
+                                            : panel === 'Headers' ? <RequestHeadersEditor />
+                                                : panel === 'Query String' ? <RequestQueryStringEditor />
+                                                    : panel === 'Body' ? <RequestBodyEditor triggerOpenFile={props.triggerOpenFile} triggerPasteFromClipboard={props.triggerPasteFromClipboard} />
+                     : panel === 'Test' ? <RequestTestEditor />
+                                                            : panel === 'Parameters' ? <RequestParametersEditor />
+                                                                : null}
+                                    </Box>
                                 </Box>
-                            </Box>
-                        )
+                            ) :
+                            null
                 }
             </Stack>
             <RunToolbar triggerRun={props.triggerRun} />
-            {/* <Typography sx={{ marginTop: 0, flexGrow: 0 }} component='div'>ID: {request.id}</Typography> */}
             <ResultsViewer
                 sx={{ paddingTop: '48px', flexGrow: 1 }}
-                triggerCopyTextToClipboard={props.triggerCopyTextToClipboard}
-                triggerCopyImageToClipboard={props.triggerCopyTextToClipboard}
                 cancelRequest={props.triggerCancel}
             />
         </Stack>
-    ) : null
+    )
 })
