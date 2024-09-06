@@ -1,4 +1,4 @@
-import { Stack, TextField, Grid, SxProps } from '@mui/material'
+import { Stack, TextField, SxProps, Grid2 } from '@mui/material'
 import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
 import { EditorTitle } from '../editor-title';
 import { PersistenceEditor } from './persistence-editor';
@@ -16,8 +16,8 @@ export const ProxyEditor = observer((props: {
     return (
         <Stack direction={'column'} className='editor-panel-no-toolbar' sx={props.sx}>
             <EditorTitle icon={<AirlineStopsIcon />} name={proxy.name.length > 0 ? proxy.name : '(Unnamed)'} />
-            <Grid container direction={'column'} spacing={3} maxWidth={1000}>
-                <Grid item>
+            <Grid2 container direction={'column'} spacing={3} maxWidth={1000}>
+                <Grid2>
                     <TextField
                         id='proxy-name'
                         label='Name'
@@ -29,11 +29,11 @@ export const ProxyEditor = observer((props: {
                         helperText={proxy.nameInvalid ? 'Proxy name is required' : ''}
                         fullWidth
                     />
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2>
                     <PersistenceEditor onUpdatePersistence={workspace.setProxyPersistence} persistence={proxy.persistence} />
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2>
                     <TextField
                         id='proxy-url'
                         label='URL'
@@ -45,8 +45,8 @@ export const ProxyEditor = observer((props: {
                         helperText={proxy.urlInvalid ? 'URL must include http/https/socks5 protocol prefix and address' : ''}
                         fullWidth
                     />
-                </Grid>
-            </Grid>
+                </Grid2>
+            </Grid2>
         </Stack >
     )
 })

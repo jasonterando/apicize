@@ -1,6 +1,7 @@
 import MuiAlert, { AlertProps } from '@mui/material/Alert';
 import React from 'react';
 import { Snackbar } from '@mui/material';
+import { ToastSeverity } from '@apicize/toolkit';
 
 export interface ToastOptions {
     severity: ToastSeverity

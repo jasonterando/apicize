@@ -1,5 +1,4 @@
 import { Box } from "@mui/material"
-import { maxWidth } from "@mui/system"
 
 export const KNOWN_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'tif', 'tiff']
 

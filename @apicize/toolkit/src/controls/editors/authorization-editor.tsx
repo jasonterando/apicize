@@ -1,6 +1,6 @@
-import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Stack, SxProps, Button } from '@mui/material'
+import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Stack, SxProps, Button, Grid2 } from '@mui/material'
 import LockIcon from '@mui/icons-material/Lock';
-import { WorkbookAuthorizationType, WorkbookOAuth2ClientAuthorization } from '@apicize/lib-typescript';
+import { WorkbookAuthorizationType } from '@apicize/lib-typescript';
 import { EditorTitle } from '../editor-title';
 import { PersistenceEditor } from './persistence-editor';
 import { useWorkspace } from '../../contexts/root.context';
@@ -28,8 +28,8 @@ export const AuthorizationEditor = observer((props: {
     return (
         <Stack className='editor-panel-no-toolbar' direction={'column'} sx={props.sx}>
             <EditorTitle icon={<LockIcon />} name={auth.name} />
-            <Grid container direction={'column'} spacing={3} maxWidth={1000}>
-                <Grid item>
+            <Grid2 container direction={'column'} spacing={3} maxWidth={1000}>
+                <Grid2>
                     <TextField
                         id='auth-name'
                         label='Name'
@@ -41,8 +41,8 @@ export const AuthorizationEditor = observer((props: {
                         onChange={e => workspace.setName(e.target.value)}
                         fullWidth
                     />
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2>
                     <Stack direction={'row'} spacing={'2em'}>
                         <FormControl>
                             <InputLabel id='auth-type-label-id'>Type</InputLabel>
@@ -61,12 +61,12 @@ export const AuthorizationEditor = observer((props: {
                         </FormControl>
                         <PersistenceEditor onUpdatePersistence={workspace.setAuthorizationPersistence} persistence={auth.persistence} />
                     </Stack>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2>
                     {
                         auth.type === WorkbookAuthorizationType.ApiKey ?
-                            <Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
-                                <Grid item>
+                            <Grid2 container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
+                                <Grid2>
                                     <TextField
                                         id='auth-header'
                                         label="Header"
@@ -77,8 +77,8 @@ export const AuthorizationEditor = observer((props: {
                                         onChange={e => workspace.setAuthorizationHeader(e.target.value)}
                                         fullWidth
                                     />
-                                </Grid>
-                                <Grid item>
+                                </Grid2>
+                                <Grid2>
                                     <TextField
                                         id='auth-value'
                                         label="Value"
@@ -89,11 +89,11 @@ export const AuthorizationEditor = observer((props: {
                                         onChange={e => workspace.setAuthorizationValue(e.target.value)}
                                         fullWidth
                                     />
-                                </Grid>
-                            </Grid>
+                                </Grid2>
+                            </Grid2>
                             : auth.type === WorkbookAuthorizationType.Basic
-                                ? <Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
-                                    <Grid item>
+                                ? <Grid2 container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
+                                    <Grid2>
                                         <TextField
                                             id='auth-username'
                                             label="Username"
@@ -104,8 +104,8 @@ export const AuthorizationEditor = observer((props: {
                                             onChange={e => workspace.setAuthorizationUsername(e.target.value)}
                                             fullWidth
                                         />
-                                    </Grid>
-                                    <Grid item>
+                                    </Grid2>
+                                    <Grid2>
                                         <TextField
                                             id='auth-password'
                                             label="Password"
@@ -114,11 +114,11 @@ export const AuthorizationEditor = observer((props: {
                                             onChange={e => workspace.setAuthorizationPassword(e.target.value)}
                                             fullWidth
                                         />
-                                    </Grid>
-                                </Grid>
+                                    </Grid2>
+                                </Grid2>
                                 : auth.type === WorkbookAuthorizationType.OAuth2Client
                                     ? <Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
-                                        <Grid item>
+                                        <Grid2>
                                             <TextField
                                                 id='auth-oauth2-access-token-url'
                                                 label='Access Token URL'
@@ -129,8 +129,8 @@ export const AuthorizationEditor = observer((props: {
                                                 onChange={e => workspace.setAuthorizatinoAccessTokenUrl(e.target.value)}
                                                 fullWidth
                                             />
-                                        </Grid>
-                                        <Grid item>
+                                        </Grid2>
+                                        <Grid2>
                                             <TextField
                                                 id='auth-oauth2-client-id'
                                                 label='Client ID'
@@ -141,8 +141,8 @@ export const AuthorizationEditor = observer((props: {
                                                 onChange={e => workspace.setAuthorizationClientId(e.target.value)}
                                                 fullWidth
                                             />
-                                        </Grid>
-                                        <Grid item>
+                                        </Grid2>
+                                        <Grid2>
                                             <TextField
                                                 id='auth-oauth2-client-secret'
                                                 label='Client Secret'
@@ -151,8 +151,8 @@ export const AuthorizationEditor = observer((props: {
                                                 onChange={e => workspace.setAuthorizationClientSecret(e.target.value)}
                                                 fullWidth
                                             />
-                                        </Grid>
-                                        <Grid item>
+                                        </Grid2>
+                                        <Grid2>
                                             <TextField
                                                 id='auth-oauth2-scope'
                                                 label='Scope'
@@ -161,8 +161,8 @@ export const AuthorizationEditor = observer((props: {
                                                 onChange={e => workspace.setAuthorizationScope(e.target.value)}
                                                 fullWidth
                                             />
-                                        </Grid>
-                                        <Grid item>
+                                        </Grid2>
+                                        <Grid2>
                                             <FormControl>
                                                 <InputLabel id='cred-cert-label'>Certificate</InputLabel>
                                                 <Select
@@ -176,8 +176,8 @@ export const AuthorizationEditor = observer((props: {
                                                     {itemsFromSelections(workspace.getAuthorizationCertificateList())}
                                                 </Select>
                                             </FormControl>
-                                        </Grid>
-                                        <Grid item>
+                                        </Grid2>
+                                        <Grid2>
                                             <FormControl>
                                                 <InputLabel id='cred-proxy-label'>Proxy</InputLabel>
                                                 <Select
@@ -191,8 +191,8 @@ export const AuthorizationEditor = observer((props: {
                                                     {itemsFromSelections(workspace.getAuthorizationProxyList())}
                                                 </Select>
                                             </FormControl>
-                                        </Grid>
-                                        <Grid item>
+                                        </Grid2>
+                                        <Grid2>
                                             <Button
                                                 color='warning'
                                                 variant='outlined'
@@ -200,9 +200,9 @@ export const AuthorizationEditor = observer((props: {
                                                 onClick={() => props.triggerClearToken()}>
                                                 Clear Any Cached Token
                                             </Button>
-                                        </Grid>
+                                        </Grid2>
                                         {
-                                            // <Grid item>
+                                            // <Grid2>
                                             //     <FormControl>
                                             //         <InputLabel id='auth-oauth2-creds-lbl-id'>Credential Method</InputLabel>
                                             //         <Select
@@ -216,13 +216,13 @@ export const AuthorizationEditor = observer((props: {
                                             //             <MenuItem value='yes'>Send Credentials in Body</MenuItem>
                                             //         </Select>
                                             //     </FormControl>
-                                            // </Grid>
+                                            // </Grid2>
                                         }
                                     </Grid >
                                     : null
                     }
-                </Grid>
-            </Grid>
+                </Grid2>
+            </Grid2>
         </Stack>
     )
 })

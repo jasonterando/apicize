@@ -1,56 +1,17 @@
 import { ReactNode, useRef } from "react";
 import clipboard, { writeImageBase64, writeText } from "tauri-plugin-clipboard-api"
 import { UnlistenFn } from "@tauri-apps/api/event";
-import { observable, action, makeObservable } from "mobx";
+import { action } from "mobx";
 import { ClipboardContext, ClipboardStore, ToastSeverity, useToast } from "@apicize/toolkit";
 
 /**
  * Implementation of clipboard interface via Tauri
  */
-// export class ClipboardTauriStore {
-//     private static unlisten: UnlistenFn | null = null
-
-//     @observable accessor hasText: boolean = false
-//     @observable accessor hasImage: boolean = false
-
-//     constructor() {
-//         makeObservable(this)
-
-//     }
-
-//     async copyTextToClipboard(text: string) {
-//         // const toast = useToast()
-//         try {
-//             await writeText(text)
-//             // toast.open('Text copied to clipboard', ToastSeverity.Success)
-//         } catch (e) {
-//             // toast.open(`${e}`, ToastSeverity.Error)
-//         }
-
-//     }
-
-//     async copyImageToClipboard(base64: string) {
-//         // const toast = useToast()
-//         try {
-//             const m = base64.length % 4
-//             if (m) {
-//                 base64 += '==='.substring(0, 4 - m)
-//             }
-//             await writeImageBase64(base64)
-//             // toast.open('Image copied to clipboard', ToastSeverity.Success)
-//         } catch (e) {
-//             // toast.open(`${e}`, ToastSeverity.Error)
-//         }
-//     }
-// }
-
 
 export function ClipboardProvider({ children }: { children?: ReactNode }) {
 
     const unlistenToClipboard = useRef<UnlistenFn | null>(null)
     const toast = useToast()
-
-
 
     const store = new ClipboardStore({
         onCopyText: async (text: string) => {

@@ -226,12 +226,12 @@ export const Navigation = observer((props: {
             )?.filter(e => e !== undefined)
         }
 
-        return children /*&& children.length > 0*/
+        return children
             ?
             (
                 <TreeItem
                     itemId={`${props.type}-${props.item.id}`}
-                    key={`${props.item.id}`}
+                    key={props.item.id}
                     {...listeners}
                     {...attributes}
                     sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
@@ -275,6 +275,7 @@ export const Navigation = observer((props: {
                         {children.map(c => (
                             <NavTreeItem
                                 type={props.type}
+                                key={`csub-${c.id}`}
                                 depth={props.depth + 1}
                                 item={c}
                                 // onSelect={props.onSelect}
@@ -1007,6 +1008,7 @@ export const Navigation = observer((props: {
                                 .filter(e => e !== undefined)
                                 .map(e => (
                                     <NavTreeItem
+                                        key={`sub-${e.id}`}
                                         item={e}
                                         depth={0}
                                         type={EditableEntityType.Request}
@@ -1027,6 +1029,7 @@ export const Navigation = observer((props: {
                                 .map(e => (
                                     <NavTreeItem
                                         item={e}
+                                        key={`sub-${e.id}`}
                                         depth={0}
                                         type={EditableEntityType.Scenario}
                                         // key={`nav-section-${e.id}`}
@@ -1046,6 +1049,7 @@ export const Navigation = observer((props: {
                                 .map(e => (
                                     <NavTreeItem
                                         item={e}
+                                        key={`sub-${e.id}`}
                                         depth={0}
                                         type={EditableEntityType.Authorization}
                                         // key={`nav-section-${e.id}`}
@@ -1065,6 +1069,7 @@ export const Navigation = observer((props: {
                                 .map(e => (
                                     <NavTreeItem
                                         item={e}
+                                        key={`sub-${e.id}`}
                                         depth={0}
                                         type={EditableEntityType.Certificate}
                                         // key={`nav-section-${e.id}`}
@@ -1084,6 +1089,7 @@ export const Navigation = observer((props: {
                                 .map(e => (
                                     <NavTreeItem
                                         item={e}
+                                        key={`sub-${e.id}`}
                                         depth={0}
                                         type={EditableEntityType.Proxy}
                                         // key={`nav-section-${e.id}`}

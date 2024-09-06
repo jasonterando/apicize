@@ -1,4 +1,4 @@
-import { Stack, TextField, Grid, FormControl, InputLabel, MenuItem, Select, IconButton, Typography, SxProps } from '@mui/material'
+import { Stack, TextField, Grid2, FormControl, InputLabel, MenuItem, Select, IconButton, Typography, SxProps } from '@mui/material'
 import SecurityIcon from '@mui/icons-material/Security';
 import FileOpenIcon from '@mui/icons-material/FileOpen';
 import { ContentDestination } from '../../models/store'
@@ -45,8 +45,8 @@ export const CertificateEditor = observer((props: {
     return (
         <Stack direction={'column'} className='editor-panel-no-toolbar' sx={props.sx}>
             <EditorTitle icon={<SecurityIcon />} name={certificate.name?.length ?? 0 > 0 ? certificate.name : '(Unnamed)'} />
-            <Grid container direction={'column'} spacing={3} maxWidth={1000}>
-                <Grid item>
+            <Grid2 container direction={'column'} spacing={3} maxWidth={1000}>
+                <Grid2>
                     <TextField
                         id='cert-name'
                         label='Name'
@@ -56,8 +56,8 @@ export const CertificateEditor = observer((props: {
                         onChange={e => workspace.setName(e.target.value)}
                         fullWidth
                     />
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2>
                     <Stack direction={'row'} spacing={'2em'}>
                         <FormControl>
                             <InputLabel id='cert-type-label-id'>Type</InputLabel>
@@ -76,11 +76,11 @@ export const CertificateEditor = observer((props: {
                         </FormControl>
                         <PersistenceEditor onUpdatePersistence={workspace.setCertificatePersistence} persistence={certificate.persistence} />
                     </Stack>
-                </Grid>
+                </Grid2>
                 {
                     certificate.type === WorkbookCertificateType.PKCS8_PEM
                         ? (
-                            <Grid item>
+                            <Grid2>
                                 <Stack direction={'column'} spacing={3}>
                                     <Stack direction={'row'} spacing={3} position='relative'>
                                         <Typography variant='h6' component='div'>SSL PEM Certificate / Chain</Typography>
@@ -95,7 +95,12 @@ export const CertificateEditor = observer((props: {
                                         id='cert-pem'
                                         label='PEM'
                                         multiline
-                                        inputProps={{ className: "code", readOnly: true }}
+                                        slotProps={{
+                                            input: {
+                                                className: 'code',
+                                                readOnly: true
+                                            }
+                                        }}
                                         rows={8}
                                         value={pemToView}
                                         fullWidth
@@ -114,23 +119,33 @@ export const CertificateEditor = observer((props: {
                                         id='cert-key'
                                         label='Certificate Key'
                                         multiline
-                                        inputProps={{ className: "code", readOnly: true }}
+                                        slotProps={{
+                                            input: {
+                                                className: 'code',
+                                                readOnly: true
+                                            }
+                                        }}
                                         rows={8}
                                         value={keyToView}
                                         fullWidth
                                     />
                                 </Stack>
-                            </Grid>
+                            </Grid2>
                         )
                         : certificate.type === WorkbookCertificateType.PKCS12 ? (
-                            <Grid item>
+                            <Grid2>
                                 <Stack direction={'column'} spacing={3}>
                                     <Stack direction={'row'} spacing={3}>
                                         <TextField
                                             id='cert-pfx'
                                             label='PFX'
                                             multiline
-                                            inputProps={{ className: "code", readOnly: true }}
+                                            slotProps={{
+                                                input: {
+                                                    className: 'code',
+                                                    readOnly: true
+                                                }
+                                            }}
                                             rows={8}
                                             value={certificate.pfx ? base64Encode(Buffer.from(certificate.pfx)) : ''}
                                             fullWidth
@@ -142,32 +157,37 @@ export const CertificateEditor = observer((props: {
                                     <TextField
                                         id='cert-key'
                                         label='Certificate Key'
-                                        inputProps={{ className: "password" }}
+                                        className="password"
                                         value={certificate.password}
                                         onChange={e => workspace.setCertificatePassword(e.target.value)}
                                         fullWidth
                                     />
                                 </Stack>
-                            </Grid>
+                            </Grid2>
                         ) : (
-                            <Grid item>
+                            <Grid2>
                                 <Stack direction={'column'} spacing={3}>
                                     <Stack direction={'row'} spacing={3}>
                                         <TextField
                                             id='cert-pem'
                                             label='PEM'
                                             multiline
-                                            inputProps={{ className: "code", readOnly: true }}
+                                            slotProps={{
+                                                input: {
+                                                    readOnly: true,
+                                                    className: 'code'
+                                                }
+                                            }}
                                             rows={8}
                                             value={pemToView}
                                             fullWidth
                                         />
                                     </Stack>
                                 </Stack>
-                            </Grid>
+                            </Grid2>
                         )
                 }
-            </Grid>
+            </Grid2>
         </Stack >
     )
 })
