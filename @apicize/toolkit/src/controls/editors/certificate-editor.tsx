@@ -1,25 +1,26 @@
 import { Stack, TextField, Grid2, FormControl, InputLabel, MenuItem, Select, IconButton, Typography, SxProps } from '@mui/material'
 import SecurityIcon from '@mui/icons-material/Security';
 import FileOpenIcon from '@mui/icons-material/FileOpen';
-import { ContentDestination } from '../../models/store'
 import { EditorTitle } from '../editor-title';
 import { WorkbookCertificateType } from '@apicize/lib-typescript';
 import { PersistenceEditor } from './persistence-editor';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import { base64Decode, base64Encode } from '../../services/apicize-serializer';
-import { useWorkspace } from '../../contexts/root.context';
 import { EditableWorkbookCertificate } from '../../models/workbook/editable-workbook-certificate';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
 import { useClipboard } from '../../contexts/clipboard.context';
+import { ToastSeverity, useToast } from '../../contexts/toast.context';
+import { SshFileType, useFileOperations } from '../../contexts/file-operations.context';
+import { useWorkspace } from '../../contexts/workspace.context';
 
 export const CertificateEditor = observer((props: {
     sx: SxProps,
-    triggerOpenFile: (destination: ContentDestination, id: string) => {},
-    triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
 }) => {
     const workspace = useWorkspace()
     const clipboardCtx = useClipboard()
+    const fileOps = useFileOperations()
+    const toast = useToast()
 
     if (workspace.active?.entityType !== EditableEntityType.Certificate || workspace.helpVisible) return null
     const certificate = workspace.active as EditableWorkbookCertificate
@@ -39,6 +40,48 @@ export const CertificateEditor = observer((props: {
             keyToView = (new TextDecoder('ascii')).decode(base64Decode(certificate.key))
         } catch {
             keyToView = '(Invalid)'
+        }
+    }
+
+    const pasteDataFromClipboard = async (fileType: SshFileType) => {
+        try {
+            const text = await clipboardCtx.getClipboardText()
+            if (text.length > 0) {
+                switch (fileType) {
+                    case SshFileType.PEM:
+                        workspace.setCertificatePem(text)
+                        toast('PEM pasted from clipboard', ToastSeverity.Success)
+                        break
+                    case SshFileType.Key:
+                        workspace.setCertificateKey(text)
+                        toast('Key pasted from clipboard', ToastSeverity.Success)
+                        break
+                }
+            }
+        } catch (e) {
+            toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
+        }
+    }
+
+    const openFile = async (fileType: SshFileType) => {
+        try {
+            const data = await fileOps.openSshFile(fileType)
+            if (data) {
+                switch(fileType) {
+                    case SshFileType.PEM:
+                        workspace.setCertificatePem(data)
+                        break
+                    case SshFileType.Key:
+                        workspace.setCertificateKey(data)
+                        break
+                    case SshFileType.PFX:
+                        workspace.setCertificatePfx(data)
+                        break
+                }
+                toast(`${fileType} loaded from file`, ToastSeverity.Success)
+            }
+        } catch(e) {
+            toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -84,12 +127,11 @@ export const CertificateEditor = observer((props: {
                                 <Stack direction={'column'} spacing={3}>
                                     <Stack direction={'row'} spacing={3} position='relative'>
                                         <Typography variant='h6' component='div'>SSL PEM Certificate / Chain</Typography>
-                                        <IconButton color='primary' size='medium' aria-label='open-pem' title='Open Certificate PEM File' onClick={() => {
-                                            props.triggerOpenFile(ContentDestination.PEM, certificate.id)
-                                        }}><FileOpenIcon fontSize='inherit' /></IconButton>
-                                        <IconButton color='primary' disabled={!clipboardCtx.hasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard' onClick={() => {
-                                            props.triggerPasteFromClipboard(ContentDestination.PEM, certificate.id)
-                                        }}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
+                                        <IconButton color='primary' size='medium' aria-label='open-pem' title='Open Certificate PEM File' 
+                                            onClick={() => openFile(SshFileType.PEM)}
+                                        ><FileOpenIcon fontSize='inherit' /></IconButton>
+                                        <IconButton color='primary' disabled={!clipboardCtx.hasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard'
+                                            onClick={() => pasteDataFromClipboard(SshFileType.PEM)}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField
                                         id='cert-pem'
@@ -107,13 +149,11 @@ export const CertificateEditor = observer((props: {
                                     />
                                     <Stack direction={'row'} spacing={3} position='relative'>
                                         <Typography variant='h6' component='div'>SSL Key</Typography>
-                                        <IconButton color='primary' size='medium' aria-label='open-key' title='Open Certificate Key File' onClick={() => {
-                                            props.triggerOpenFile(ContentDestination.Key, certificate.id)
-                                        }}><FileOpenIcon fontSize='inherit' /></IconButton>
-                                        <IconButton color='primary' disabled={!clipboardCtx.hasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard' onClick={() => {
-                                            window.alert('fo!')
-                                            props.triggerPasteFromClipboard(ContentDestination.Key, certificate.id)
-                                        }}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
+                                        <IconButton color='primary' size='medium' aria-label='open-key' title='Open Certificate Key File'
+                                            onClick={() => openFile(SshFileType.Key)}
+                                        ><FileOpenIcon fontSize='inherit' /></IconButton>
+                                        <IconButton color='primary' disabled={!clipboardCtx.hasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard'
+                                            onClick={() => pasteDataFromClipboard(SshFileType.Key)}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField
                                         id='cert-key'
@@ -150,9 +190,9 @@ export const CertificateEditor = observer((props: {
                                             value={certificate.pfx ? base64Encode(Buffer.from(certificate.pfx)) : ''}
                                             fullWidth
                                         />
-                                        <IconButton color='primary' size='medium' aria-label='open-pfx' title='Open Certificate PFX File' onClick={() => {
-                                            props.triggerOpenFile(ContentDestination.PFX, certificate.id)
-                                        }}><FileOpenIcon fontSize='inherit' /></IconButton>
+                                        <IconButton color='primary' size='medium' aria-label='open-pfx' title='Open Certificate PFX File'
+                                            onClick={() => openFile(SshFileType.PFX)}
+                                        ><FileOpenIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField
                                         id='cert-key'

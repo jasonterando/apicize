@@ -1,6 +1,5 @@
 import * as React from 'react'
 import Box from '@mui/material/Box'
-import { ContentDestination } from '../../../models/store'
 import { Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { EditableNameValuePair } from '../../../models/workbook/editable-name-value-pair'
@@ -14,16 +13,20 @@ import "ace-builds/src-noconflict/mode-xml"
 import "ace-builds/src-noconflict/theme-monokai"
 import "ace-builds/src-noconflict/ext-language_tools"
 import { WorkbookBodyType, WorkbookBodyTypes } from '@apicize/lib-typescript'
-import { useWorkspace } from '../../../contexts/root.context'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { observer } from 'mobx-react-lite'
+import { useClipboard } from '../../../contexts/clipboard.context'
+import { ToastSeverity, useToast } from '../../../contexts/toast.context'
+import { useFileOperations } from '../../../contexts/file-operations.context'
+import { toJS } from 'mobx'
+import { useWorkspace } from '../../../contexts/workspace.context'
 
-export const RequestBodyEditor = observer((props: {
-  triggerOpenFile: (destination: ContentDestination, id: string) => {},
-  triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
-}) => {
+export const RequestBodyEditor = observer(() => {
   const workspace = useWorkspace()
+  const clipboard = useClipboard()
+  const fileOps = useFileOperations()
+  const toast = useToast()
 
   if (workspace.active?.entityType !== EditableEntityType.Request) {
     return null
@@ -63,22 +66,24 @@ export const RequestBodyEditor = observer((props: {
   const [allowUpdateHeader, setAllowUpdateHeader] = React.useState<boolean>(headerDoesNotMatchType(request.body.type))
 
   const updateBodyType = (val: WorkbookBodyType | string) => {
-    const newBodyType = (val == "" ? undefined : val as unknown as WorkbookBodyType) ?? WorkbookBodyType.Text
+    const v = toJS(val)
+    const newBodyType = (v == "" ? undefined : v as unknown as WorkbookBodyType) ?? WorkbookBodyType.Text
     workspace.setRequestBodyType(newBodyType)
     setAllowUpdateHeader(headerDoesNotMatchType(newBodyType))
   }
 
   const updateBodyAsText = (value: string | undefined) => {
-    workspace.setRequestBodyData(value ?? '')
+    workspace.setRequestBodyData(toJS(value) ?? '')
   }
 
   const updateBodyAsFormData = (data: EditableNameValuePair[]) => {
-    workspace.setRequestBodyData(data)
+    workspace.setRequestBodyData(toJS(data))
   }
 
   const updateTypeHeader = () => {
+    debugger
     const mimeType = getBodyTypeMimeType(request.body.type)
-    let newHeaders = request.headers ? structuredClone(request.headers) : []
+    let newHeaders = request.headers ? toJS(request.headers) : []
     const contentTypeHeader = newHeaders.find(h => h.name === 'Content-Type')
     if (contentTypeHeader) {
       if (mimeType.length === 0) {
@@ -104,6 +109,30 @@ export const RequestBodyEditor = observer((props: {
     return WorkbookBodyTypes.map(bodyType => (
       <MenuItem key={bodyType} value={bodyType}>{bodyType}</MenuItem>
     ))
+  }
+
+  const pasteImageFromClipboard = async () => {
+    try {
+      const img = await clipboard.getClipboardImage()
+      request.body = {
+        type: WorkbookBodyType.Raw,
+        data: img
+      }
+      workspace.setRequestBodyData(img)
+      toast('Image pasted from clipboard', ToastSeverity.Success)
+    } catch(e) {
+      toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
+    }
+  }
+
+  const openFile = async () => {
+    try {
+      const data = await fileOps.openFile()
+      if (! data) return
+      workspace.setRequestBodyData(data)
+    } catch(e) {
+      toast(`Unable to open file - ${e}`, ToastSeverity.Error)
+    }
   }
 
   let mode
@@ -151,10 +180,11 @@ export const RequestBodyEditor = observer((props: {
                 width: 'fit-content',
               }}
             >
-              <IconButton aria-label='from-file' title='Load Body from File' onClick={() => props.triggerOpenFile(ContentDestination.BodyBinary, request.id)} sx={{ marginRight: '4px' }}>
+              <IconButton aria-label='from-file' title='Load Body from File' onClick={() => openFile()} sx={{ marginRight: '4px' }}>
                 <FileOpenIcon />
               </IconButton>
-              <IconButton aria-label='from-clipboard' title='Paste Body from Clipboard' onClick={() => props.triggerPasteFromClipboard(ContentDestination.BodyBinary, request.id)} sx={{ marginRight: '4px' }}>
+              <IconButton aria-label='from-clipboard' title='Paste Body from Clipboard' disabled={! clipboard.hasImage} 
+                onClick={() => pasteImageFromClipboard()} sx={{ marginRight: '4px' }}>
                 <ContentPasteGoIcon />
               </IconButton>
               <Box padding='10px'>{request.body.data ? request.body.data.length.toLocaleString() + ' Bytes' : '(None)'}</Box>

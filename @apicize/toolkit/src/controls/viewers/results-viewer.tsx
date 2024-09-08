@@ -15,34 +15,31 @@ import { ResponseHeadersViewer } from "./result/response-headers-viewer";
 import { ResultRequestViewer } from "./result/result-request-viewer";
 import { RequestRunProgress } from "./result/requuest-run-progress";
 import { observer } from 'mobx-react-lite';
-import { useExecution, useWorkspace } from '../../contexts/root.context';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
-import { toJS } from "mobx";
+import { useWorkspace } from "../../contexts/workspace.context";
 
 export const ResultsViewer = observer((props: {
-    sx: SxProps<Theme>,
-    cancelRequest: (id: string) => void
+    sx: SxProps<Theme>
 }) => {
-    const workspaceCtx = useWorkspace()
-    const executionCtx = useExecution()
+    const workspace = useWorkspace()
 
-    if ((! workspaceCtx.active) ||
-        (workspaceCtx.active.entityType !== EditableEntityType.Request 
-            && workspaceCtx.active.entityType !== EditableEntityType.Group)) {
+    if ((! workspace.active) ||
+        (workspace.active.entityType !== EditableEntityType.Request 
+            && workspace.active.entityType !== EditableEntityType.Group)) {
         return null
     }
-    const requestOrGroupId = workspaceCtx.active.id
+    const requestOrGroupId = workspace.active.id
 
-    const requestExecution = executionCtx.requestExecutions.get(workspaceCtx.active.id)
-    const executionResult = executionCtx.getExecutionResult(workspaceCtx.active.id,
+    const requestExecution = workspace.requestExecutions.get(workspace.active.id)
+    const executionResult = workspace.getExecutionResult(workspace.active.id,
         requestExecution?.runIndex ?? NaN, requestExecution?.resultIndex ?? 0)
 
-    const groupSummary = executionCtx.getExecutionGroupSummary(workspaceCtx.active.id,
+    const groupSummary = workspace.getExecutionGroupSummary(workspace.active.id,
         requestExecution?.runIndex ?? NaN)
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: string) => {
         if (newValue) {
-            executionCtx.changePanel(requestOrGroupId, newValue)
+            workspace.changePanel(requestOrGroupId, newValue)
         }
     }
 
@@ -74,7 +71,7 @@ export const ResultsViewer = observer((props: {
             </ToggleButtonGroup>
             <Box sx={{ overflow: 'hidden', flexGrow: 1, bottom: '0', position: 'relative' }}>
                 {
-                    requestExecution.running ? <RequestRunProgress cancelRequest={props.cancelRequest} /> :
+                    requestExecution.running ? <RequestRunProgress /> :
                         panel === 'Info' ? <ResultInfoViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex} />
                             : panel === 'Headers' ? <ResponseHeadersViewer requestOrGroupId={requestOrGroupId} runIndex={runIndex} resultIndex={resultIndex} />
                                 : panel === 'Preview' ? <ResultResponsePreview

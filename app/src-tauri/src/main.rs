@@ -164,9 +164,9 @@ async fn run_request(
 }
 
 #[tauri::command]
-async fn cancel_request(id: String) {
+async fn cancel_request(request_id: String) {
     let tokens = cancellation_tokens().lock().unwrap();
-    let token = tokens.get(&id);
+    let token = tokens.get(&request_id);
     if token.is_some() {
         token.unwrap().cancel()
     }

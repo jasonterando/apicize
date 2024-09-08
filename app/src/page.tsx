@@ -1,19 +1,28 @@
 'use client'
 
-import {
-  Navigation, RootProvider,
-} from '@apicize/toolkit'
+import * as core from '@tauri-apps/api/core'
+import { Navigation, WorkspaceStore } from '@apicize/toolkit'
 import type { } from '@mui/x-tree-view/themeAugmentation';
 import { Stack, CssBaseline, ThemeProvider, createTheme, alpha } from '@mui/material'
 import { } from '@apicize/toolkit'
-import { ApicizeTauriProvider } from './providers/apicize-tauri.provider';
 import React from 'react'
-import { emit } from '@tauri-apps/api/event'
 import "typeface-open-sans"
 import Pane from './pane';
 import { ClipboardProvider } from './providers/clipboard.provider';
 import { ToastProvider } from './providers/toast.provider';
 import { ConfirmationProvider } from './providers/confirmation.provider';
+import { FileOperationsProvider } from './providers/file-operations.provider';
+import { WorkspaceProvider } from './providers/workspace.provider';
+import { ApicizeExecutionResults } from '@apicize/lib-typescript';
+
+const store = new WorkspaceStore({
+  onExecuteRequest: (workspace, requestId) => core.invoke<ApicizeExecutionResults>
+    ('run_request', { workspace, requestId }),
+  onCancelRequest: (requestId) => core.invoke(
+    'cancel_request', { requestId }),
+  onClearToken: (authorizationId) => core.invoke(
+    'clear_cached_authorization', { authorizationId })
+})
 
 export default function Home() {
 
@@ -95,28 +104,23 @@ export default function Home() {
   })
 
   return (
-    <RootProvider>
-      <ThemeProvider theme={darkTheme}>
-        <CssBaseline />
-        <ToastProvider>
-          <ConfirmationProvider>
-            <ClipboardProvider>
-              <ApicizeTauriProvider>
+    <ThemeProvider theme={darkTheme}>
+      <ToastProvider>
+        <ConfirmationProvider>
+          <FileOperationsProvider workspaceStore={store}>
+            <WorkspaceProvider store={store}>
+              <CssBaseline />
+              <ClipboardProvider>
                 <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
-                  <Navigation
-                    triggerNew={() => emit('action', 'new')}
-                    triggerOpen={() => emit('action', 'open')}
-                    triggerSave={() => emit('action', 'save')}
-                    triggerSaveAs={() => emit('action', 'saveAs')}
-                  />
+                  <Navigation />
                   <Pane />
                 </Stack>
-              </ApicizeTauriProvider>
-            </ClipboardProvider>
-          </ConfirmationProvider>
-        </ToastProvider>
-      </ThemeProvider>
-    </RootProvider>
+              </ClipboardProvider>
+            </WorkspaceProvider>
+          </FileOperationsProvider>
+        </ConfirmationProvider>
+      </ToastProvider>
+    </ThemeProvider>
   )
 }
 

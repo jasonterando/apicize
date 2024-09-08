@@ -1,11 +1,11 @@
 import { EntitySelection } from '../../../models/workbook/entity-selection'
 import { MenuItem, FormControl, InputLabel, Select } from '@mui/material'
 import { Stack } from '@mui/system'
-import { useWorkspace } from '../../../contexts/root.context'
 import { DEFAULT_SELECTION_ID } from '../../../models/store'
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
 import { observer } from 'mobx-react-lite'
+import { useWorkspace } from '../../../contexts/workspace.context'
 
 export const RequestParametersEditor = observer(() => {
     const workspace = useWorkspace()

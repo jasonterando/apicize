@@ -1,51 +1,21 @@
 import { action, makeObservable, observable, toJS } from "mobx"
 import { DEFAULT_SELECTION_ID, NO_SELECTION, NO_SELECTION_ID } from "../models/store"
-import { WorkbookExecution } from "../models/workbook/workbook-execution"
+import { WorkbookExecution, WorkbookExecutionGroupSummary, WorkbookExecutionGroupSummaryRequest, WorkbookExecutionResult, WorkbookExecutionRunMenuItem } from "../models/workbook/workbook-execution"
 import { editableWorkspaceToStoredWorkspace, newEditableWorkspace, stateToGlobalSettingsStorage, storedWorkspaceToEditableWorkspace } from "../services/apicize-serializer"
 import { EditableWorkbookRequest, EditableWorkbookRequestGroup } from "../models/workbook/editable-workbook-request"
 import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-scenario"
 import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization"
 import { EditableWorkbookCertificate } from "../models/workbook/editable-workbook-certificate"
 import { EditableWorkbookProxy } from "../models/workbook/editable-workbook-proxy"
-import { RootStore } from "./root.store"
-import { Identifiable, Named, IndexedEntities, GetTitle, Persistence, addNestedEntity, removeNestedEntity, moveNestedEntity, getNestedEntity, WorkbookGroupExecution, addEntity, removeEntity, moveEntity, WorkbookBodyType, WorkbookMethod, WorkbookBodyData, WorkbookOAuth2ClientAuthorization, WorkbookAuthorizationType, WorkbookApiKeyAuthorization, WorkbookCertificateType, findParentEntity, Workspace } from "@apicize/lib-typescript"
+import { Identifiable, Named, IndexedEntities, GetTitle, Persistence, addNestedEntity, removeNestedEntity, moveNestedEntity, getNestedEntity, WorkbookGroupExecution, addEntity, removeEntity, moveEntity, WorkbookBodyType, WorkbookMethod, WorkbookBodyData, WorkbookOAuth2ClientAuthorization, WorkbookAuthorizationType, WorkbookApiKeyAuthorization, WorkbookCertificateType, findParentEntity, Workspace, ApicizeExecutionResults, ApicizeRequest, WorkbookRequestGroup } from "@apicize/lib-typescript"
 import { EntitySelection } from "../models/workbook/entity-selection"
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair"
 import { GenerateIdentifier } from "../services/random-identifier-generator"
 import { EditableEntityType } from "../models/workbook/editable-entity-type"
 import { EditableItem } from "../models/editable"
-import { RunInformation } from "../models/workbook/run-information"
-
-const encodeFormData = (data: EditableNameValuePair[]) =>
-    (data.length === 0)
-        ? ''
-        : data.map(nv =>
-            `${encodeURIComponent(nv.name)}=${encodeURIComponent(nv.value)}`
-        ).join('&')
-
-const decodeFormData = (bodyData: string | number[] | undefined) => {
-    let data: string | undefined;
-    if (bodyData instanceof Array) {
-        const buffer = Uint8Array.from(bodyData)
-        data = (new TextDecoder()).decode(buffer)
-    } else {
-        data = bodyData
-    }
-    if (data && data.length > 0) {
-        const parts = data.split('&')
-        return parts.map(p => {
-            const id = GenerateIdentifier()
-            const nv = p.split('=')
-            if (nv.length == 1) {
-                return { id, name: decodeURIComponent(nv[0]), value: "" } as EditableNameValuePair
-            } else {
-                return { id, name: decodeURIComponent(nv[0]), value: decodeURIComponent(nv[1]) } as EditableNameValuePair
-            }
-        })
-    } else {
-        return []
-    }
-}
+import { ApicizeResponseBody } from "@apicize/lib-typescript/dist/models/lib/apicize-response"
+import { MAX_TEXT_RENDER_LENGTH } from "../controls/viewers/text-viewer"
+import { createContext, useContext } from "react"
 
 export class WorkspaceStore {
     /**
@@ -68,25 +38,38 @@ export class WorkspaceStore {
     @observable accessor nextHelpTopic = ''
     @observable accessor helpHistory: string[] = []
 
-    constructor(private readonly root: RootStore) {
+    @observable accessor appName = 'Apicize'
+    @observable accessor appVersion = ''
+    @observable accessor workbookFullName = ''
+    @observable accessor workbookDisplayName = '(New Workbook)'
+    @observable accessor dirty: boolean = false
+    @observable accessor invalidItems = new Set<string>()
+
+    private defaultRequested = false
+
+    constructor(private readonly callbacks: {
+        onExecuteRequest: (workspace: Workspace, requestId: string) => Promise<ApicizeExecutionResults>,
+        onCancelRequest: (requestId: string) => Promise<void>,
+        onClearToken: (authorizationId: string) => Promise<void>,
+    }) {
         makeObservable(this)
     }
 
     anyInvalid() {
-        for(const entity of this.workspace.requests.entities.values()) {
-            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        for (const entity of this.workspace.requests.entities.values()) {
+            if (entity.invalid) { console.log('invalid', { type: entity.entityType, id: entity.id }); return true; }
         }
-        for(const entity of this.workspace.scenarios.entities.values()) {
-            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        for (const entity of this.workspace.scenarios.entities.values()) {
+            if (entity.invalid) { console.log('invalid', { type: entity.entityType, id: entity.id }); return true; }
         }
-        for(const entity of this.workspace.authorizations.entities.values()) {
-            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        for (const entity of this.workspace.authorizations.entities.values()) {
+            if (entity.invalid) { console.log('invalid', { type: entity.entityType, id: entity.id }); return true; }
         }
-        for(const entity of this.workspace.certificates.entities.values()) {
-            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        for (const entity of this.workspace.certificates.entities.values()) {
+            if (entity.invalid) { console.log('invalid', { type: entity.entityType, id: entity.id }); return true; }
         }
-        for(const entity of this.workspace.proxies.entities.values()) {
-            if (entity.invalid) { console.log('invalid', {type: entity.entityType, id: entity.id}); return true; }
+        for (const entity of this.workspace.proxies.entities.values()) {
+            if (entity.invalid) { console.log('invalid', { type: entity.entityType, id: entity.id }); return true; }
         }
         return false
     }
@@ -128,37 +111,59 @@ export class WorkspaceStore {
     }
 
     @action
-    newWorkspace() {
-        this.workspace = newEditableWorkspace()
-        this.requestExecutions.clear()
-        this.root.execution.clear()
-        this.root.window.clearInvalid()
-        this.clearActive()
+    changeApp(name: string, version: string) {
+        this.appName = name
+        this.appVersion = version
+    }
+
+    lastWorkbookNotYetRequested() {
+        if (this.defaultRequested) return false
+        this.defaultRequested = true
+        return true
     }
 
     @action
-    loadWorkspace(newWorkspace: Workspace) {
-        console.log('Loading workspace....')
-        this.workspace = storedWorkspaceToEditableWorkspace(newWorkspace)
+    newWorkspace() {
+        this.workbookFullName = ''
+        this.workbookDisplayName = ''
+        this.dirty = false
+        this.workspace = newEditableWorkspace()
         this.requestExecutions.clear()
-        this.root.execution.clear()
-        this.root.window.clearInvalid()
-        for(const entity of this.workspace.requests.entities.values()) {
-            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        this.invalidItems.clear()
+        this.active = null
+    }
+
+    @action
+    loadWorkspace(newWorkspace: Workspace, fileName: string, displayName: string) {
+        this.workspace = storedWorkspaceToEditableWorkspace(newWorkspace)
+        for (const entity of this.workspace.requests.entities.values()) {
+            if (entity.invalid) this.invalidItems.add(entity.id)
         }
-        for(const entity of this.workspace.scenarios.entities.values()) {
-            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        for (const entity of this.workspace.scenarios.entities.values()) {
+            if (entity.invalid) this.invalidItems.add(entity.id)
         }
-        for(const entity of this.workspace.authorizations.entities.values()) {
-            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        for (const entity of this.workspace.authorizations.entities.values()) {
+            if (entity.invalid) this.invalidItems.add(entity.id)
         }
-        for(const entity of this.workspace.certificates.entities.values()) {
-            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        for (const entity of this.workspace.certificates.entities.values()) {
+            if (entity.invalid) this.invalidItems.add(entity.id)
         }
-        for(const entity of this.workspace.proxies.entities.values()) {
-            if (entity.invalid) this.root.window.changeInvalid(entity.id, true)
+        for (const entity of this.workspace.proxies.entities.values()) {
+            if (entity.invalid) this.invalidItems.add(entity.id)
         }
-        this.clearActive()
+        this.active = null
+        this.workbookFullName = fileName
+        this.workbookDisplayName = displayName
+        this.dirty = false
+        this.requestExecutions.clear()
+        this.invalidItems.clear()
+    }
+
+    @action
+    updateSavedLocation(fileName: string, displayName: string) {
+        this.workbookFullName = fileName
+        this.workbookDisplayName = displayName
+        this.dirty = false
     }
 
     getWorkspace() {
@@ -181,19 +186,17 @@ export class WorkspaceStore {
             lastWorkbookFileName)
     }
 
-
     @action
     changeActive(type: EditableEntityType, id: string) {
         switch (type) {
             case EditableEntityType.Request:
             case EditableEntityType.Group:
                 this.hideHelp()
-                console.log(`changeActive ${type} ${id}`)
                 const r = this.workspace.requests.entities.get(id)
                 if (!r) throw new Error(`Invalid request ID ${id}`)
                 this.active = r
                 this.nextHelpTopic = 'requests'
-                break  
+                break
             case EditableEntityType.Scenario:
                 this.hideHelp()
                 const s = this.workspace.scenarios.entities.get(id)
@@ -269,7 +272,7 @@ export class WorkspaceStore {
     })
 })`
         addNestedEntity(entry, this.workspace.requests, false, targetID)
-        this.root.window.changeDirty(true)
+        this.dirty = true
         this.changeActive(EditableEntityType.Request, entry.id)
     }
 
@@ -279,14 +282,14 @@ export class WorkspaceStore {
             this.clearActive()
         }
         removeNestedEntity(id, this.workspace.requests)
-        this.root.execution.deleteExecution(id)
-        this.root.window.changeDirty(true)
+        this.requestExecutions.delete(id)
+        this.dirty = true
     }
 
     @action
     moveRequest(id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) {
         moveNestedEntity(id, destinationID, onLowerHalf, onLeft, this.workspace.requests)
-        this.root.window.changeDirty(true)
+        this.dirty = true
         if (this.active?.id !== id) {
             this.changeActive(EditableEntityType.Request, id)
         }
@@ -357,7 +360,7 @@ export class WorkspaceStore {
             this.workspace.requests.topLevelIds.push(entry.id)
         }
 
-        this.root.window.changeDirty(true)
+        this.dirty = true
         this.changeActive(EditableEntityType.Request, entry.id)
     }
 
@@ -369,7 +372,7 @@ export class WorkspaceStore {
     setName(value: string) {
         const namable = this.active as Named
         namable.name = value
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
@@ -377,7 +380,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Request) {
             const request = this.active as EditableWorkbookRequest
             request.url = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -386,7 +389,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Request) {
             const request = this.active as EditableWorkbookRequest
             request.method = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -395,7 +398,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Request) {
             const request = this.active as EditableWorkbookRequest
             request.timeout = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -404,7 +407,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Request) {
             const request = this.active as EditableWorkbookRequest
             request.queryStringParams = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -413,7 +416,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Request) {
             const request = this.active as EditableWorkbookRequest
             request.headers = value ?? []
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -453,7 +456,7 @@ export class WorkspaceStore {
                 type: newBodyType,
                 data: newBodyData
             }
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -466,22 +469,22 @@ export class WorkspaceStore {
             } else {
                 request.body = { data: value }
             }
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
     @action
     setRequestRuns(value: number) {
-        switch(this.active?.entityType) {
+        switch (this.active?.entityType) {
             case EditableEntityType.Request:
                 const request = this.active as EditableWorkbookRequest
                 request.runs = value
-                this.root.window.changeDirty(true)
+                this.dirty = true
                 break
             case EditableEntityType.Group:
                 const group = this.active as EditableWorkbookRequestGroup
                 group.runs = value
-                this.root.window.changeDirty(true)
+                this.dirty = true
                 break
         }
     }
@@ -491,7 +494,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Request) {
             const request = this.active as EditableWorkbookRequest
             request.test = value ?? ''
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -504,7 +507,7 @@ export class WorkspaceStore {
                 : entityId == NO_SELECTION_ID
                     ? NO_SELECTION
                     : { id: entityId, name: GetTitle(this.workspace.scenarios.entities.get(entityId)) }
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -517,7 +520,7 @@ export class WorkspaceStore {
                 : entityId == NO_SELECTION_ID
                     ? NO_SELECTION
                     : { id: entityId, name: GetTitle(this.workspace.authorizations.entities.get(entityId)) }
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -530,7 +533,7 @@ export class WorkspaceStore {
                 : entityId == NO_SELECTION_ID
                     ? NO_SELECTION
                     : { id: entityId, name: GetTitle(this.workspace.certificates.entities.get(entityId)) }
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -543,7 +546,7 @@ export class WorkspaceStore {
                 : entityId == NO_SELECTION_ID
                     ? NO_SELECTION
                     : { id: entityId, name: GetTitle(this.workspace.proxies.entities.get(entityId)) }
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -617,29 +620,20 @@ export class WorkspaceStore {
         }
     }
 
-    getRequestRunInformation(): RunInformation | null {
-        if (this.active?.entityType === EditableEntityType.Request || this.active?.entityType === EditableEntityType.Group) {
-            const request = this.active as EditableWorkbookRequest
-            const result = {
-                requestId: request.id,
-                workspace: editableWorkspaceToStoredWorkspace(
-                    this.workspace.requests,
-                    this.workspace.scenarios,
-                    this.workspace.authorizations,
-                    this.workspace.certificates,
-                    this.workspace.proxies,
-                    this.workspace.selectedScenario,
-                    this.workspace.selectedAuthorization,
-                    this.workspace.selectedCertificate,
-                    this.workspace.selectedProxy,
-                )
-            }
-            console.log('Run info', result)
-            return result
-        } else {
-            return null
-        }
+    getStoredWorkspace() {
+        return editableWorkspaceToStoredWorkspace(
+            this.workspace.requests,
+            this.workspace.scenarios,
+            this.workspace.authorizations,
+            this.workspace.certificates,
+            this.workspace.proxies,
+            this.workspace.selectedScenario,
+            this.workspace.selectedAuthorization,
+            this.workspace.selectedCertificate,
+            this.workspace.selectedProxy,
+        )
     }
+
 
     @action
     addGroup(targetID?: string | null) {
@@ -647,7 +641,7 @@ export class WorkspaceStore {
         entry.id = GenerateIdentifier()
         entry.runs = 1
         addNestedEntity(entry, this.workspace.requests, true, targetID)
-        this.root.window.changeDirty(true)
+        this.dirty = true
         this.changeActive(EditableEntityType.Request, entry.id)
     }
 
@@ -668,10 +662,10 @@ export class WorkspaceStore {
 
     @action
     setGroupExecution(value: WorkbookGroupExecution) {
-        if(this.active?.entityType === EditableEntityType.Group) {
+        if (this.active?.entityType === EditableEntityType.Group) {
             const group = this.active as EditableWorkbookRequestGroup
             group.execution = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -682,7 +676,7 @@ export class WorkspaceStore {
         this.workspace.scenarios.entities.set(scenario.id, scenario)
         addEntity(scenario, this.workspace.scenarios, targetID)
         this.changeActive(EditableEntityType.Scenario, scenario.id)
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
@@ -694,13 +688,13 @@ export class WorkspaceStore {
         }
         removeEntity(id, this.workspace.scenarios)
         this.clearActive()
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
     moveScenario(id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) {
         moveEntity<EditableWorkbookScenario>(id, destinationID, onLowerHalf, onLeft, this.workspace.scenarios)
-        this.root.window.changeDirty(true)
+        this.dirty = true
         // if (selectedScenario !== NO_SELECTION) {
         //     activateScenario(id)
         // }
@@ -720,7 +714,7 @@ export class WorkspaceStore {
             this.workspace.scenarios.topLevelIds.splice(idx + 1, 0, scenario.id)
         }
         this.workspace.scenarios.entities.set(scenario.id, scenario)
-        this.root.window.changeDirty(true)
+        this.dirty = true
         this.changeActive(EditableEntityType.Scenario, scenario.id)
     }
 
@@ -753,7 +747,7 @@ export class WorkspaceStore {
 
         addEntity(authorization, this.workspace.authorizations, targetID)
         this.changeActive(EditableEntityType.Authorization, authorization.id)
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
@@ -766,13 +760,13 @@ export class WorkspaceStore {
 
         removeEntity(id, this.workspace.authorizations)
         this.clearActive()
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
     moveAuthorization(id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) {
         moveEntity<EditableWorkbookAuthorization>(id, destinationID, onLowerHalf, onLeft, this.workspace.authorizations)
-        this.root.window.changeDirty(true)
+        this.dirty = true
         // if (selectedAuthorizationId !== id) {
         //     activateAuthorization(id)
         // }
@@ -793,7 +787,7 @@ export class WorkspaceStore {
                 this.workspace.authorizations.topLevelIds.splice(idx + 1, 0, authorization.id)
             }
             this.workspace.authorizations.entities.set(authorization.id, authorization)
-            this.root.window.changeDirty(true)
+            this.dirty = true
             this.changeActive(EditableEntityType.Authorization, authorization.id)
         }
     }
@@ -815,7 +809,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.type = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -824,7 +818,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.username = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -833,7 +827,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.password = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -842,7 +836,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.accessTokenUrl = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
     @action
@@ -850,7 +844,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.clientId = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -859,7 +853,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.clientSecret = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -868,7 +862,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.scope = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -882,7 +876,7 @@ export class WorkspaceStore {
                     : entityId == NO_SELECTION_ID
                         ? NO_SELECTION
                         : { id: entityId, name: GetTitle(this.workspace.certificates.entities.get(entityId)) }
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -896,7 +890,7 @@ export class WorkspaceStore {
                     : entityId == NO_SELECTION_ID
                         ? NO_SELECTION
                         : { id: entityId, name: GetTitle(this.workspace.proxies.entities.get(entityId)) }
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -905,7 +899,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.header = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -914,7 +908,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.value = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -923,7 +917,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Authorization) {
             const auth = this.active as EditableWorkbookAuthorization
             auth.persistence = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -934,7 +928,7 @@ export class WorkspaceStore {
         this.workspace.certificates.entities.set(certificate.id, certificate)
         addEntity(certificate, this.workspace.certificates, targetID)
         this.changeActive(EditableEntityType.Certificate, certificate.id)
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
@@ -946,13 +940,13 @@ export class WorkspaceStore {
         }
         removeEntity(id, this.workspace.certificates)
         this.clearActive()
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
     moveCertificate(id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) {
         moveEntity(id, destinationID, onLowerHalf, onLeft, this.workspace.certificates)
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
@@ -970,7 +964,7 @@ export class WorkspaceStore {
                 this.workspace.certificates.topLevelIds.splice(idx + 1, 0, certificate.id)
             }
             this.workspace.certificates.entities.set(certificate.id, certificate)
-            this.root.window.changeDirty(true)
+            this.dirty = true
             this.changeActive(EditableEntityType.Certificate, certificate.id)
         }
     }
@@ -984,7 +978,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Certificate) {
             const certificate = this.active as EditableWorkbookCertificate
             certificate.persistence = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -993,7 +987,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Certificate) {
             const certificate = this.active as EditableWorkbookCertificate
             certificate.type = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -1002,7 +996,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Certificate) {
             const certificate = this.active as EditableWorkbookCertificate
             certificate.pem = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -1011,7 +1005,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Certificate) {
             const certificate = this.active as EditableWorkbookCertificate
             certificate.key = value || ''
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -1020,7 +1014,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Certificate) {
             const certificate = this.active as EditableWorkbookCertificate
             certificate.pfx = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -1029,7 +1023,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Certificate) {
             const certificate = this.active as EditableWorkbookCertificate
             certificate.password = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -1040,7 +1034,7 @@ export class WorkspaceStore {
         this.workspace.proxies.entities.set(proxy.id, proxy)
         addEntity(proxy, this.workspace.proxies, targetID)
         this.changeActive(EditableEntityType.Proxy, proxy.id)
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
@@ -1052,13 +1046,13 @@ export class WorkspaceStore {
         }
         removeEntity(id, this.workspace.proxies)
         this.clearActive()
-        this.root.window.changeDirty(true)
+        this.dirty = true
     }
 
     @action
     moveProxy(id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) {
         moveEntity(id, destinationID, onLowerHalf, onLeft, this.workspace.proxies)
-        this.root.window.changeDirty(true)
+        this.dirty = true
         // if (selectedProxyId !== id) {
         //     activateProxy(id)
         // }
@@ -1079,7 +1073,7 @@ export class WorkspaceStore {
                 this.workspace.proxies.topLevelIds.splice(idx + 1, 0, proxy.id)
             }
             this.workspace.proxies.entities.set(proxy.id, proxy)
-            this.root.window.changeDirty(true)
+            this.dirty = true
             this.changeActive(EditableEntityType.Proxy, proxy.id)
         }
     }
@@ -1089,7 +1083,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Proxy) {
             const proxy = this.active as EditableWorkbookProxy
             proxy.url = url
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -1098,7 +1092,7 @@ export class WorkspaceStore {
         if (this.active?.entityType === EditableEntityType.Proxy) {
             const proxy = this.active as EditableWorkbookProxy
             proxy.persistence = value
-            this.root.window.changeDirty(true)
+            this.dirty = true
         }
     }
 
@@ -1106,4 +1100,264 @@ export class WorkspaceStore {
         return this.workspace.proxies.entities.get(id)
     }
 
+    getExecution(requestOrGroupId: string) {
+        let execution = this.requestExecutions.get(requestOrGroupId)
+        if (!execution) {
+            execution = new WorkbookExecutionEntry()
+            this.requestExecutions.set(requestOrGroupId, execution)
+        }
+        return execution
+    }
+
+    deleteExecution(requestOrGroupId: string) {
+        this.requestExecutions.delete(requestOrGroupId)
+    }
+
+    getExecutionGroupSummary(requestOrGroupId: string, runIndex: number): WorkbookExecutionGroupSummary | undefined {
+        return this.requestExecutions.get(requestOrGroupId)?.runs?.at(runIndex)?.groupSummary
+    }
+
+    getExecutionResult(requestOrGroupId: string, runIndex: number, resultIndex: number): WorkbookExecutionResult | undefined {
+        return this.requestExecutions.get(requestOrGroupId)?.results?.get(`${runIndex}-${resultIndex}`)
+    }
+
+    getExecutionResultHeaders(requestOrGroupId: string, runIndex: number, resultIndex: number): { [name: string]: string } | undefined {
+        return this.getExecutionResult(requestOrGroupId, runIndex, resultIndex)?.response?.headers
+    }
+
+    getExecutionResultBody(requestOrGroupId: string, runIndex: number, resultIndex: number): ApicizeResponseBody | undefined {
+        return this.getExecutionResult(requestOrGroupId, runIndex, resultIndex)?.response?.body
+    }
+
+    getExecutionRequest(requestOrGroupId: string, runIndex: number, resultIndex: number): ApicizeRequest | undefined {
+        return this.getExecutionResult(requestOrGroupId, runIndex, resultIndex)?.request
+    }
+
+    @action
+    reportExecutionResults(execution: WorkbookExecution, group: WorkbookRequestGroup | null, executionResults: ApicizeExecutionResults) {
+        execution.running = false
+        const previousPanel = execution.panel
+
+        if (executionResults?.runs) {
+            let runCtr = 0
+            const newRunList: WorkbookExecutionRunMenuItem[] = []
+            const newIndexedResults = new Map<string, WorkbookExecutionResult>()
+
+            let allTestsSucceeded = true
+
+            executionResults.runs.forEach((run, runIndex) => {
+                const concurrent = group?.execution === WorkbookGroupExecution.Concurrent
+
+                let executedAt = 0
+                let milliseconds = 0
+                let success = true
+                let requests: WorkbookExecutionGroupSummaryRequest[] = []
+
+                const results: { title: string, index: number }[] = []
+
+                if (run.length > 1) {
+                    results.push({ title: 'Summary', index: -1 })
+                }
+
+                run.forEach((result, resultIndex) => {
+                    const index = `${runIndex}-${resultIndex}`
+                    const resultRequest = this.getRequest(result.requestId)
+                    results.push({ title: `${resultRequest?.name}`, index: resultIndex })
+                    newIndexedResults.set(index, {
+                            ...result,
+                        hasRequest: !!result.request,
+                        disableOtherPanels: !result.success,
+                        longTextInResponse: (result.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH,
+                        infoColor: result.success
+                            ? (result.failedTestCount ?? -1) === 0
+                                ? 'success'
+                                : 'warning'
+                            : 'error'
+                    })
+
+                    if (group) {
+                        executedAt = Math.min(result.executedAt, executedAt)
+                        milliseconds = concurrent
+                            ? Math.max(result.milliseconds, milliseconds)
+                            : result.milliseconds + milliseconds
+                        success = success && result.success
+                        const resultRequest = this.getRequest(result.requestId)
+                        const requestName = (resultRequest && resultRequest.name.length > 0) ? resultRequest.name : '(Unnamed)'
+                        if (allTestsSucceeded && result.tests) {
+                            result.tests.forEach(test => allTestsSucceeded = allTestsSucceeded && test.success)
+                        }
+                        requests.push({
+                            requestName,
+                            status: result.response?.status,
+                            statusText: result.response?.statusText,
+                            milliseconds: result.milliseconds,
+                            tests: result.tests,
+                            errorMessage: result.errorMessage
+                        })
+                    }
+                })
+
+
+                newRunList.push({
+                    title: `Run ${runIndex + 1} of ${executionResults.runs.length}`,
+                    results,
+                    groupSummary: group ? {
+                        executedAt,
+                        milliseconds,
+                        success,
+                        allTestsSucceeded,
+                        requests,
+                        infoColor: success
+                            ? allTestsSucceeded
+                                ? 'success'
+                                : 'warning'
+                            : 'error'
+
+                    } : undefined
+                })
+            })
+
+            execution.panel = (!group && previousPanel && allTestsSucceeded) ? previousPanel : 'Info'
+            execution.runs = newRunList
+            execution.results = newIndexedResults
+
+            if (newRunList.length > 0) {
+                execution.runIndex = 0
+                const entry = newRunList[0]
+                execution.resultIndex = entry
+                    ? (entry.groupSummary ? -1 : 0)
+                    : 0
+            }
+        }
+    }
+
+    @action
+    reportExecutionComplete(execution: WorkbookExecution) {
+        execution.running = false
+    }
+
+    @action
+    async executeRequest(requestOrGroupId: string) {
+        const request = this.getRequest(requestOrGroupId)
+        const group = request?.entityType === EditableEntityType.Group
+            ? request as WorkbookRequestGroup
+            : null
+        let execution = this.requestExecutions.get(requestOrGroupId)
+        if (execution) {
+            execution.running = true
+        } else {
+            let execution = new WorkbookExecutionEntry()
+            execution.running = true
+            this.requestExecutions.set(requestOrGroupId, execution)
+        }
+
+        if (!(execution && (request || group))) throw new Error(`Invalid ID ${requestOrGroupId}`)
+
+            try {
+                let executionResults = await this.callbacks.onExecuteRequest(this.getWorkspace(), requestOrGroupId)
+                this.reportExecutionResults(execution, group, executionResults)
+            } finally {
+                this.reportExecutionComplete(execution)
+            }
+    }
+
+
+    @action
+    cancelRequest(requestOrGroupId: string) {
+        const match = this.requestExecutions.get(requestOrGroupId)
+        if (match) {
+            match.running = false
+        }
+        return this.callbacks.onCancelRequest(requestOrGroupId)
+    }
+
+    @action
+    async clearTokens() {
+        await Promise.all(
+            this.workspace.authorizations.topLevelIds.map(this.callbacks.onClearToken)
+        )
+    }
+
+    @action
+    changePanel(requestOrGroupId: string, panel: string) {
+        const match = this.requestExecutions.get(requestOrGroupId)
+        if (match) {
+            match.panel = panel
+        }
+    }
+
+    @action
+    changeRunIndex(requestOrGroupId: string, runIndex: number) {
+        const execution = this.requestExecutions.get(requestOrGroupId)
+        if (!execution) throw new Error(`Invalid Request ID ${requestOrGroupId}`)
+        execution.runIndex = runIndex
+    }
+
+    @action
+    changeResultIndex(requestOrGroupId: string, resultIndex: number) {
+        const execution = this.requestExecutions.get(requestOrGroupId)
+        if (!execution) throw new Error(`Invalid Request ID ${requestOrGroupId}`)
+        execution.resultIndex = resultIndex
+    }
+}
+
+class WorkbookExecutionEntry implements WorkbookExecution {
+    @observable accessor running = false
+    @observable accessor runIndex = NaN
+    @observable accessor resultIndex = NaN
+    @observable accessor runs: WorkbookExecutionRunMenuItem[] = []
+
+    @observable accessor panel = 'Info'
+    @observable accessor results = new Map<string, WorkbookExecutionResult>()
+
+    constructor() {
+        makeObservable(this)
+    }
+}
+
+export const WorkspaceContext = createContext<WorkspaceStore | null>(null)
+
+export function useWorkspace() {
+    const context = useContext(WorkspaceContext);
+    if (!context) {
+        throw new Error('useWorkspace must be used within a WorkspaceContext.Provider');
+    }
+    return context;
+}
+
+export enum SshFileType {
+    PEM = 'PEM',
+    Key = 'Key',
+    PFX = 'PFX',
+}
+
+const encodeFormData = (data: EditableNameValuePair[]) =>
+    (data.length === 0)
+        ? ''
+        : data.map(nv =>
+            `${encodeURIComponent(nv.name)}=${encodeURIComponent(nv.value)}`
+        ).join('&')
+
+const decodeFormData = (bodyData: string | number[] | undefined) => {
+    let data: string | undefined;
+    if (bodyData instanceof Array) {
+        const buffer = Uint8Array.from(bodyData)
+        data = (new TextDecoder()).decode(buffer)
+    } else {
+        data = bodyData
+    }
+    if (data && data.length > 0) {
+        const parts = data.split('&')
+        return parts.map(p => {
+            const id = GenerateIdentifier()
+            const nv = p.split('=')
+            if (nv.length == 1) {
+                return { id, name: decodeURIComponent(nv[0]), value: "" } as EditableNameValuePair
+            } else {
+                return { id, name: decodeURIComponent(nv[0]), value: decodeURIComponent(nv[1]) } as EditableNameValuePair
+            }
+        })
+    } else {
+        return []
+    }
 }

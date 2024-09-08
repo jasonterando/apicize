@@ -1,9 +1,8 @@
 import {
     base64Encode,
-    AuthorizationEditor, CertificateEditor, ContentDestination, HelpPanel,
+    AuthorizationEditor, CertificateEditor, HelpPanel,
     ProxyEditor, RequestEditor, ScenarioEditor,
 } from "@apicize/toolkit";
-import { RunInformation } from "@apicize/toolkit/dist/models/workbook/run-information";
 import { emit } from "@tauri-apps/api/event";
 
 import { extname, join, resourceDir } from '@tauri-apps/api/path';
@@ -50,10 +49,6 @@ const Pane = (() =>
         <HelpPanel onRenderTopic={retrieveHelpTopic}/>
         <RequestEditor
             sx={{ display: 'block', flexGrow: 1 }}
-            triggerRun={(info: RunInformation) => emit('run', info)}
-            triggerCancel={() => emit('action', 'cancel')}
-            triggerOpenFile={(destination: ContentDestination, id: string) => emit('openFile', { destination, id })}
-            triggerPasteFromClipboard={(destination: ContentDestination, id: string) => emit('pasteFromClipboard', { destination, id })}
         />
         <ScenarioEditor
             sx={{ display: 'block', flexGrow: 1 }}
@@ -65,8 +60,6 @@ const Pane = (() =>
             }} />
         <CertificateEditor
             sx={{ display: 'block', flexGrow: 1 }}
-            triggerOpenFile={(destination: ContentDestination, id: string) => emit('openFile', { destination, id })}
-            triggerPasteFromClipboard={(destination: ContentDestination, id: string) => emit('pasteFromClipboard', { destination, id })}
         />
         <ProxyEditor
             sx={{ display: 'block', flexGrow: 1 }}

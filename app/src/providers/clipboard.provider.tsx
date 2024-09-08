@@ -1,11 +1,10 @@
 import { ReactNode, useRef } from "react";
-import clipboard, { writeImageBase64, writeText } from "tauri-plugin-clipboard-api"
+import clipboard, { readText, readImageBase64, writeImageBase64, writeText } from "tauri-plugin-clipboard-api"
 import { UnlistenFn } from "@tauri-apps/api/event";
-import { action } from "mobx";
 import { ClipboardContext, ClipboardStore, ToastSeverity, useToast } from "@apicize/toolkit";
 
 /**
- * Implementation of clipboard interface via Tauri
+ * Implementation of clipboard operations via Tauri
  */
 
 export function ClipboardProvider({ children }: { children?: ReactNode }) {
@@ -33,6 +32,12 @@ export function ClipboardProvider({ children }: { children?: ReactNode }) {
             } catch (e) {
                 toast(`${e}`, ToastSeverity.Error)
             }
+        },
+        onGetImage: async () => {
+            return await readImageBase64()
+        },
+        onGetText: async () => {
+            return await readText()
         }
     })
 
@@ -41,13 +46,13 @@ export function ClipboardProvider({ children }: { children?: ReactNode }) {
         unlistenToClipboard.current = null
     }
 
-    clipboard.startListening().then(async () => {
-        unlistenToClipboard.current = await clipboard.onSomethingUpdate((types) => {
-            action(() => {
-                store.hasText = types?.text === true
-                store.hasImage = types?.imageBinary === true
-            })
-        })
+    clipboard.onSomethingUpdate((types) => {
+        store.updateClipboardStatus(
+            types?.text === true,
+            types?.imageBinary === true
+        )
+    }).then((unlisten) => {
+        unlistenToClipboard.current = unlisten
     })
 
     return (

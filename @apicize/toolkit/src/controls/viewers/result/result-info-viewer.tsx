@@ -4,13 +4,12 @@ import CheckIcon from '@mui/icons-material/Check';
 import BlockIcon from '@mui/icons-material/Block';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { useExecution, useWorkspace } from "../../../contexts/root.context";
 import { WorkbookExecutionGroupSummary, WorkbookExecutionResult } from "../../../models/workbook/workbook-execution";
 import { observer } from "mobx-react-lite";
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
 import { EditableWorkbookRequest, EditableWorkbookRequestGroup } from "../../../models/workbook/editable-workbook-request";
 import { useClipboard } from "../../../contexts/clipboard.context";
-import { toJS } from "mobx";
+import { useWorkspace } from "../../../contexts/workspace.context";
 
 const ResultSummary = (props: { sx: SxProps, summary: WorkbookExecutionGroupSummary }) => {
     let idx = 0
@@ -44,7 +43,7 @@ const ResultSummary = (props: { sx: SxProps, summary: WorkbookExecutionGroupSumm
                                                     name={test.testName}
                                                     success={test.success}
                                                     error={test.error}
-                                                    logs={undefined} />))
+                                                    logs={test.logs} />))
                                             }
                                         </Box>
                                     )
@@ -129,23 +128,21 @@ const TestResult = (props: { name: string[], success: boolean, logs?: string[], 
 export const ResultInfoViewer = observer((props: {
     requestOrGroupId: string, runIndex: number, resultIndex: number
  }) => {
-    const workspaceCtx = useWorkspace()
+    const workspace = useWorkspace()
     const clipboardCtx = useClipboard()
     
-    const request = workspaceCtx.active?.entityType === EditableEntityType.Request
-        ? workspaceCtx.active as EditableWorkbookRequest
+    const request = workspace.active?.entityType === EditableEntityType.Request
+        ? workspace.active as EditableWorkbookRequest
         : null
 
 
-    const group = workspaceCtx.active?.entityType === EditableEntityType.Group
-        ? workspaceCtx.active as EditableWorkbookRequestGroup
+    const group = workspace.active?.entityType === EditableEntityType.Group
+        ? workspace.active as EditableWorkbookRequestGroup
         : null
 
     if (! (request || group)) {
         return null
     }
-
-    const executionCtx = useExecution()
 
     const copyToClipboard = (data: any) => {
         const text = beautify.js_beautify(JSON.stringify(data), {})
@@ -157,7 +154,7 @@ export const ResultInfoViewer = observer((props: {
     let title: string | null = null
 
     if ((group && props.resultIndex === -1)) {
-        summary = executionCtx.getExecutionGroupSummary(props.requestOrGroupId, props.runIndex)
+        summary = workspace.getExecutionGroupSummary(props.requestOrGroupId, props.runIndex)
         if (summary) {
             title = `Group Execution ${summary.allTestsSucceeded ? "Completed" : "Failed"}`
             if (summary.milliseconds) {
@@ -166,7 +163,7 @@ export const ResultInfoViewer = observer((props: {
         }
         result = undefined
     } else {
-        result = executionCtx.getExecutionResult(props.requestOrGroupId, props.runIndex, props.resultIndex)
+        result = workspace.getExecutionResult(props.requestOrGroupId, props.runIndex, props.resultIndex)
         if (result) {
             title = `Request Execution ${result.success ? "Completed" : "Failed"}`
         }

@@ -1,18 +1,18 @@
 import { TextViewer } from "../text-viewer";
 import { IconButton, Stack, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { useExecution } from "../../../contexts/root.context";
 import { useClipboard } from "../../../contexts/clipboard.context";
+import { useWorkspace } from "../../../contexts/workspace.context";
 
 export function ResultRawPreview(props: {
     requestOrGroupId: string,
     runIndex: number,
     resultIndex: number,
 }) {
-    const execution = useExecution()
+    const workspace = useWorkspace()
     const clipboard = useClipboard()
 
-    const body = execution.getExecutionResultBody(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    const body = workspace.getExecutionResultBody(props.requestOrGroupId, props.runIndex, props.resultIndex)
     let has_text = body?.text !== undefined
     let preview = has_text ? body?.text : body?.data
     return (

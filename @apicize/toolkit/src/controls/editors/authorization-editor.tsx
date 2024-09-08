@@ -3,12 +3,12 @@ import LockIcon from '@mui/icons-material/Lock';
 import { WorkbookAuthorizationType } from '@apicize/lib-typescript';
 import { EditorTitle } from '../editor-title';
 import { PersistenceEditor } from './persistence-editor';
-import { useWorkspace } from '../../contexts/root.context';
 import { EditableWorkbookAuthorization } from '../../models/workbook/editable-workbook-authorization';
 import { EntitySelection } from '../../models/workbook/entity-selection';
 import { NO_SELECTION_ID } from '../../models/store';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
+import { useWorkspace } from '../../contexts/workspace.context';
 
 let credIndex = 0
 const itemsFromSelections = (selections: EntitySelection[]) => {

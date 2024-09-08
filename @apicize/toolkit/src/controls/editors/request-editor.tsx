@@ -14,23 +14,18 @@ import { RequestQueryStringEditor } from './request/request-query-string-editor'
 import { RequestBodyEditor } from './request/request-body-editor'
 import { RequestTestEditor } from './request/request-test-editor'
 import { ResultsViewer } from '../viewers/results-viewer'
-import { ContentDestination } from '../../models/store'
 import { RequestGroupEditor } from './request/request-group-editor';
 import { EditorTitle } from '../editor-title';
 import { RequestParametersEditor } from './request/request-parameters-editor';
-import { useWorkspace } from '../../contexts/root.context';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
 import { EditableWorkbookRequest, EditableWorkbookRequestGroup } from '../../models/workbook/editable-workbook-request';
 import { RunInformation } from '../../models/workbook/run-information';
 import { RunToolbar } from '../run-toolbar';
+import { useWorkspace } from '../../contexts/workspace.context';
 
 export const RequestEditor = observer((props: {
-    sx: SxProps,
-    triggerRun: (info: RunInformation) => {},
-    triggerCancel: () => {},
-    triggerOpenFile: (destination: ContentDestination, id: string) => {},
-    triggerPasteFromClipboard: (destination: ContentDestination, id: string) => {}
+    sx: SxProps
 }) => {
     const [panel, setPanel] = React.useState<string>('Info')
 
@@ -101,8 +96,8 @@ export const RequestEditor = observer((props: {
                                         {panel === 'Info' ? <RequestInfoEditor />
                                             : panel === 'Headers' ? <RequestHeadersEditor />
                                                 : panel === 'Query String' ? <RequestQueryStringEditor />
-                                                    : panel === 'Body' ? <RequestBodyEditor triggerOpenFile={props.triggerOpenFile} triggerPasteFromClipboard={props.triggerPasteFromClipboard} />
-                     : panel === 'Test' ? <RequestTestEditor />
+                                                    : panel === 'Body' ? <RequestBodyEditor />
+                                                        : panel === 'Test' ? <RequestTestEditor />
                                                             : panel === 'Parameters' ? <RequestParametersEditor />
                                                                 : null}
                                     </Box>
@@ -111,10 +106,9 @@ export const RequestEditor = observer((props: {
                             null
                 }
             </Stack>
-            <RunToolbar triggerRun={props.triggerRun} />
+            <RunToolbar />
             <ResultsViewer
                 sx={{ paddingTop: '48px', flexGrow: 1 }}
-                cancelRequest={props.triggerCancel}
             />
         </Stack>
     )

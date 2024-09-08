@@ -1,12 +1,12 @@
 import { DataGrid } from "@mui/x-data-grid"
 import { GenerateIdentifier } from "../../../services/random-identifier-generator"
 import { Stack, Typography } from "@mui/material"
-import { useExecution } from "../../../contexts/root.context"
+import { useWorkspace } from "../../../contexts/workspace.context"
 
 export function ResponseHeadersViewer(props: {requestOrGroupId: string, runIndex: number, resultIndex: number}) {
-    const execution = useExecution()
+    const workspace = useWorkspace()
 
-    const resultHeaders = execution.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    const resultHeaders = workspace.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
 
     const headers = []
     for (const [name, value] of Object.entries(resultHeaders ?? {})) {

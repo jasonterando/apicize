@@ -1,5 +1,4 @@
 import { observer } from "mobx-react-lite"
-import { useWindow, useWorkspace } from "../contexts/root.context"
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import FolderIcon from '@mui/icons-material/Folder'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
@@ -26,6 +25,8 @@ import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
 import { EditableItem } from "../models/editable";
 import { EditableEntityType } from "../models/workbook/editable-entity-type";
 import { useConfirmation } from "../contexts/confirmation.context";
+import { useFileOperations } from "../contexts/file-operations.context";
+import { useWorkspace } from "../contexts/workspace.context";
 
 interface MenuPosition {
     id: string
@@ -34,31 +35,26 @@ interface MenuPosition {
 }
 
 
-export const Navigation = observer((props: {
-    triggerNew: () => void,
-    triggerOpen: () => void,
-    triggerSave: () => void,
-    triggerSaveAs: () => void,
-}) => {
+export const Navigation = observer(() => {
 
-    const workspaceCtx = useWorkspace()
-    const windowCtx = useWindow()
+    const workspace = useWorkspace()
+    const fileOpsCtx = useFileOperations()
     const confirm = useConfirmation()
 
     const nodesToExpand = ['hdr-r', 'hdr-s', 'hdr-a', 'hdr-c', 'hdr-p']
     const expandRequestsWithChildren = (item: EditableItem) => {
         if (item.entityType === EditableEntityType.Group) {
-            const childIDs = workspaceCtx.workspace.requests.childIds?.get(item.id)
+            const childIDs = workspace.workspace.requests.childIds?.get(item.id)
             if (childIDs && childIDs.length > 0) {
                 nodesToExpand.push(`tree-${item.id}`)
                 childIDs
-                    .map(id => workspaceCtx.workspace.requests.entities.get(id))
+                    .map(id => workspace.workspace.requests.entities.get(id))
                     .filter(e => e !== undefined)
                     .forEach(expandRequestsWithChildren)
             }
         }
     }
-    workspaceCtx.workspace.requests.entities.forEach(expandRequestsWithChildren)
+    workspace.workspace.requests.entities.forEach(expandRequestsWithChildren)
     // console.log('Nodes to expand', nodesToExpand)
 
     const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>(undefined)
@@ -220,9 +216,9 @@ export const Navigation = observer((props: {
         // Requests can be hierarchical
         let children: EditableItem[] | undefined
         if (props.item.entityType === EditableEntityType.Group) {
-            const childIds = workspaceCtx.workspace.requests.childIds?.get(props.item.id)
+            const childIds = workspace.workspace.requests.childIds?.get(props.item.id)
             children = childIds?.map(id =>
-                workspaceCtx.workspace.requests.entities.get(id)
+                workspace.workspace.requests.entities.get(id)
             )?.filter(e => e !== undefined)
         }
 
@@ -236,7 +232,7 @@ export const Navigation = observer((props: {
                     {...attributes}
                     sx={{ background: isOver ? dragPositionToColor(dragPosition) : 'default' }}
                     // Add a selected class so that we can mark expandable tree items as selected and have them show up properly
-                    className={workspaceCtx.active?.id === props.item.id ? 'selected': ''}
+                    className={workspace.active?.id === props.item.id ? 'selected': ''}
                     label={(
                         <Box
                             key={`lbl-${props.item.id}`}
@@ -251,7 +247,7 @@ export const Navigation = observer((props: {
                                 // Override click behavior to set active item, but not to propogate upward
                                 // because we don't want to toggle expansion on anything other than the
                                 // lefticon click
-                                workspaceCtx.changeActive(props.item.entityType, props.item.id)
+                                workspace.changeActive(props.item.entityType, props.item.id)
                                 e.preventDefault()
                                 e.stopPropagation()
                             }}
@@ -260,7 +256,7 @@ export const Navigation = observer((props: {
                             <Box className='nav-node-text'>{GetTitle(props.item)}</Box>
                             <IconButton
                                 sx={{
-                                    visibility: props.item.id === workspaceCtx.active?.id ? 'normal' : 'hidden'
+                                    visibility: props.item.id === workspace.active?.id ? 'normal' : 'hidden'
                                 }}
                                 onClick={(e) => {
                                     e.preventDefault()
@@ -331,7 +327,7 @@ export const Navigation = observer((props: {
                             </Box>
                             <IconButton
                                 sx={{
-                                    visibility: props.item.id === workspaceCtx.active?.id ? 'normal' : 'hidden'
+                                    visibility: props.item.id === workspace.active?.id ? 'normal' : 'hidden'
                                 }}
                                 onClick={(e) => {
                                     e.preventDefault()
@@ -347,7 +343,7 @@ export const Navigation = observer((props: {
     })
 
     const clearAllSelections = () => {
-        workspaceCtx.clearActive()
+        workspace.clearActive()
     }
 
     const closeRequestsMenu = () => {
@@ -460,155 +456,155 @@ export const Navigation = observer((props: {
         e.stopPropagation()
         closeAllMenus()
         if (helpTopic) {
-            workspaceCtx.showHelp(helpTopic)
+            workspace.showHelp(helpTopic)
         }
     }
 
     const showHelp = () => {
         closeAllMenus()
-        workspaceCtx.showNextHelpTopic()
+        workspace.showNextHelpTopic()
 
     }
 
     const selectRequestOrGroup = (id: string) => {
-        workspaceCtx.changeActive(EditableEntityType.Request, id)
+        workspace.changeActive(EditableEntityType.Request, id)
     }
 
     const selectScenario = (id: string) => {
-        workspaceCtx.changeActive(EditableEntityType.Scenario, id)
+        workspace.changeActive(EditableEntityType.Scenario, id)
     }
 
     const selectAuthorization = (id: string) => {
-        workspaceCtx.changeActive(EditableEntityType.Authorization, id)
+        workspace.changeActive(EditableEntityType.Authorization, id)
     }
 
     const selectCertificate = (id: string) => {
-        workspaceCtx.changeActive(EditableEntityType.Certificate, id)
+        workspace.changeActive(EditableEntityType.Certificate, id)
     }
 
     const selectProxy = (id: string) => {
-        workspaceCtx.changeActive(EditableEntityType.Proxy, id)
+        workspace.changeActive(EditableEntityType.Proxy, id)
     }
 
     const handleAddRequest = (targetRequestId?: string | null) => {
         closeRequestsMenu()
         closeRequestMenu()
-        workspaceCtx.addRequest(targetRequestId)
+        workspace.addRequest(targetRequestId)
     }
 
     const handleAddRequestGroup = (targetRequestId?: string | null) => {
         closeRequestsMenu()
         closeRequestMenu()
-        workspaceCtx.addGroup(targetRequestId)
+        workspace.addGroup(targetRequestId)
     }
 
     const handleAddScenario = (targetScenarioId?: string | null) => {
         closeScenarioMenu()
-        workspaceCtx.addScenario(targetScenarioId)
+        workspace.addScenario(targetScenarioId)
     }
 
     const handleAddAuth = (targetAuthId?: string | null) => {
         closeAuthMenu()
-        workspaceCtx.addAuthorization(targetAuthId)
+        workspace.addAuthorization(targetAuthId)
     }
     const handleAddCert = (targetCertId?: string | null) => {
         closeCertMenu()
-        workspaceCtx.addCertificate(targetCertId)
+        workspace.addCertificate(targetCertId)
     }
 
     const handleAddProxy = (targetProxyId?: string | null) => {
         closeProxyMenu()
-        workspaceCtx.addProxy(targetProxyId)
+        workspace.addProxy(targetProxyId)
     }
 
     const handleDeleteRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if (!workspaceCtx.active?.id || (workspaceCtx.active?.entityType !== EditableEntityType.Request
-            && workspaceCtx.active?.entityType !== EditableEntityType.Group
+        if (!workspace.active?.id || (workspace.active?.entityType !== EditableEntityType.Request
+            && workspace.active?.entityType !== EditableEntityType.Group
         )) return
-        const id = workspaceCtx.active?.id
+        const id = workspace.active?.id
         confirm({
             title: 'Delete Request',
-            message: `Are you are you sure you want to delete ${GetTitle(workspaceCtx.workspace.requests.entities.get(id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.requests.entities.get(id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                workspaceCtx.deleteRequest(id)
+                workspace.deleteRequest(id)
             }
         })
     }
 
     const handleDeleteScenario = () => {
         closeScenarioMenu()
-        if (!workspaceCtx.active?.id || workspaceCtx.active?.entityType !== EditableEntityType.Scenario) return
-        const id = workspaceCtx.active?.id
+        if (!workspace.active?.id || workspace.active?.entityType !== EditableEntityType.Scenario) return
+        const id = workspace.active?.id
         confirm({
             title: 'Delete Scenario',
-            message: `Are you are you sure you want to delete ${GetTitle(workspaceCtx.workspace.scenarios.entities.get(id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.scenarios.entities.get(id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                workspaceCtx.deleteScenario(id)
+                workspace.deleteScenario(id)
             }
         })
     }
 
     const handleDeleteAuth = () => {
         closeAuthMenu()
-        if (!workspaceCtx.active?.id || workspaceCtx.active?.entityType !== EditableEntityType.Authorization) return
-        const id = workspaceCtx.active?.id
+        if (!workspace.active?.id || workspace.active?.entityType !== EditableEntityType.Authorization) return
+        const id = workspace.active?.id
         confirm({
             title: 'Delete Authorization',
-            message: `Are you are you sure you want to delete ${GetTitle(workspaceCtx.workspace.authorizations.entities.get(id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.authorizations.entities.get(id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                workspaceCtx.deleteAuthorization(id)
+                workspace.deleteAuthorization(id)
             }
         })
     }
 
     const handleDeleteCert = () => {
         closeCertMenu()
-        if (!workspaceCtx.active?.id || workspaceCtx.active?.entityType !== EditableEntityType.Certificate) return
-        const id = workspaceCtx.active?.id
+        if (!workspace.active?.id || workspace.active?.entityType !== EditableEntityType.Certificate) return
+        const id = workspace.active?.id
         confirm({
             title: 'Delete Certificate',
-            message: `Are you are you sure you want to delete ${GetTitle(workspaceCtx.workspace.certificates.entities.get(id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.certificates.entities.get(id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                workspaceCtx.deleteCertificate(id)
+                workspace.deleteCertificate(id)
             }
         })
     }
     const handleDeleteProxy = () => {
         closeProxyMenu()
-        if (!workspaceCtx.active?.id || workspaceCtx.active?.entityType !== EditableEntityType.Proxy) return
-        const id = workspaceCtx.active?.id
+        if (!workspace.active?.id || workspace.active?.entityType !== EditableEntityType.Proxy) return
+        const id = workspace.active?.id
         confirm({
             title: 'Delete Proxy',
-            message: `Are you are you sure you want to delete ${GetTitle(workspaceCtx.workspace.requests.entities.get(id))}?`,
+            message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.requests.entities.get(id))}?`,
             okButton: 'Yes',
             cancelButton: 'No',
             defaultToCancel: true
         }).then((result) => {
             if (result) {
                 clearAllSelections()
-                workspaceCtx.deleteProxy(id)
+                workspace.deleteProxy(id)
             }
         })
     }
@@ -616,53 +612,53 @@ export const Navigation = observer((props: {
     const handleDupeRequest = () => {
         closeRequestMenu()
         closeRequestsMenu()
-        if ((workspaceCtx.active?.entityType === EditableEntityType.Request || workspaceCtx.active?.entityType === EditableEntityType.Group)
-            && workspaceCtx.active?.id) workspaceCtx.copyRequest(workspaceCtx.active?.id)
+        if ((workspace.active?.entityType === EditableEntityType.Request || workspace.active?.entityType === EditableEntityType.Group)
+            && workspace.active?.id) workspace.copyRequest(workspace.active?.id)
     }
 
     const handleDupeScenario = () => {
         closeScenarioMenu()
-        if (workspaceCtx.active?.entityType === EditableEntityType.Scenario && workspaceCtx.active?.id) workspaceCtx.copyScenario(workspaceCtx.active?.id)
+        if (workspace.active?.entityType === EditableEntityType.Scenario && workspace.active?.id) workspace.copyScenario(workspace.active?.id)
     }
 
     const handleDupeAuth = () => {
         closeAuthMenu()
-        if (workspaceCtx.active?.entityType === EditableEntityType.Authorization && workspaceCtx.active?.id) workspaceCtx.copyAuthorization(workspaceCtx.active?.id)
+        if (workspace.active?.entityType === EditableEntityType.Authorization && workspace.active?.id) workspace.copyAuthorization(workspace.active?.id)
     }
 
     const handleDupeCert = () => {
         closeCertMenu()
-        if (workspaceCtx.active?.entityType === EditableEntityType.Certificate && workspaceCtx.active?.id) workspaceCtx.copyCertificate(workspaceCtx.active?.id)
+        if (workspace.active?.entityType === EditableEntityType.Certificate && workspace.active?.id) workspace.copyCertificate(workspace.active?.id)
     }
 
     const handleDupeProxy = () => {
         closeProxyMenu()
-        if (workspaceCtx.active?.entityType === EditableEntityType.Proxy && workspaceCtx.active?.id) workspaceCtx.copyProxy(workspaceCtx.active?.id)
+        if (workspace.active?.entityType === EditableEntityType.Proxy && workspace.active?.id) workspace.copyProxy(workspace.active?.id)
     }
 
     const handleMoveRequest = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectRequestOrGroup(id)
-        workspaceCtx.moveRequest(id, destinationID, onLowerHalf, onLeft)
+        workspace.moveRequest(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveScenario = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectScenario(id)
-        workspaceCtx.moveScenario(id, destinationID, onLowerHalf, onLeft)
+        workspace.moveScenario(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveAuth = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectAuthorization(id)
-        workspaceCtx.moveAuthorization(id, destinationID, onLowerHalf, onLeft)
+        workspace.moveAuthorization(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveCert = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectCertificate(id)
-        workspaceCtx.moveCertificate(id, destinationID, onLowerHalf, onLeft)
+        workspace.moveCertificate(id, destinationID, onLowerHalf, onLeft)
     }
 
     const handleMoveProxy = (id: string, destinationID: string | null, onLowerHalf: boolean | null, onLeft: boolean | null) => {
         selectProxy(id)
-        workspaceCtx.moveProxy(id, destinationID, onLowerHalf, onLeft)
+        workspace.moveProxy(id, destinationID, onLowerHalf, onLeft)
     }
 
     function RequestsMenu() {
@@ -677,13 +673,13 @@ export const Navigation = observer((props: {
                     left: requestsMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequest(workspaceCtx.active?.id)}>
+                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequest(workspace.active?.id)}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequestGroup(workspaceCtx.active?.id)}>
+                <MenuItem className='navigation-menu-item' onClick={(_) => handleAddRequestGroup(workspace.active?.id)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
@@ -705,13 +701,13 @@ export const Navigation = observer((props: {
                     left: reqMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequest(workspaceCtx.active?.id)}>
+                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequest(workspace.active?.id)}>
                     <ListItemIcon>
                         <SendIcon fontSize='small' />
                     </ListItemIcon>
                     <ListItemText>Add Request</ListItemText>
                 </MenuItem>
-                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequestGroup(workspaceCtx.active?.id)}>
+                <MenuItem className='navigation-menu-item' onClick={(e) => handleAddRequestGroup(workspace.active?.id)}>
                     <ListItemIcon>
                         <FolderIcon fontSize='small' />
                     </ListItemIcon>
@@ -746,7 +742,7 @@ export const Navigation = observer((props: {
                     left: scenarioMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddScenario(workspaceCtx.active?.id)}>
+                <MenuItem onClick={(_) => handleAddScenario(workspace.active?.id)}>
                     <ListItemIcon>
                         <LanguageIcon fontSize='small' />
                     </ListItemIcon>
@@ -780,7 +776,7 @@ export const Navigation = observer((props: {
                     left: authMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddAuth(workspaceCtx.active?.id)}>
+                <MenuItem onClick={(_) => handleAddAuth(workspace.active?.id)}>
                     <ListItemIcon>
                         <LockIcon fontSize='small' />
                     </ListItemIcon>
@@ -814,7 +810,7 @@ export const Navigation = observer((props: {
                     left: certMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddCert(workspaceCtx.active?.id)}>
+                <MenuItem onClick={(_) => handleAddCert(workspace.active?.id)}>
                     <ListItemIcon>
                         <LockIcon fontSize='small' />
                     </ListItemIcon>
@@ -848,7 +844,7 @@ export const Navigation = observer((props: {
                     left: proxyMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem onClick={(_) => handleAddProxy(workspaceCtx.active?.id)}>
+                <MenuItem onClick={(_) => handleAddProxy(workspace.active?.id)}>
                     <ListItemIcon>
                         <LanguageIcon fontSize='small' />
                     </ListItemIcon>
@@ -947,16 +943,16 @@ export const Navigation = observer((props: {
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '4px', paddingRight: '20px', backgroundColor: '#202020' }}>
             <Box display='flex' flexDirection='row' sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '2px' }}>
                 <Box sx={{ width: '100%', marginRight: '8px' }}>
-                    <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => props.triggerNew()}>
+                    <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => fileOpsCtx.newWorkbook()}>
                         <PostAddIcon />
                     </IconButton>
-                    <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => props.triggerOpen()} sx={{ marginLeft: '4px' }}>
+                    <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => fileOpsCtx.openWorkbook()} sx={{ marginLeft: '4px' }}>
                         <FileOpenIcon />
                     </IconButton>
-                    <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={windowCtx.workbookFullName.length == 0} onClick={() => props.triggerSave()} sx={{ marginLeft: '4px' }}>
+                    <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={workspace.workbookFullName.length == 0} onClick={() => fileOpsCtx.saveWorkbook()} sx={{ marginLeft: '4px' }}>
                         <SaveIcon />
                     </IconButton>
-                    <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => props.triggerSaveAs()} sx={{ marginLeft: '4px' }}>
+                    <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => fileOpsCtx.saveWorkbookAs()} sx={{ marginLeft: '4px' }}>
                         <SaveAsIcon />
                     </IconButton>
                     <IconButton aria-label='help' title='Help' sx={{ float: 'right' }} onClick={() => { showHelp(); }}>
@@ -972,7 +968,7 @@ export const Navigation = observer((props: {
                     // defaultCollapseIcon={<ExpandMoreIcon />}
                     // defaultExpandIcon={<ChevronRightIcon />}
                     expandedItems={expandedItems}
-                    selectedItems={workspaceCtx.active ? `${workspaceCtx.active.entityType}-${workspaceCtx.active.id}` : ''}
+                    selectedItems={workspace.active ? `${workspace.active.entityType}-${workspace.active.id}` : ''}
                     multiSelect={false}
                     onItemExpansionToggle={(_, itemId, isExpanded) => {
                         // console.log(`Expanding ${itemId} (${isExpanded})`)
@@ -991,19 +987,18 @@ export const Navigation = observer((props: {
                             if (i !== -1) {
                                 const type = itemId.substring(0, i) as EditableEntityType
                                 const id = itemId.substring(i + 1)
-                                console.log(`Selecting ${type} ${id}`)
-                                workspaceCtx.changeActive(type, id)
+                                workspace.changeActive(type, id)
                                 return
                             }
                         }
-                        workspaceCtx.clearActive()
+                        workspace.clearActive()
                     }}
                     sx={{ height: '100vh', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
                 >
                     <NavTreeSection key='nav-section-request' type={EditableEntityType.Request} title='Requests' helpTopic='requests' onAdd={() => { }}>
                         {
-                            workspaceCtx.workspace.requests.topLevelIds.map((id) =>
-                                workspaceCtx.workspace.requests.entities.get(id)
+                            workspace.workspace.requests.topLevelIds.map((id) =>
+                                workspace.workspace.requests.entities.get(id)
                             )
                                 .filter(e => e !== undefined)
                                 .map(e => (
@@ -1022,8 +1017,8 @@ export const Navigation = observer((props: {
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-scenario' type={EditableEntityType.Scenario} title='Scenarios' helpTopic='scenarios' onAdd={handleAddScenario}>
                         {
-                            workspaceCtx.workspace.scenarios.topLevelIds.map((id) =>
-                                workspaceCtx.workspace.scenarios.entities.get(id)
+                            workspace.workspace.scenarios.topLevelIds.map((id) =>
+                                workspace.workspace.scenarios.entities.get(id)
                             )
                                 .filter(e => e !== undefined)
                                 .map(e => (
@@ -1042,8 +1037,8 @@ export const Navigation = observer((props: {
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-auth' type={EditableEntityType.Authorization} title='Authorizations' helpTopic='authorizations' onAdd={handleAddAuth}>
                         {
-                            workspaceCtx.workspace.authorizations.topLevelIds.map((id) =>
-                                workspaceCtx.workspace.authorizations.entities.get(id)
+                            workspace.workspace.authorizations.topLevelIds.map((id) =>
+                                workspace.workspace.authorizations.entities.get(id)
                             )
                                 .filter(e => e !== undefined)
                                 .map(e => (
@@ -1062,8 +1057,8 @@ export const Navigation = observer((props: {
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-cert' type={EditableEntityType.Certificate} title='Certificates' helpTopic='certificates' onAdd={handleAddCert}>
                         {
-                            workspaceCtx.workspace.certificates.topLevelIds.map((id) =>
-                                workspaceCtx.workspace.certificates.entities.get(id)
+                            workspace.workspace.certificates.topLevelIds.map((id) =>
+                                workspace.workspace.certificates.entities.get(id)
                             )
                                 .filter(e => e !== undefined)
                                 .map(e => (
@@ -1082,8 +1077,8 @@ export const Navigation = observer((props: {
                     </NavTreeSection>
                     <NavTreeSection key='nav-section-proxy' type={EditableEntityType.Proxy} title='Proxies' helpTopic='proxies' onAdd={handleAddProxy}>
                         {
-                            workspaceCtx.workspace.proxies.topLevelIds.map((id) =>
-                                workspaceCtx.workspace.proxies.entities.get(id)
+                            workspace.workspace.proxies.topLevelIds.map((id) =>
+                                workspace.workspace.proxies.entities.get(id)
                             )
                                 .filter(e => e !== undefined)
                                 .map(e => (
@@ -1108,7 +1103,6 @@ export const Navigation = observer((props: {
             <AuthMenu />
             <CertMenu />
             <ProxyMenu />
-            <>Selected: {workspaceCtx.active ? `${workspaceCtx.active.entityType}-${workspaceCtx.active.id}` : "(None)"}</>
         </Stack>
     )
 })

@@ -1,24 +1,23 @@
-import { ButtonGroup, ToggleButton, Grid, TextField, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
+import { ButtonGroup, ToggleButton, Grid, TextField, FormControl, InputLabel, Select, MenuItem, Grid2 } from "@mui/material";
 import { Stack } from "@mui/system";
 import { observer } from "mobx-react-lite";
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
-import { RunInformation } from "../models/workbook/run-information";
-import { useWorkspace, useExecution } from "../contexts/root.context";
 import { EditableEntityType } from "../models/workbook/editable-entity-type";
 import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request";
+import { useWorkspace } from "../contexts/workspace.context";
+import { ToastSeverity, useToast } from "../contexts/toast.context";
 
-export const RunToolbar = observer((props: {
-    triggerRun: (info: RunInformation) => {}
-}) => {
+export const RunToolbar = observer(() => {
     const workspace = useWorkspace()
+    const toast = useToast()
+    
     const request = ((workspace.active?.entityType === EditableEntityType.Request || workspace.active?.entityType === EditableEntityType.Group)
         && !workspace.helpVisible)
         ? workspace.active as EditableWorkbookRequest
         : null
 
-    const executionCtx = useExecution()
     const requestId = request?.id ?? ''
-    const execution = executionCtx.getExecution(requestId)
+    const execution = workspace.getExecution(requestId)
 
     if (! request) {
         return null
@@ -29,17 +28,24 @@ export const RunToolbar = observer((props: {
     }
 
     const updateSelectedRun = (index: number) => {
-        executionCtx.changeRunIndex(requestId, index)
+        workspace.changeRunIndex(requestId, index)
     }
 
     const updateSelectedResult = (index: number) => {
-        executionCtx.changeResultIndex(requestId, index)
+        workspace.changeResultIndex(requestId, index)
     }
 
     const handleRunClick = () => async () => {
-        const runInfo = workspace.getRequestRunInformation()
-        if (!runInfo) return
-        props.triggerRun(runInfo)
+        try {
+            if (! (workspace.active && (workspace.active.entityType === EditableEntityType.Request || workspace.active.entityType === EditableEntityType.Group))) {
+                return
+            }
+            const requestId = workspace.active.id
+            await workspace.executeRequest(requestId)
+        } catch (e) {
+            let msg1 = `${e}`
+            toast(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
+        }
     }
 
     return (
@@ -53,8 +59,8 @@ export const RunToolbar = observer((props: {
                 </ToggleButton>
             </ButtonGroup>
 
-            <Grid container direction={'row'} spacing={3}>
-                <Grid item>
+            <Grid2 container direction={'row'} spacing={3}>
+                <Grid2>
                     <TextField
                         aria-label='Nubmer of Run Attempts'
                         placeholder='Attempts'
@@ -71,10 +77,10 @@ export const RunToolbar = observer((props: {
                         value={request.runs}
                         onChange={e => updateRuns(parseInt(e.target.value))}
                     />
-                </Grid>
+                </Grid2>
                 {
                     execution.runs.length > 1
-                        ? <Grid item>
+                        ? <Grid2>
                             <FormControl>
                                 <InputLabel id='run-id'>Runs</InputLabel>
                                 <Select
@@ -94,12 +100,12 @@ export const RunToolbar = observer((props: {
                                     }
                                 </Select>
                             </FormControl>
-                        </Grid>
+                        </Grid2>
                         : <></>
                 }
                 {
                     execution.runs.length > 0 && execution.runs.at(execution.runIndex)?.groupSummary
-                        ? <Grid item>
+                        ? <Grid2>
                             <FormControl>
                                 <InputLabel id='result-id'>Results</InputLabel>
                                 <Select
@@ -118,10 +124,10 @@ export const RunToolbar = observer((props: {
                                     }
                                 </Select>
                             </FormControl>
-                        </Grid>
+                        </Grid2>
                         : <></>
                 }
-            </Grid>
+            </Grid2>
         </Stack>
     )
 })

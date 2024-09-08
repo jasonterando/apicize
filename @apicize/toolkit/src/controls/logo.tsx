@@ -1,11 +1,11 @@
 import { Typography } from "@mui/material";
 import { Box } from "@mui/system";
-import { useWindow } from "../contexts/root.context";
+import { useWorkspace } from "../contexts/workspace.context";
 
 export function logo() {
-    const window = useWindow()
-    let name = window.appName
-    let version = window.appVersion
+    const workspace = useWorkspace()
+    let name = workspace.appName
+    let version = workspace.appVersion
 
     return <Box display='flex'>
         <Box>

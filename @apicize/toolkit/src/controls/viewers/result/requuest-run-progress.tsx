@@ -1,20 +1,28 @@
 import { Box, Button, Typography } from "@mui/material"
-import { useExecution, useWorkspace } from "../../../contexts/root.context"
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type"
+import { useWorkspace } from "../../../contexts/workspace.context"
+import { ToastSeverity, useToast } from "../../../contexts/toast.context"
 
-export function RequestRunProgress(props: { cancelRequest: (requestId: string) => void }) {
-    const workbook = useWorkspace()
-    const execution = useExecution()
+export function RequestRunProgress() {
+    const workspace = useWorkspace()
+    const toast = useToast()
 
     let running: boolean
-    if (workbook.active?.entityType === EditableEntityType.Request) {
-        running = execution.getExecution(workbook.active.id)?.running ?? false
+    if (workspace.active?.entityType === EditableEntityType.Request) {
+        running = workspace.getExecution(workspace.active.id)?.running ?? false
     } else {
         running = false
     }
     
-    const handleCancel = () => {
-        if (workbook.activeExecutionId) props.cancelRequest(workbook.activeExecutionId)
+    const handleCancel = async () => {
+        if (workspace.activeExecutionId) {
+            try {
+                await workspace.cancelRequest(workspace.activeExecutionId)
+                toast('Request cancelled', ToastSeverity.Success)
+            } catch(e) {
+                toast(`Unable to cancel request - ${e}`, ToastSeverity.Error)
+            }
+        }
     }
 
     return running

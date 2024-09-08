@@ -3,19 +3,19 @@ import { TextViewer } from "../text-viewer";
 import { IconButton, Stack, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { useExecution } from "../../../contexts/root.context";
 import { useClipboard } from "../../../contexts/clipboard.context";
+import { useWorkspace } from "../../../contexts/workspace.context";
 
 export function ResultResponsePreview(props: {
     requestOrGroupId: string,
     runIndex: number,
     resultIndex: number,
 }) {
-    const execution = useExecution()
+    const workspace = useWorkspace()
     const clipboard = useClipboard()
 
-    const headers = execution.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
-    const body = execution.getExecutionResultBody(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    const headers = workspace.getExecutionResultHeaders(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    const body = workspace.getExecutionResultBody(props.requestOrGroupId, props.runIndex, props.resultIndex)
 
     let extension = ''
     for (const [name, value] of Object.entries(headers ?? {})) {

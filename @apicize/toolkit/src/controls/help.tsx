@@ -26,10 +26,9 @@ import { OverridableStringUnion } from '@mui/types'
 import { unified } from 'unified';
 import remarkDirective from 'remark-directive';
 import { ExtraProps } from 'hast-util-to-jsx-runtime';
-import { useWindow, useWorkspace } from '../contexts/root.context';
 import { observer } from 'mobx-react-lite';
 import { reaction } from 'mobx';
-import { autoAction, autorun, when } from 'mobx/dist/internal';
+import { useWorkspace } from '../contexts/workspace.context';
 
 // Register `hName`, `hProperties` types, used when turning markdown to HTML:
 /// <reference types="mdast-util-to-hast" />
@@ -37,11 +36,10 @@ import { autoAction, autorun, when } from 'mobx/dist/internal';
 /// <reference types="mdast-util-directive" />
 
 export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: string) => Promise<string> }) => {
-    const workspaceCtx = useWorkspace()
-    const windowCtx = useWindow()
+    const workspace = useWorkspace()
 
-    let name = windowCtx.appName
-    let version = windowCtx.appVersion
+    let name = workspace.appName
+    let version = workspace.appVersion
 
     let [lastTopic, setLastTopic] = useState('')
     let [content, setContent] = useState(createElement(Fragment))
@@ -52,12 +50,12 @@ export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: s
     let showBack = false
 
     reaction(
-        () => ({ topic: workspaceCtx.helpTopic, visible: workspaceCtx.helpVisible }),
+        () => ({ topic: workspace.helpTopic, visible: workspace.helpVisible }),
         async ({ topic, visible }) => {
             if (!visible) return
 
             showHome = topic !== 'home'
-            showBack = workspaceCtx.helpHistory.length > 1
+            showBack = workspace.helpHistory.length > 1
 
             if (topic === lastTopic) return
 
@@ -221,7 +219,7 @@ export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: s
             if (attrs.href.startsWith('help:')) {
                 const topic = attrs.href.substring(5)
                 attrs = { ...attrs, href: '#' }
-                return <Link {...attrs} onClick={() => workspaceCtx.showHelp(topic)} />
+                return <Link {...attrs} onClick={() => workspace.showHelp(topic)} />
             }
             else if (attrs.href.startsWith('icon:')) {
                 return <DisplaySettingsIcon />
@@ -239,20 +237,20 @@ export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: s
             <Box className='help-toolbar'>
                 {
                     showHome
-                        ? <IconButton color='primary' size='medium' aria-label='Home' title='Home' onClick={() => workspaceCtx.showHelp('home')}><HomeIcon fontSize='inherit' /></IconButton>
+                        ? <IconButton color='primary' size='medium' aria-label='Home' title='Home' onClick={() => workspace.showHelp('home')}><HomeIcon fontSize='inherit' /></IconButton>
                         : <></>
                 }
                 {
                     showBack
-                        ? <IconButton color='primary' size='medium' aria-label='Back' title='Back' onClick={() => workspaceCtx.backHelp()}><ArrowBackIcon fontSize='inherit' /></IconButton>
+                        ? <IconButton color='primary' size='medium' aria-label='Back' title='Back' onClick={() => workspace.backHelp()}><ArrowBackIcon fontSize='inherit' /></IconButton>
                         : <></>
                 }
-                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspaceCtx.hideHelp()}><CloseIcon fontSize='inherit' /></IconButton>
+                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.hideHelp()}><CloseIcon fontSize='inherit' /></IconButton>
             </Box>
         )
     }
 
-    if (workspaceCtx.helpVisible) {
+    if (workspace.helpVisible) {
         return <Box className='help'>
             <Box className='help-text'>
                 {content}

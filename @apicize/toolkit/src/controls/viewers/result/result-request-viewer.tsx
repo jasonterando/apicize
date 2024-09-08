@@ -3,19 +3,19 @@ import { IconButton, Typography } from "@mui/material"
 import { Stack } from "@mui/system"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { useExecution } from "../../../contexts/root.context";
 import { observer } from "mobx-react-lite";
 import { useClipboard } from "../../../contexts/clipboard.context";
+import { useWorkspace } from "../../../contexts/workspace.context";
 
 export const ResultRequestViewer = observer((props: {
     requestOrGroupId: string,
     runIndex: number,
     resultIndex: number,
 }) => {
-    const execution = useExecution()
+    const workspace = useWorkspace()
     const clipboard = useClipboard()
 
-    const request = execution.getExecutionRequest(props.requestOrGroupId, props.runIndex, props.resultIndex)
+    const request = workspace.getExecutionRequest(props.requestOrGroupId, props.runIndex, props.resultIndex)
     const text = beautify.js_beautify(JSON.stringify(request), {})
     return (
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>

@@ -3,10 +3,10 @@ import LanguageIcon from '@mui/icons-material/Language';
 import { NameValueEditor } from './name-value-editor';
 import { EditorTitle } from '../editor-title';
 import { PersistenceEditor } from './persistence-editor';
-import { useWorkspace } from '../../contexts/root.context';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
 import { EditableWorkbookScenario } from '../../models/workbook/editable-workbook-scenario';
+import { useWorkspace } from '../../contexts/workspace.context';
 
 export const ScenarioEditor = observer((props: {sx: SxProps}) => {
     const workspace = useWorkspace()

@@ -1,8 +1,8 @@
-import { useWorkspace } from '../../../contexts/root.context'
 import { NameValueEditor } from '../name-value-editor'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { observer } from 'mobx-react-lite'
+import { useWorkspace } from '../../../contexts/workspace.context'
 
 export const RequestHeadersEditor = observer(() => {
   const workspace = useWorkspace()
@@ -16,6 +16,6 @@ export const RequestHeadersEditor = observer(() => {
     values={request.headers}
     nameHeader='Header'
     valueHeader='Value'
-    onUpdate={workspace.setRequestHeaders} />
+    onUpdate={(pairs) => workspace.setRequestHeaders(pairs)} />
   )
 })

@@ -13,16 +13,3 @@ export const DEFAULT_SELECTION: Selection = {
   id: DEFAULT_SELECTION_ID,
   name: '(Default)'
 }
-
-export enum ClipboardContentType {
-  Text,
-  Image,
-}
-
-export enum ContentDestination {
-  PEM,
-  Key,
-  PFX,
-  BodyBinary,
-}
-

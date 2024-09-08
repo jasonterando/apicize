@@ -1,9 +1,9 @@
 import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Box } from '@mui/material'
 import { WorkbookMethod, WorkbookMethods } from '@apicize/lib-typescript'
-import { useWorkspace } from '../../../contexts/root.context'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { observer } from 'mobx-react-lite'
+import { useWorkspace } from '../../../contexts/workspace.context'
 
 export const RequestInfoEditor = observer(() => {
     const workspace = useWorkspace()

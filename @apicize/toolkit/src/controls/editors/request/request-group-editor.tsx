@@ -1,8 +1,8 @@
-import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select } from '@mui/material'
+import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select, Grid2 } from '@mui/material'
 import { WorkbookGroupExecution } from '@apicize/lib-typescript';
-import { useWorkspace } from '../../../contexts/root.context';
 import { EditableWorkbookRequestGroup } from '../../../models/workbook/editable-workbook-request';
 import { observer } from 'mobx-react-lite';
+import { useWorkspace } from '../../../contexts/workspace.context';
 
 export const RequestGroupEditor = observer((props: {
     sx?: SxProps
@@ -12,8 +12,8 @@ export const RequestGroupEditor = observer((props: {
     const group = workspace.active as EditableWorkbookRequestGroup
 
     return (
-        <Grid container direction='column' spacing={3} maxWidth={1000} sx={props.sx}>
-            <Grid item>
+        <Grid2 container direction='column' spacing={3} maxWidth={1000} sx={props.sx}>
+            <Grid2>
                 <TextField
                     id='group-name'
                     label='Name'
@@ -24,8 +24,8 @@ export const RequestGroupEditor = observer((props: {
                     value={group.name}
                     onChange={e => workspace.setName(e.target.value)}
                 />
-            </Grid>
-            <Grid item>
+            </Grid2>
+            <Grid2>
                 <FormControl>
                     <InputLabel id='execution-id'>Execution Mode</InputLabel>
                     <Select
@@ -39,7 +39,7 @@ export const RequestGroupEditor = observer((props: {
                         <MenuItem value={WorkbookGroupExecution.Concurrent}>Concurrent</MenuItem>
                     </Select>
                 </FormControl>
-            </Grid>
-        </Grid >
+            </Grid2>
+        </Grid2 >
     )
 })

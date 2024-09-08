@@ -1,4 +1,4 @@
-import { makeObservable, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { createContext, useContext } from 'react'
 
 export class ClipboardStore {
@@ -7,16 +7,33 @@ export class ClipboardStore {
 
     constructor(private readonly callbacks: {
         onCopyText: (text: string) => Promise<void>,
-        onCopyImage: (base64: string) => Promise<void>
+        onCopyImage: (base64: string) => Promise<void>,
+        onGetText: () => Promise<string>,
+        onGetImage: () => Promise<string>,
     }) {
         makeObservable(this)
     }
 
-    async copyTextToClipboard(text: string): Promise<void> {
-        await this.callbacks.onCopyText(text)
+    copyTextToClipboard(text: string): Promise<void> {
+        return this.callbacks.onCopyText(text)
     }
-    async copyImageToClipboard(base64: string): Promise<void> {
-        await this.callbacks.onCopyImage(base64)
+    
+    copyImageToClipboard(base64: string): Promise<void> {
+        return this.callbacks.onCopyImage(base64)
+    }
+
+    getClipboardText() {
+        return this.callbacks.onGetText()
+    }
+
+    getClipboardImage() {
+        return this.callbacks.onGetImage()
+    }
+
+    @action
+    updateClipboardStatus(hasText: boolean, hasImage: boolean) {
+        this.hasText = hasText
+        this.hasImage = hasImage
     }
 }
 
@@ -30,3 +47,8 @@ export function useClipboard() {
     return context;
 }
 
+export enum ClipboardContentType {
+    Text,
+    Image,
+  }
+  

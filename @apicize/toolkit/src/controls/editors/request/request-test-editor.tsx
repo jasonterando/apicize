@@ -6,10 +6,10 @@ import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
 import AceEditor from "react-ace"
 import "ace-builds/src-noconflict/mode-javascript"
-import { useWorkspace } from '../../../contexts/root.context'
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type";
 import { EditableWorkbookRequest } from "../../../models/workbook/editable-workbook-request";
 import { observer } from "mobx-react-lite";
+import { useWorkspace } from "../../../contexts/workspace.context";
 
 export const RequestTestEditor = observer(() => {
   const workspace = useWorkspace()

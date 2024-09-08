@@ -2,10 +2,10 @@ import { Stack, TextField, SxProps, Grid2 } from '@mui/material'
 import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
 import { EditorTitle } from '../editor-title';
 import { PersistenceEditor } from './persistence-editor';
-import { useWorkspace } from '../../contexts/root.context';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
 import { EditableWorkbookProxy } from '../../models/workbook/editable-workbook-proxy';
+import { useWorkspace } from '../../contexts/workspace.context';
 
 export const ProxyEditor = observer((props: {
     sx: SxProps
