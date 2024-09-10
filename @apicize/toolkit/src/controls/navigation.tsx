@@ -24,9 +24,9 @@ import { GetTitle } from '@apicize/lib-typescript';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
 import { EditableItem } from "../models/editable";
 import { EditableEntityType } from "../models/workbook/editable-entity-type";
-import { useConfirmation } from "../contexts/confirmation.context";
 import { useFileOperations } from "../contexts/file-operations.context";
 import { useWorkspace } from "../contexts/workspace.context";
+import { useFeedback } from "../contexts/feedback.context";
 
 interface MenuPosition {
     id: string
@@ -38,8 +38,8 @@ interface MenuPosition {
 export const Navigation = observer(() => {
 
     const workspace = useWorkspace()
-    const fileOpsCtx = useFileOperations()
-    const confirm = useConfirmation()
+    const fileOps = useFileOperations()
+    const feedback = useFeedback()
 
     const nodesToExpand = ['hdr-r', 'hdr-s', 'hdr-a', 'hdr-c', 'hdr-p']
     const expandRequestsWithChildren = (item: EditableItem) => {
@@ -524,7 +524,7 @@ export const Navigation = observer(() => {
             && workspace.active?.entityType !== EditableEntityType.Group
         )) return
         const id = workspace.active?.id
-        confirm({
+        feedback.confirm({
             title: 'Delete Request',
             message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.requests.entities.get(id))}?`,
             okButton: 'Yes',
@@ -542,7 +542,7 @@ export const Navigation = observer(() => {
         closeScenarioMenu()
         if (!workspace.active?.id || workspace.active?.entityType !== EditableEntityType.Scenario) return
         const id = workspace.active?.id
-        confirm({
+        feedback.confirm({
             title: 'Delete Scenario',
             message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.scenarios.entities.get(id))}?`,
             okButton: 'Yes',
@@ -560,7 +560,7 @@ export const Navigation = observer(() => {
         closeAuthMenu()
         if (!workspace.active?.id || workspace.active?.entityType !== EditableEntityType.Authorization) return
         const id = workspace.active?.id
-        confirm({
+        feedback.confirm({
             title: 'Delete Authorization',
             message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.authorizations.entities.get(id))}?`,
             okButton: 'Yes',
@@ -578,7 +578,7 @@ export const Navigation = observer(() => {
         closeCertMenu()
         if (!workspace.active?.id || workspace.active?.entityType !== EditableEntityType.Certificate) return
         const id = workspace.active?.id
-        confirm({
+        feedback.confirm({
             title: 'Delete Certificate',
             message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.certificates.entities.get(id))}?`,
             okButton: 'Yes',
@@ -595,7 +595,7 @@ export const Navigation = observer(() => {
         closeProxyMenu()
         if (!workspace.active?.id || workspace.active?.entityType !== EditableEntityType.Proxy) return
         const id = workspace.active?.id
-        confirm({
+        feedback.confirm({
             title: 'Delete Proxy',
             message: `Are you are you sure you want to delete ${GetTitle(workspace.workspace.requests.entities.get(id))}?`,
             okButton: 'Yes',
@@ -943,16 +943,16 @@ export const Navigation = observer(() => {
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '4px', paddingRight: '20px', backgroundColor: '#202020' }}>
             <Box display='flex' flexDirection='row' sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '2px' }}>
                 <Box sx={{ width: '100%', marginRight: '8px' }}>
-                    <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => fileOpsCtx.newWorkbook()}>
+                    <IconButton aria-label='new' title='New Workbook (Ctrl + N)' onClick={() => fileOps.newWorkbook()}>
                         <PostAddIcon />
                     </IconButton>
-                    <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => fileOpsCtx.openWorkbook()} sx={{ marginLeft: '4px' }}>
+                    <IconButton aria-label='open' title='Open Workbook (Ctrl + O)' onClick={() => fileOps.openWorkbook()} sx={{ marginLeft: '4px' }}>
                         <FileOpenIcon />
                     </IconButton>
-                    <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={workspace.workbookFullName.length == 0} onClick={() => fileOpsCtx.saveWorkbook()} sx={{ marginLeft: '4px' }}>
+                    <IconButton aria-label='save' title='Save Workbook (Ctrl + S)' disabled={workspace.workbookFullName.length == 0} onClick={() => fileOps.saveWorkbook()} sx={{ marginLeft: '4px' }}>
                         <SaveIcon />
                     </IconButton>
-                    <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => fileOpsCtx.saveWorkbookAs()} sx={{ marginLeft: '4px' }}>
+                    <IconButton aria-label='save' title='Save Workbook As (Ctrl + Shift + S)' onClick={() => fileOps.saveWorkbookAs()} sx={{ marginLeft: '4px' }}>
                         <SaveAsIcon />
                     </IconButton>
                     <IconButton aria-label='help' title='Help' sx={{ float: 'right' }} onClick={() => { showHelp(); }}>

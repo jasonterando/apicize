@@ -10,17 +10,17 @@ import { EditableWorkbookCertificate } from '../../models/workbook/editable-work
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
 import { useClipboard } from '../../contexts/clipboard.context';
-import { ToastSeverity, useToast } from '../../contexts/toast.context';
 import { SshFileType, useFileOperations } from '../../contexts/file-operations.context';
 import { useWorkspace } from '../../contexts/workspace.context';
+import { ToastSeverity, useFeedback } from '../../contexts/feedback.context';
 
 export const CertificateEditor = observer((props: {
     sx: SxProps,
 }) => {
     const workspace = useWorkspace()
-    const clipboardCtx = useClipboard()
+    const clipboard = useClipboard()
     const fileOps = useFileOperations()
-    const toast = useToast()
+    const feedback = useFeedback()
 
     if (workspace.active?.entityType !== EditableEntityType.Certificate || workspace.helpVisible) return null
     const certificate = workspace.active as EditableWorkbookCertificate
@@ -45,21 +45,21 @@ export const CertificateEditor = observer((props: {
 
     const pasteDataFromClipboard = async (fileType: SshFileType) => {
         try {
-            const text = await clipboardCtx.getClipboardText()
+            const text = await clipboard.getClipboardText()
             if (text.length > 0) {
                 switch (fileType) {
                     case SshFileType.PEM:
                         workspace.setCertificatePem(text)
-                        toast('PEM pasted from clipboard', ToastSeverity.Success)
+                        feedback.toast('PEM pasted from clipboard', ToastSeverity.Success)
                         break
                     case SshFileType.Key:
                         workspace.setCertificateKey(text)
-                        toast('Key pasted from clipboard', ToastSeverity.Success)
+                        feedback.toast('Key pasted from clipboard', ToastSeverity.Success)
                         break
                 }
             }
         } catch (e) {
-            toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
+            feedback.toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
         }
     }
 
@@ -78,10 +78,10 @@ export const CertificateEditor = observer((props: {
                         workspace.setCertificatePfx(data)
                         break
                 }
-                toast(`${fileType} loaded from file`, ToastSeverity.Success)
+                feedback.toast(`${fileType} loaded from file`, ToastSeverity.Success)
             }
         } catch(e) {
-            toast(`${e}`, ToastSeverity.Error)
+            feedback.toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -130,7 +130,7 @@ export const CertificateEditor = observer((props: {
                                         <IconButton color='primary' size='medium' aria-label='open-pem' title='Open Certificate PEM File' 
                                             onClick={() => openFile(SshFileType.PEM)}
                                         ><FileOpenIcon fontSize='inherit' /></IconButton>
-                                        <IconButton color='primary' disabled={!clipboardCtx.hasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard'
+                                        <IconButton color='primary' disabled={!clipboard.hasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard'
                                             onClick={() => pasteDataFromClipboard(SshFileType.PEM)}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField
@@ -152,7 +152,7 @@ export const CertificateEditor = observer((props: {
                                         <IconButton color='primary' size='medium' aria-label='open-key' title='Open Certificate Key File'
                                             onClick={() => openFile(SshFileType.Key)}
                                         ><FileOpenIcon fontSize='inherit' /></IconButton>
-                                        <IconButton color='primary' disabled={!clipboardCtx.hasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard'
+                                        <IconButton color='primary' disabled={!clipboard.hasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard'
                                             onClick={() => pasteDataFromClipboard(SshFileType.Key)}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField

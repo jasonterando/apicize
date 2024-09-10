@@ -1,18 +1,15 @@
 import * as app from '@tauri-apps/api/app'
 import * as core from '@tauri-apps/api/core'
 import { Window } from "@tauri-apps/api/window"
-import { ToastSeverity, useConfirmation, useFileOperations, useToast, WorkspaceContext, WorkspaceStore } from "@apicize/toolkit";
+import { useFeedback, useFileOperations, WorkspaceContext, WorkspaceStore } from "@apicize/toolkit";
 import { ReactNode, useRef } from "react";
 import { reaction } from 'mobx';
-import { ApicizeExecutionResults } from '@apicize/lib-typescript';
 
 /**
  * Implementation of window management via Tauri
  */
 export function WorkspaceProvider({ store, children }: { store: WorkspaceStore, children?: ReactNode }) {
-    const confirm = useConfirmation()
-    const fileOps = useFileOperations()
-    const toast = useToast()
+    const feedback = useFeedback()
 
     let _window: Window | undefined = undefined
     const getWindow = async () => {
@@ -55,7 +52,7 @@ export function WorkspaceProvider({ store, children }: { store: WorkspaceStore, 
             if (store.dirty && (!_forceClose.current)) {
                 e.preventDefault();
                 (async () => {
-                    if (await confirm({
+                    if (await feedback.confirm({
                         title: 'Close Apicize?',
                         message: 'You have unsaved changes, are you sure you want to close Apicize?',
                         okButton: 'Yes',

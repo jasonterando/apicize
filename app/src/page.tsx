@@ -9,8 +9,7 @@ import React from 'react'
 import "typeface-open-sans"
 import Pane from './pane';
 import { ClipboardProvider } from './providers/clipboard.provider';
-import { ToastProvider } from './providers/toast.provider';
-import { ConfirmationProvider } from './providers/confirmation.provider';
+import { FeedbackProvider } from './providers/feedback.provider';
 import { FileOperationsProvider } from './providers/file-operations.provider';
 import { WorkspaceProvider } from './providers/workspace.provider';
 import { ApicizeExecutionResults } from '@apicize/lib-typescript';
@@ -105,21 +104,19 @@ export default function Home() {
 
   return (
     <ThemeProvider theme={darkTheme}>
-      <ToastProvider>
-        <ConfirmationProvider>
-          <FileOperationsProvider workspaceStore={store}>
-            <WorkspaceProvider store={store}>
-              <CssBaseline />
-              <ClipboardProvider>
-                <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
-                  <Navigation />
-                  <Pane />
-                </Stack>
-              </ClipboardProvider>
-            </WorkspaceProvider>
-          </FileOperationsProvider>
-        </ConfirmationProvider>
-      </ToastProvider>
+      <FeedbackProvider>
+        <FileOperationsProvider store={store}>
+          <WorkspaceProvider store={store}>
+            <CssBaseline />
+            <ClipboardProvider>
+              <Stack direction='row' sx={{ width: '100%', height: '100vh', display: 'flex', padding: '0' }}>
+                <Navigation />
+                <Pane />
+              </Stack>
+            </ClipboardProvider>
+          </WorkspaceProvider>
+        </FileOperationsProvider>
+      </FeedbackProvider>
     </ThemeProvider>
   )
 }

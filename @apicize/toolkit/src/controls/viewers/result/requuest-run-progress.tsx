@@ -1,11 +1,11 @@
 import { Box, Button, Typography } from "@mui/material"
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type"
 import { useWorkspace } from "../../../contexts/workspace.context"
-import { ToastSeverity, useToast } from "../../../contexts/toast.context"
+import { ToastSeverity, useFeedback } from "../../../contexts/feedback.context"
 
 export function RequestRunProgress() {
     const workspace = useWorkspace()
-    const toast = useToast()
+    const feedback = useFeedback()
 
     let running: boolean
     if (workspace.active?.entityType === EditableEntityType.Request) {
@@ -18,9 +18,9 @@ export function RequestRunProgress() {
         if (workspace.activeExecutionId) {
             try {
                 await workspace.cancelRequest(workspace.activeExecutionId)
-                toast('Request cancelled', ToastSeverity.Success)
+                feedback.toast('Request cancelled', ToastSeverity.Success)
             } catch(e) {
-                toast(`Unable to cancel request - ${e}`, ToastSeverity.Error)
+                feedback.toast(`Unable to cancel request - ${e}`, ToastSeverity.Error)
             }
         }
     }

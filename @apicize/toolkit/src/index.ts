@@ -12,8 +12,7 @@ export { editableWorkspaceToStoredWorkspace as stateToWorkspace, storedWorkspace
 export { DndContext } from '@dnd-kit/core'
 export { EditableEntityType } from './models/workbook/editable-entity-type'
 
-export { useToast, ToastContext, ToastStore, ToastSeverity } from './contexts/toast.context'
+export { useFeedback, FeedbackContext, FeedbackStore, ToastSeverity, ConfirmationOptions } from './contexts/feedback.context'
 export { useClipboard, ClipboardContext, ClipboardStore, ClipboardContentType } from './contexts/clipboard.context'
-export { useConfirmation, ConfirmationContext, ConfirmationStore, ConfirmationOptions } from './contexts/confirmation.context'
 export { useFileOperations, FileOperationsContext, FileOperationsStore, SshFileType } from './contexts/file-operations.context'
 export { useWorkspace, WorkspaceContext, WorkspaceStore } from './contexts/workspace.context'

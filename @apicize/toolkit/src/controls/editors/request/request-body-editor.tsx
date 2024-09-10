@@ -17,16 +17,16 @@ import { EditableEntityType } from '../../../models/workbook/editable-entity-typ
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
 import { observer } from 'mobx-react-lite'
 import { useClipboard } from '../../../contexts/clipboard.context'
-import { ToastSeverity, useToast } from '../../../contexts/toast.context'
 import { useFileOperations } from '../../../contexts/file-operations.context'
 import { toJS } from 'mobx'
 import { useWorkspace } from '../../../contexts/workspace.context'
+import { ToastSeverity, useFeedback } from '../../../contexts/feedback.context'
 
 export const RequestBodyEditor = observer(() => {
   const workspace = useWorkspace()
   const clipboard = useClipboard()
   const fileOps = useFileOperations()
-  const toast = useToast()
+  const feedback = useFeedback()
 
   if (workspace.active?.entityType !== EditableEntityType.Request) {
     return null
@@ -119,9 +119,9 @@ export const RequestBodyEditor = observer(() => {
         data: img
       }
       workspace.setRequestBodyData(img)
-      toast('Image pasted from clipboard', ToastSeverity.Success)
+      feedback.toast('Image pasted from clipboard', ToastSeverity.Success)
     } catch(e) {
-      toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
+      feedback.toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
     }
   }
 
@@ -131,7 +131,7 @@ export const RequestBodyEditor = observer(() => {
       if (! data) return
       workspace.setRequestBodyData(data)
     } catch(e) {
-      toast(`Unable to open file - ${e}`, ToastSeverity.Error)
+      feedback.toast(`Unable to open file - ${e}`, ToastSeverity.Error)
     }
   }
 

@@ -4,18 +4,17 @@ import * as dialog from '@tauri-apps/plugin-dialog'
 import * as path from '@tauri-apps/api/path'
 import { exists, readFile } from "@tauri-apps/plugin-fs"
 
-import { base64Encode, FileOperationsContext, FileOperationsStore, SshFileType, ToastSeverity, useConfirmation, useToast, useWorkspace, WorkspaceStore } from "@apicize/toolkit";
+import { base64Encode, FileOperationsContext, FileOperationsStore, SshFileType, ToastSeverity, useFeedback, WorkspaceStore } from "@apicize/toolkit";
 import { StoredGlobalSettings, Workspace } from "@apicize/lib-typescript";
 
 /**
  * Implementation of file opeartions via Tauri
  */
-export function FileOperationsProvider({ workspaceStore, children }: { workspaceStore: WorkspaceStore, children?: ReactNode }) {
+export function FileOperationsProvider({ store: workspaceStore, children }: { store: WorkspaceStore, children?: ReactNode }) {
 
     const EXT = 'apicize';
 
-    const confirm = useConfirmation()
-    const toast = useToast()
+    const feedback = useFeedback()
 
     const _forceClose = useRef(false)
     const _settings = useRef<StoredGlobalSettings | undefined>()
@@ -37,7 +36,7 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
             settings = {
                 workbookDirectory: await path.join(await path.documentDir(), 'apicize'),
             }
-            toast(`Unable to access settings: ${e}`, ToastSeverity.Error)
+            feedback.toast(`Unable to access settings: ${e}`, ToastSeverity.Error)
         }
 
         _settings.current = settings
@@ -63,7 +62,7 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
         try {
             await core.invoke<StoredGlobalSettings>('save_settings', { settings: newSettings })
         } catch (e) {
-            toast(`Unable to save settings: ${e}`, ToastSeverity.Error)
+            feedback.toast(`Unable to save settings: ${e}`, ToastSeverity.Error)
         }
     }
 
@@ -133,7 +132,7 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
      */
     const newWorkbook = async () => {
         if (workspaceStore.dirty) {
-            if (! await confirm({
+            if (! await feedback.confirm({
                 title: 'New Workbook',
                 message: 'Are you sure you want to create a new workbook without saving changes?',
                 okButton: 'Yes',
@@ -146,7 +145,7 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
 
         workspaceStore.newWorkspace()
         _forceClose.current = false
-        toast('Created New Workbook', ToastSeverity.Success)        
+        feedback.toast('Created New Workbook', ToastSeverity.Success)        
     }
 
     /**
@@ -160,7 +159,7 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
         if (! doUpdateSettings) doUpdateSettings = true
 
         if (workspaceStore.dirty) {
-            if (! await confirm({
+            if (! await feedback.confirm({
                 title: 'Open Workbook',
                 message: 'Are you sure you want to open a workbook without saving changes?',
                 okButton: 'Yes',
@@ -194,9 +193,9 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
                 await updateSettings({ lastWorkbookFileName: fileName })
             }
             _forceClose.current = false
-            toast(`Opened ${fileName}`, ToastSeverity.Success)
+            feedback.toast(`Opened ${fileName}`, ToastSeverity.Success)
         } catch (e) {
-            toast(`${e}`, ToastSeverity.Error)
+            feedback.toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -211,7 +210,7 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
             }
 
             if (workspaceStore.anyInvalid()) {
-                if (! await confirm({
+                if (! await feedback.confirm({
                     title: 'Save Workbook',
                     message: 'Your workspace has one or more errors, are you sure you want to save?',
                     okButton: 'Yes',
@@ -226,13 +225,13 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
             await core.invoke('save_workspace', { workspace: workspaceToSave, path: workspaceStore.workbookFullName })
 
             await updateSettings({ lastWorkbookFileName: workspaceStore.workbookFullName })
-            toast(`Saved ${workspaceStore.workbookFullName}`, ToastSeverity.Success)
+            feedback.toast(`Saved ${workspaceStore.workbookFullName}`, ToastSeverity.Success)
             workspaceStore.updateSavedLocation(
                 workspaceStore.workbookFullName,
                 await getDisplayName(workspaceStore.workbookFullName)
             )
         } catch (e) {
-            toast(`${e}`, ToastSeverity.Error)
+            feedback.toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -243,7 +242,7 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
     const saveWorkbookAs = async () => {
         try {
             if (workspaceStore.anyInvalid()) {
-                if (! await confirm({
+                if (! await feedback.confirm({
                     title: 'Save Workbook',
                     message: 'Your workspace has one or more errors, are you sure you want to save?',
                     okButton: 'Yes',
@@ -278,13 +277,13 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
             await core.invoke('save_workspace', { workspace: workspaceToSave, path: fileName })
 
             await updateSettings({ lastWorkbookFileName: fileName })
-            toast(`Saved ${fileName}`, ToastSeverity.Success)
+            feedback.toast(`Saved ${fileName}`, ToastSeverity.Success)
             workspaceStore.updateSavedLocation(
                 fileName,
                 await getDisplayName(fileName)
             )
         } catch (e) {
-            toast(`${e}`, ToastSeverity.Error)
+            feedback.toast(`${e}`, ToastSeverity.Error)
         }
     }
 
@@ -387,12 +386,12 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
                     await openWorkbook(settings.lastWorkbookFileName, false)
                 }
             } catch (e) {
-                toast(`${e}`, ToastSeverity.Error)
+                feedback.toast(`${e}`, ToastSeverity.Error)
             }        
         }
     })()
 
-    const store = new FileOperationsStore({
+    const fileOpsStore = new FileOperationsStore({
         onNewWorkbook: newWorkbook,
         onOpenWorkbook: openWorkbook,
         onSaveWorkbook: saveWorkbook,
@@ -403,7 +402,7 @@ export function FileOperationsProvider({ workspaceStore, children }: { workspace
     })
 
     return (
-        <FileOperationsContext.Provider value={store}>
+        <FileOperationsContext.Provider value={fileOpsStore}>
             {children}
         </FileOperationsContext.Provider>
     )

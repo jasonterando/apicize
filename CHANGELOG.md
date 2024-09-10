@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.5.0
+
+* Complete migration from Redux to mobx
+* Clean up contexts/providers
+
 # 0.4.3
 
 * Fix close applciation warning on pending changes

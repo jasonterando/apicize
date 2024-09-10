@@ -5,11 +5,11 @@ import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { EditableEntityType } from "../models/workbook/editable-entity-type";
 import { EditableWorkbookRequest } from "../models/workbook/editable-workbook-request";
 import { useWorkspace } from "../contexts/workspace.context";
-import { ToastSeverity, useToast } from "../contexts/toast.context";
+import { ToastSeverity, useFeedback } from "../contexts/feedback.context";
 
 export const RunToolbar = observer(() => {
     const workspace = useWorkspace()
-    const toast = useToast()
+    const feedback = useFeedback()
     
     const request = ((workspace.active?.entityType === EditableEntityType.Request || workspace.active?.entityType === EditableEntityType.Group)
         && !workspace.helpVisible)
@@ -44,7 +44,7 @@ export const RunToolbar = observer(() => {
             await workspace.executeRequest(requestId)
         } catch (e) {
             let msg1 = `${e}`
-            toast(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
+            feedback.toast(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
         }
     }
 
