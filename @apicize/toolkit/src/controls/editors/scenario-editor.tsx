@@ -1,4 +1,4 @@
-import { Stack, TextField, Grid, SxProps } from '@mui/material'
+import { Stack, TextField, SxProps, Grid2 } from '@mui/material'
 import LanguageIcon from '@mui/icons-material/Language';
 import { NameValueEditor } from './name-value-editor';
 import { EditorTitle } from '../editor-title';
@@ -15,8 +15,8 @@ export const ScenarioEditor = observer((props: {sx: SxProps}) => {
     return (
          <Stack direction={'column'} className='editor-panel-no-toolbar' sx={props.sx}>
             <EditorTitle icon={<LanguageIcon />} name={scenario.name.length > 0 ? scenario.name : '(Unnamed)'} />
-            <Grid container direction={'column'} spacing={3} maxWidth={1000}>
-                <Grid item>
+            <Grid2 container direction={'column'} spacing={3} maxWidth={1000}>
+                <Grid2>
                     <TextField
                         id='scenario-name'
                         label='Name'
@@ -28,14 +28,14 @@ export const ScenarioEditor = observer((props: {sx: SxProps}) => {
                         helperText={scenario.nameInvalid ? 'Scenario name is required' : ''}
                         fullWidth
                     />
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2>
                     <PersistenceEditor onUpdatePersistence={(e) => workspace.setScenarioPersistence(e)} persistence={scenario.persistence} />
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2>
                     <NameValueEditor values={scenario.variables} nameHeader='Variable Name' valueHeader='Value' onUpdate={(e) => workspace.setScenarioVariables(e)} />
-                </Grid>
-            </Grid>
+                </Grid2>
+            </Grid2>
         </Stack >
     )
 })

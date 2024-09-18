@@ -1,4 +1,4 @@
-import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Box } from '@mui/material'
+import { TextField, Select, MenuItem, FormControl, InputLabel, Box, Grid2 } from '@mui/material'
 import { WorkbookMethod, WorkbookMethods } from '@apicize/lib-typescript'
 import { EditableEntityType } from '../../../models/workbook/editable-entity-type'
 import { EditableWorkbookRequest } from '../../../models/workbook/editable-workbook-request'
@@ -21,8 +21,8 @@ export const RequestInfoEditor = observer(() => {
     }
 
     return (
-        <Grid container direction='column' spacing={3} maxWidth={1000}>
-            <Grid item>
+        <Grid2 container direction='column' spacing={3} maxWidth={1000}>
+            <Grid2>
                 <TextField
                     id='request-name'
                     label="Name"
@@ -35,8 +35,8 @@ export const RequestInfoEditor = observer(() => {
                     helperText={request.nameInvalid ? 'Request name is required' : ''}
                     fullWidth
                 />
-            </Grid>
-            <Grid item>
+            </Grid2>
+            <Grid2>
                 <TextField
                     id='request-url'
                     label="URL"
@@ -49,8 +49,8 @@ export const RequestInfoEditor = observer(() => {
                     helperText={request.urlInvalid ? 'URL must include http/https protocol prefix and address' : ''}
                     fullWidth
                 />
-            </Grid>
-            <Grid item>
+            </Grid2>
+            <Grid2>
                 <FormControl>
                     <InputLabel id='request-method-label-id'>Method</InputLabel>
                     <Select
@@ -75,7 +75,7 @@ export const RequestInfoEditor = observer(() => {
                         onChange={e => workspace.setRequestTimeout(parseInt(e.target.value))}
                     />
                 </FormControl>
-            </Grid>
-        </Grid>
+            </Grid2>
+        </Grid2>
     )
 })

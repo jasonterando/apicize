@@ -24,7 +24,7 @@ export const ResultRequestViewer = observer((props: {
                     aria-label="Copy Request to Clipboard"
                     title="Copy Request to Clipboard"
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => { if (text) clipboard.copyTextToClipboard(text) }}>
+                    onClick={_ => { if (text) clipboard.writeTextToClipboard(text) }}>
                     <ContentCopyIcon />
                 </IconButton>
             </Typography>

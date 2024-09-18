@@ -41,21 +41,21 @@ export const Navigation = observer(() => {
     const fileOps = useFileOperations()
     const feedback = useFeedback()
 
-    const nodesToExpand = ['hdr-r', 'hdr-s', 'hdr-a', 'hdr-c', 'hdr-p']
-    const expandRequestsWithChildren = (item: EditableItem) => {
-        if (item.entityType === EditableEntityType.Group) {
-            const childIDs = workspace.workspace.requests.childIds?.get(item.id)
-            if (childIDs && childIDs.length > 0) {
-                nodesToExpand.push(`tree-${item.id}`)
-                childIDs
-                    .map(id => workspace.workspace.requests.entities.get(id))
-                    .filter(e => e !== undefined)
-                    .forEach(expandRequestsWithChildren)
-            }
-        }
-    }
-    workspace.workspace.requests.entities.forEach(expandRequestsWithChildren)
-    // console.log('Nodes to expand', nodesToExpand)
+    // const nodesToExpand = ['hdr-r', 'hdr-s', 'hdr-a', 'hdr-c', 'hdr-p']
+    // const expandRequestsWithChildren = (item: EditableItem) => {
+    //     if (item.entityType === EditableEntityType.Group) {
+    //         const childIDs = workspace.workspace.requests.childIds?.get(item.id)
+    //         if (childIDs && childIDs.length > 0) {
+    //             nodesToExpand.push(`${item.entityType}-${item.id}`)
+    //             childIDs
+    //                 .map(id => workspace.workspace.requests.entities.get(id))
+    //                 .filter(e => e !== undefined)
+    //                 .forEach(expandRequestsWithChildren)
+    //         }
+    //     }
+    // }
+    // workspace.workspace.requests.entities.forEach(expandRequestsWithChildren)
+    // console.log(`Nodes to expand: ${nodesToExpand.join(', ')}`)
 
     const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>(undefined)
     const [reqMenu, setReqMenu] = useState<MenuPosition | undefined>(undefined)
@@ -64,7 +64,6 @@ export const Navigation = observer(() => {
     const [certMenu, setCertMenu] = useState<MenuPosition | undefined>(undefined)
     const [proxyMenu, setProxyMenu] = useState<MenuPosition | undefined>(undefined)
 
-    const [expandedItems, setExpandedItems] = useState(nodesToExpand)
     enum DragPosition {
         None = 'NONE',
         Left = 'LEFT',
@@ -226,7 +225,7 @@ export const Navigation = observer(() => {
             ?
             (
                 <TreeItem
-                    itemId={`${props.type}-${props.item.id}`}
+                    itemId={`${props.item.entityType}-${props.item.id}`}
                     key={props.item.id}
                     {...listeners}
                     {...attributes}
@@ -938,7 +937,6 @@ export const Navigation = observer(() => {
         setDragPosition(DragPosition.None)
     }
 
-
     return (
         <Stack direction='column' className='selection-pane' sx={{ flexShrink: 0, bottom: 0, overflow: 'auto', marginRight: '4px', paddingRight: '20px', backgroundColor: '#202020' }}>
             <Box display='flex' flexDirection='row' sx={{ marginBottom: '24px', paddingLeft: '4px', paddingRight: '2px' }}>
@@ -967,22 +965,14 @@ export const Navigation = observer(() => {
                     aria-label='request navigator'
                     // defaultCollapseIcon={<ExpandMoreIcon />}
                     // defaultExpandIcon={<ChevronRightIcon />}
-                    expandedItems={expandedItems}
+                    expandedItems={workspace.expandedItems}
                     selectedItems={workspace.active ? `${workspace.active.entityType}-${workspace.active.id}` : ''}
                     multiSelect={false}
                     onItemExpansionToggle={(_, itemId, isExpanded) => {
-                        // console.log(`Expanding ${itemId} (${isExpanded})`)
-                        let expanded = new Set(expandedItems)
-                        if (isExpanded) {
-                            expanded.add(itemId)
-                        } else {
-                            expanded.delete(itemId)
-                        }
-                        setExpandedItems([...expanded])
+                        workspace.toggleExpanded(itemId, isExpanded)
                     }}
                     onSelectedItemsChange={(_, itemId) => {
                         if (itemId) {
-                            // console.log(`Selecting item ${itemId})`)
                             const i = itemId.indexOf('-')
                             if (i !== -1) {
                                 const type = itemId.substring(0, i) as EditableEntityType

@@ -23,7 +23,7 @@ export function ResultRawPreview(props: {
                     aria-label="Copy Text to Clipboard"
                     title="Copy Text to Clipboard"
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => { if (preview) clipboard.copyTextToClipboard(preview) }}>
+                    onClick={_ => { if (preview) clipboard.writeTextToClipboard(preview) }}>
                     <ContentCopyIcon />
                 </IconButton>)
                 : (<></>)

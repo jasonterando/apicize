@@ -146,7 +146,7 @@ export const ResultInfoViewer = observer((props: {
 
     const copyToClipboard = (data: any) => {
         const text = beautify.js_beautify(JSON.stringify(data), {})
-        clipboardCtx.copyTextToClipboard(text)
+        clipboardCtx.writeTextToClipboard(text)
     }
 
     let summary: WorkbookExecutionGroupSummary | undefined

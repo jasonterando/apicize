@@ -7,7 +7,11 @@ import { EditableWorkbookScenario } from "../models/workbook/editable-workbook-s
 import { EditableWorkbookAuthorization } from "../models/workbook/editable-workbook-authorization"
 import { EditableWorkbookCertificate } from "../models/workbook/editable-workbook-certificate"
 import { EditableWorkbookProxy } from "../models/workbook/editable-workbook-proxy"
-import { Identifiable, Named, IndexedEntities, GetTitle, Persistence, addNestedEntity, removeNestedEntity, moveNestedEntity, getNestedEntity, WorkbookGroupExecution, addEntity, removeEntity, moveEntity, WorkbookBodyType, WorkbookMethod, WorkbookBodyData, WorkbookOAuth2ClientAuthorization, WorkbookAuthorizationType, WorkbookApiKeyAuthorization, WorkbookCertificateType, findParentEntity, Workspace, ApicizeExecutionResults, ApicizeRequest, WorkbookRequestGroup } from "@apicize/lib-typescript"
+import {
+    Identifiable, Named, IndexedEntities, GetTitle, Persistence, addNestedEntity, removeNestedEntity, moveNestedEntity, getNestedEntity, WorkbookGroupExecution,
+    addEntity, removeEntity, moveEntity, WorkbookBodyType, WorkbookMethod, WorkbookBodyData, WorkbookAuthorizationType,
+    WorkbookCertificateType, findParentEntity, Workspace, ApicizeExecutionResults, ApicizeRequest, WorkbookRequestGroup
+} from "@apicize/lib-typescript"
 import { EntitySelection } from "../models/workbook/entity-selection"
 import { EditableNameValuePair } from "../models/workbook/editable-name-value-pair"
 import { GenerateIdentifier } from "../services/random-identifier-generator"
@@ -44,6 +48,8 @@ export class WorkspaceStore {
     @observable accessor workbookDisplayName = '(New Workbook)'
     @observable accessor dirty: boolean = false
     @observable accessor invalidItems = new Set<string>()
+
+    @observable accessor expandedItems = ['hdr-r', 'hdr-s', 'hdr-a', 'hdr-c', 'hdr-p']
 
     private defaultRequested = false
 
@@ -128,6 +134,7 @@ export class WorkspaceStore {
         this.workbookDisplayName = ''
         this.dirty = false
         this.workspace = newEditableWorkspace()
+        this.expandedItems = ['hdr-r', 'hdr-s', 'hdr-a', 'hdr-c', 'hdr-p']
         this.requestExecutions.clear()
         this.invalidItems.clear()
         this.active = null
@@ -136,6 +143,14 @@ export class WorkspaceStore {
     @action
     loadWorkspace(newWorkspace: Workspace, fileName: string, displayName: string) {
         this.workspace = storedWorkspaceToEditableWorkspace(newWorkspace)
+        const expandedItems = ['hdr-r', 'hdr-s', 'hdr-a', 'hdr-c', 'hdr-p']
+        if (this.workspace.requests.childIds) {
+            for (const groupId of this.workspace.requests.childIds.keys()) {
+                expandedItems.push(`g-${groupId}`)
+            }
+        }
+        this.expandedItems = expandedItems
+
         for (const entity of this.workspace.requests.entities.values()) {
             if (entity.invalid) this.invalidItems.add(entity.id)
         }
@@ -184,6 +199,18 @@ export class WorkspaceStore {
         return stateToGlobalSettingsStorage(
             workbookDirectory,
             lastWorkbookFileName)
+    }
+
+    @action
+    toggleExpanded(itemId: string, isExpanded: boolean) {
+        console.log(`Expanding ${itemId} (${isExpanded})`)
+        let expanded = new Set(this.expandedItems)
+        if (isExpanded) {
+            expanded.add(itemId)
+        } else {
+            expanded.delete(itemId)
+        }
+        this.expandedItems = [...expanded]
     }
 
     @action
@@ -299,27 +326,44 @@ export class WorkspaceStore {
     copyRequest(id: string) {
         // Return the ID of the duplicated entry
         const copyEntry = (entry: EditableWorkbookRequest | EditableWorkbookRequestGroup) => {
-            const dupe = structuredClone(entry)
-            // For some reason, structuredClone doesn't work with requests reliably
-            // const dupe = JSON.parse(JSON.stringify(entry))
-            dupe.id = GenerateIdentifier()
-            dupe.name = `${GetTitle(dupe)} - copy`
-            dupe.dirty = true
-
             if (entry.entityType === EditableEntityType.Request) {
-                const request = dupe as EditableWorkbookRequest
+                const request = new EditableWorkbookRequest()
+                request.id = GenerateIdentifier()
+                request.name = `${GetTitle(entry)} - copy`
+                request.runs = entry.runs
+                request.dirty = true
+                request.url = entry.url
+                request.method = entry.method
+                request.mode = entry.mode
+                request.timeout = entry.timeout
                 request.headers?.forEach(h => h.id = GenerateIdentifier())
                 request.queryStringParams?.forEach(p => p.id = GenerateIdentifier())
+                request.body = entry.body
+                    ? {
+                        type: entry.body.type,
+                        data: entry.body.data
+                    }
+                    : {
+                        type: WorkbookBodyType.None
+                    }
+                request.test = entry.test
                 this.workspace.requests.entities.set(request.id, request)
                 return request
             }
 
+            const group = new EditableWorkbookRequestGroup()
+            group.id = GenerateIdentifier()
+            group.name = `${GetTitle(entry)} - copy`
+            group.runs = entry.runs
+            group.dirty = true
+            group.execution = entry.execution
+            this.workspace.requests.entities.set(group.id, group)
+
+            debugger
             if (this.workspace.requests.childIds) {
                 const sourceChildIDs = this.workspace.requests.childIds?.get(source.id)
                 if (sourceChildIDs && sourceChildIDs.length > 0) {
                     const dupedChildIDs: string[] = []
-                    this.workspace.requests.childIds.set(dupe.id, dupedChildIDs)
-
                     sourceChildIDs.forEach(childID => {
                         const childEntry = this.workspace.requests.entities.get(childID)
                         if (childEntry) {
@@ -327,14 +371,17 @@ export class WorkspaceStore {
                             dupedChildIDs.push(dupedChildID)
                         }
                     })
+                    this.workspace.requests.childIds.set(group.id, dupedChildIDs)
                 }
             }
-            this.workspace.requests.entities.set(dupe.id, dupe)
-            return dupe
+            return group
         }
 
         const source = getNestedEntity(id, this.workspace.requests)
         const entry = copyEntry(source)
+        console.log('Source entry', source)
+        console.log('Copied entry', entry)
+        this.workspace.requests.entities.set(entry.id, entry)
 
         let append = true
         if (this.workspace.requests.childIds) {
@@ -461,13 +508,14 @@ export class WorkspaceStore {
     }
 
     @action
-    setRequestBodyData(value: WorkbookBodyData | undefined) {
+    setRequestBodyData(value: WorkbookBodyData | undefined, type: WorkbookBodyType) {
         if (this.active?.entityType === EditableEntityType.Request) {
             const request = this.active as EditableWorkbookRequest
             if (request.body) {
+                request.body.type = type
                 request.body.data = value
             } else {
-                request.body = { data: value }
+                request.body = { type: type, data: value }
             }
             this.dirty = true
         }
@@ -776,10 +824,21 @@ export class WorkspaceStore {
     copyAuthorization(id: string) {
         const source = this.workspace.authorizations.entities.get(id)
         if (source) {
-            const authorization = structuredClone(source)
+            const authorization = new EditableWorkbookAuthorization()
             authorization.id = GenerateIdentifier()
             authorization.name = `${GetTitle(source)} - Copy`
             authorization.dirty = true
+            authorization.header = source.header
+            authorization.value = source.value
+            authorization.username = source.username
+            authorization.password = source.password
+            authorization.accessTokenUrl = source.accessTokenUrl
+            authorization.clientId = source.clientId
+            authorization.clientSecret = source.clientSecret
+            authorization.scope = source.scope
+            authorization.selectedCertificate = source.selectedCertificate
+            authorization.selectedProxy = source.selectedProxy
+
             const idx = this.workspace.authorizations.topLevelIds.indexOf(source.id)
             if (idx === -1) {
                 this.workspace.authorizations.topLevelIds.push(authorization.id)
@@ -953,10 +1012,14 @@ export class WorkspaceStore {
     copyCertificate(id: string) {
         const source = this.workspace.certificates.entities.get(id)
         if (source) {
-            const certificate = structuredClone(source)
+            const certificate = new EditableWorkbookCertificate()
             certificate.id = GenerateIdentifier()
             certificate.name = `${GetTitle(source)} - Copy`
             certificate.dirty = true
+            certificate.pem = source.pem
+            certificate.key = source.key
+            certificate.pfx = source.pfx
+            certificate.password = source.password
             const idx = this.workspace.certificates.topLevelIds.findIndex(cid => cid === source.id)
             if (idx === -1) {
                 this.workspace.certificates.topLevelIds.push(certificate.id)
@@ -1062,9 +1125,10 @@ export class WorkspaceStore {
     copyProxy(id: string) {
         const source = this.workspace.proxies.entities.get(id)
         if (source) {
-            const proxy = structuredClone(source)
+            const proxy = new EditableWorkbookProxy()
             proxy.id = GenerateIdentifier()
             proxy.name = `${GetTitle(source)} - Copy`
+            proxy.url = source.url
             proxy.dirty = true
             const idx = this.workspace.proxies.topLevelIds.findIndex(pid => pid === id)
             if (idx === -1) {
@@ -1164,7 +1228,7 @@ export class WorkspaceStore {
                     const resultRequest = this.getRequest(result.requestId)
                     results.push({ title: `${resultRequest?.name}`, index: resultIndex })
                     newIndexedResults.set(index, {
-                            ...result,
+                        ...result,
                         hasRequest: !!result.request,
                         disableOtherPanels: !result.success,
                         longTextInResponse: (result.response?.body?.text?.length ?? 0) > MAX_TEXT_RENDER_LENGTH,
@@ -1253,12 +1317,12 @@ export class WorkspaceStore {
 
         if (!(execution && (request || group))) throw new Error(`Invalid ID ${requestOrGroupId}`)
 
-            try {
-                let executionResults = await this.callbacks.onExecuteRequest(this.getWorkspace(), requestOrGroupId)
-                this.reportExecutionResults(execution, group, executionResults)
-            } finally {
-                this.reportExecutionComplete(execution)
-            }
+        try {
+            let executionResults = await this.callbacks.onExecuteRequest(this.getWorkspace(), requestOrGroupId)
+            this.reportExecutionResults(execution, group, executionResults)
+        } finally {
+            this.reportExecutionComplete(execution)
+        }
     }
 
 

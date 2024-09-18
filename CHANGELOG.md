@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.5.1
+
+* Misc Bug Fixes
+
 # 0.5.0
 
 * Complete migration from Redux to mobx

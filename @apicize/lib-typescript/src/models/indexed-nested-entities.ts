@@ -117,11 +117,12 @@ export function removeNestedEntity<T extends Identifiable>(id: string, storage: 
         found = true
     } else {
         if (storage.childIds) {
-            for (const children of Object.values(storage.childIds)) {
+            for (const children of storage.childIds.values()) {
                 idx = children.indexOf(id)
                 if (idx !== -1) {
                     children.splice(idx, 1)
                     found = true
+                    break
                 }
             }
         }

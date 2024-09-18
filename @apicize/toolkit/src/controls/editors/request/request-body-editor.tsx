@@ -73,11 +73,11 @@ export const RequestBodyEditor = observer(() => {
   }
 
   const updateBodyAsText = (value: string | undefined) => {
-    workspace.setRequestBodyData(toJS(value) ?? '')
+    workspace.setRequestBodyData(toJS(value) ?? '', WorkbookBodyType.Text)
   }
 
   const updateBodyAsFormData = (data: EditableNameValuePair[]) => {
-    workspace.setRequestBodyData(toJS(data))
+    workspace.setRequestBodyData(toJS(data), WorkbookBodyType.Form)
   }
 
   const updateTypeHeader = () => {
@@ -114,11 +114,7 @@ export const RequestBodyEditor = observer(() => {
   const pasteImageFromClipboard = async () => {
     try {
       const img = await clipboard.getClipboardImage()
-      request.body = {
-        type: WorkbookBodyType.Raw,
-        data: img
-      }
-      workspace.setRequestBodyData(img)
+      workspace.setRequestBodyData(img, WorkbookBodyType.Raw)
       feedback.toast('Image pasted from clipboard', ToastSeverity.Success)
     } catch(e) {
       feedback.toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
@@ -129,7 +125,7 @@ export const RequestBodyEditor = observer(() => {
     try {
       const data = await fileOps.openFile()
       if (! data) return
-      workspace.setRequestBodyData(data)
+      workspace.setRequestBodyData(data, WorkbookBodyType.Raw)
     } catch(e) {
       feedback.toast(`Unable to open file - ${e}`, ToastSeverity.Error)
     }

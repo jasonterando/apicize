@@ -6,20 +6,20 @@ export class ClipboardStore {
     @observable accessor hasImage: boolean = false
 
     constructor(private readonly callbacks: {
-        onCopyText: (text: string) => Promise<void>,
-        onCopyImage: (base64: string) => Promise<void>,
+        onWriteText: (text: string) => Promise<void>,
+        onWriteImage: (base64: string) => Promise<void>,
         onGetText: () => Promise<string>,
         onGetImage: () => Promise<string>,
     }) {
         makeObservable(this)
     }
 
-    copyTextToClipboard(text: string): Promise<void> {
-        return this.callbacks.onCopyText(text)
+    writeTextToClipboard(text: string): Promise<void> {
+        return this.callbacks.onWriteText(text)
     }
     
-    copyImageToClipboard(base64: string): Promise<void> {
-        return this.callbacks.onCopyImage(base64)
+    writeImageToClipboard(base64: string): Promise<void> {
+        return this.callbacks.onWriteImage(base64)
     }
 
     getClipboardText() {
@@ -31,9 +31,13 @@ export class ClipboardStore {
     }
 
     @action
-    updateClipboardStatus(hasText: boolean, hasImage: boolean) {
-        this.hasText = hasText
-        this.hasImage = hasImage
+    updateClipboardTextStatus(onOff: boolean) {
+        this.hasText = onOff
+    }
+
+    @action
+    updateClipboardImageStatus(onOff: boolean) {
+        this.hasImage = onOff
     }
 }
 
@@ -46,9 +50,3 @@ export function useClipboard() {
     }
     return context;
 }
-
-export enum ClipboardContentType {
-    Text,
-    Image,
-  }
-  

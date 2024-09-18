@@ -13,6 +13,6 @@ export { DndContext } from '@dnd-kit/core'
 export { EditableEntityType } from './models/workbook/editable-entity-type'
 
 export { useFeedback, FeedbackContext, FeedbackStore, ToastSeverity, ConfirmationOptions } from './contexts/feedback.context'
-export { useClipboard, ClipboardContext, ClipboardStore, ClipboardContentType } from './contexts/clipboard.context'
+export { useClipboard, ClipboardContext, ClipboardStore } from './contexts/clipboard.context'
 export { useFileOperations, FileOperationsContext, FileOperationsStore, SshFileType } from './contexts/file-operations.context'
 export { useWorkspace, WorkspaceContext, WorkspaceStore } from './contexts/workspace.context'

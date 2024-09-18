@@ -61,7 +61,7 @@ export function ResultResponsePreview(props: {
                         aria-label="Copy Image to Clipboard"
                         title="Copy Image to Clipboard"
                         sx={{ marginLeft: '16px' }}
-                        onClick={_ => { if (body?.data) clipboard.copyImageToClipboard(body.data) } } >
+                        onClick={_ => { if (body?.data) clipboard.writeImageToClipboard(body.data) } } >
                         <ContentCopyIcon />
                     </IconButton>)
                     : showTextCopy
@@ -69,7 +69,7 @@ export function ResultResponsePreview(props: {
                             aria-label="Copy Text to Clipboard"
                             title="Copy Text to Clipboard"
                             sx={{ marginLeft: '16px' }}
-                            onClick={_ => clipboard.copyTextToClipboard(text)}>
+                            onClick={_ => clipboard.writeTextToClipboard(text)}>
                             <ContentCopyIcon />
                         </IconButton>)
                         : (<></>)
