@@ -1,4 +1,4 @@
-import { TextField, Grid, Select, MenuItem, FormControl, InputLabel, Stack, SxProps, Button, Grid2 } from '@mui/material'
+import { TextField, Select, MenuItem, FormControl, InputLabel, Stack, SxProps, Button, Grid2 } from '@mui/material'
 import LockIcon from '@mui/icons-material/Lock';
 import { WorkbookAuthorizationType } from '@apicize/lib-typescript';
 import { EditorTitle } from '../editor-title';
@@ -117,7 +117,7 @@ export const AuthorizationEditor = observer((props: {
                                     </Grid2>
                                 </Grid2>
                                 : auth.type === WorkbookAuthorizationType.OAuth2Client
-                                    ? <Grid container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
+                                    ? <Grid2 container direction={'column'} spacing={3} maxWidth={1000} className='authorization-editor-subpanel'>
                                         <Grid2>
                                             <TextField
                                                 id='auth-oauth2-access-token-url'
@@ -218,7 +218,7 @@ export const AuthorizationEditor = observer((props: {
                                             //     </FormControl>
                                             // </Grid2>
                                         }
-                                    </Grid >
+                                    </Grid2 >
                                     : null
                     }
                 </Grid2>

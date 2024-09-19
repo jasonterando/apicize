@@ -57,10 +57,6 @@ fn main() {
 
                 let handle = app.handle().clone();
 
-                // CLIPBOARD = Some(handle.state::<tauri_plugin_clipboard::Clipboard>());
-                // let foo = CLIPBOARD.read_image_base64()?;
-                // println!("{}", foo);
-
                 let shortcut_builder = tauri_plugin_global_shortcut::Builder::new();
                 app.handle().plugin(
                     shortcut_builder
@@ -68,13 +64,13 @@ fn main() {
                             let focused = _app.get_window("main").unwrap().is_focused().unwrap();
                             if focused {
                                 if shortcut == &ctrl_n_shortcut {
-                                    handle.emit("action", "new").unwrap()
+                                    handle.emit("shortcut", "new").unwrap()
                                 } else if shortcut == &ctrl_o_shortcut {
-                                    handle.emit("action", "open").unwrap()
+                                    handle.emit("shortcut", "open").unwrap()
                                 } else if shortcut == &ctrl_s_shortcut {
-                                    handle.emit("action", "save").unwrap()
+                                    handle.emit("shortcut", "save").unwrap()
                                 } else if shortcut == &ctrl_shift_s_shortcut {
-                                    handle.emit("action", "saveAs").unwrap()
+                                    handle.emit("shortcut", "saveAs").unwrap()
                                 }
                             }
                         })

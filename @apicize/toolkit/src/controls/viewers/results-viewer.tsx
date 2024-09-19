@@ -60,7 +60,7 @@ export const ResultsViewer = observer((props: {
                 orientation='vertical'
                 exclusive
                 onChange={handlePanelChanged}
-                value={panel}
+                value={requestExecution.running ? 'Info' : panel}
                 sx={{ marginRight: '24px' }}
                 aria-label="text alignment">
                 <ToggleButton value="Info" title="Show Result Info" aria-label='show info' disabled={requestExecution.running}><ScienceIcon color={executionResult?.infoColor ?? groupSummary?.infoColor ?? 'disabled'} /></ToggleButton>

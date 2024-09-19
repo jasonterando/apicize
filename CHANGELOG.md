@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.5.2
+
+* Restore hot keys, fix auth editor formatter
+
 # 0.5.1
 
 * Misc Bug Fixes

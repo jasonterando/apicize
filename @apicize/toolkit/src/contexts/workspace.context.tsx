@@ -336,8 +336,8 @@ export class WorkspaceStore {
                 request.method = entry.method
                 request.mode = entry.mode
                 request.timeout = entry.timeout
-                request.headers?.forEach(h => h.id = GenerateIdentifier())
-                request.queryStringParams?.forEach(p => p.id = GenerateIdentifier())
+                request.headers = entry.headers.map(h => ({...h, id: GenerateIdentifier() } as EditableNameValuePair))
+                request.queryStringParams = entry.queryStringParams.map(q => ({...q, id: GenerateIdentifier() } as EditableNameValuePair))
                 request.body = entry.body
                     ? {
                         type: entry.body.type,
