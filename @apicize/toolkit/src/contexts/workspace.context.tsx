@@ -359,7 +359,6 @@ export class WorkspaceStore {
             group.execution = entry.execution
             this.workspace.requests.entities.set(group.id, group)
 
-            debugger
             if (this.workspace.requests.childIds) {
                 const sourceChildIDs = this.workspace.requests.childIds?.get(source.id)
                 if (sourceChildIDs && sourceChildIDs.length > 0) {

@@ -10,6 +10,7 @@ export class FileOperationsStore {
         onOpenSshFile: (fileType: SshFileType) => Promise<string | null>,
         onOpenFile: () => Promise<string | null>,
         onLoadSettings: () => Promise<StoredGlobalSettings>,
+        onRetrieveHelpTopic: (topic: string) => Promise<string>,
     }) {
     }
 
@@ -62,6 +63,11 @@ export class FileOperationsStore {
      */
     loadSettings() {
         return this.callbacks.onLoadSettings()
+    }
+
+    retrieveHelpTopic(topic: string) {
+        debugger
+        return this.callbacks.onRetrieveHelpTopic(topic)
     }
 }
 

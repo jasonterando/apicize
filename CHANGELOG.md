@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.5.3
+
+* Update Tauri CLI and other dependencies
+
 # 0.5.2
 
 * Restore hot keys, fix auth editor formatter

@@ -29,6 +29,7 @@ import { ExtraProps } from 'hast-util-to-jsx-runtime';
 import { observer } from 'mobx-react-lite';
 import { reaction } from 'mobx';
 import { useWorkspace } from '../contexts/workspace.context';
+import { ToastSeverity, useFeedback } from '../contexts/feedback.context';
 
 // Register `hName`, `hProperties` types, used when turning markdown to HTML:
 /// <reference types="mdast-util-to-hast" />
@@ -37,6 +38,7 @@ import { useWorkspace } from '../contexts/workspace.context';
 
 export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: string) => Promise<string> }) => {
     const workspace = useWorkspace()
+    const feedback = useFeedback()
 
     let name = workspace.appName
     let version = workspace.appVersion
@@ -54,45 +56,49 @@ export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: s
         async ({ topic, visible }) => {
             if (!visible) return
 
-            showHome = topic !== 'home'
-            showBack = workspace.helpHistory.length > 1
+            try {
+                showHome = topic !== 'home'
+                showBack = workspace.helpHistory.length > 1
 
-            if (topic === lastTopic) return
+                if (topic === lastTopic) return
 
-            const helpText = await onRenderTopic(topic ?? 'home')
-            if (helpText.length > 0) {
-                const r = await unified()
-                    .use(remarkParse)
-                    .use(remarkDirective)
-                    .use(remarkApicizeDirectives)
-                    .use(remarkRehype)
-                    // @ts-expect-error
-                    .use(rehypeReact, {
-                        Fragment,
-                        jsx,
-                        jsxs,
-                        passNode: true,
-                        components: {
-                            logo,
-                            icon: rehypeTransformIcon,
-                            toolbar: rehypeTransformToolbar,
-                            h1: rehypeTransformHeader,
-                            h2: rehypeTransformHeader,
-                            h3: rehypeTransformHeader,
-                            h4: rehypeTransformHeader,
-                            h5: rehypeTransformHeader,
-                            h6: rehypeTransformHeader,
-                            a: rehypeTranformAnchor,
-                            p: rehypeTransformParagraph,
-                        }
-                    })
-                    .process(helpText)
-                setContent(r.result)
-                setLastTopic(topic)
+                const helpText = await onRenderTopic(topic ?? 'home')
+                if (helpText.length > 0) {
+                    const r = await unified()
+                        .use(remarkParse)
+                        .use(remarkDirective)
+                        .use(remarkApicizeDirectives)
+                        .use(remarkRehype)
+                        // @ts-expect-error
+                        .use(rehypeReact, {
+                            Fragment,
+                            jsx,
+                            jsxs,
+                            passNode: true,
+                            components: {
+                                logo,
+                                icon: rehypeTransformIcon,
+                                toolbar: rehypeTransformToolbar,
+                                h1: rehypeTransformHeader,
+                                h2: rehypeTransformHeader,
+                                h3: rehypeTransformHeader,
+                                h4: rehypeTransformHeader,
+                                h5: rehypeTransformHeader,
+                                h6: rehypeTransformHeader,
+                                a: rehypeTranformAnchor,
+                                p: rehypeTransformParagraph,
+                            }
+                        })
+                        .process(helpText)
+                    setContent(r.result)
+                    setLastTopic(topic)
+                }
+                feedback.toast(`Retrieved help topic ${topic}`, ToastSeverity.Info)
+            } catch (e) {
+                feedback.toast(`Unable to display topic ${topic} - ${e}`, ToastSeverity.Error)
             }
         }
     )
-
 
     function remarkApicizeDirectives() {
         const handleLogo = (node: LeafDirective) => {

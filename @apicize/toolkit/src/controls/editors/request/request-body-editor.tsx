@@ -81,7 +81,6 @@ export const RequestBodyEditor = observer(() => {
   }
 
   const updateTypeHeader = () => {
-    debugger
     const mimeType = getBodyTypeMimeType(request.body.type)
     let newHeaders = request.headers ? toJS(request.headers) : []
     const contentTypeHeader = newHeaders.find(h => h.name === 'Content-Type')
