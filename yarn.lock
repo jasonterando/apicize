@@ -2695,7 +2695,7 @@ __metadata:
     react: "npm:^18.2.0"
     react-dom: "npm:^18.2.0"
     remark-directive: "npm:^3.0.0"
-    tauri-plugin-clipboard-api: "git@github.com:jasonterando/tauri-plugin-clipboard.git#head=v2-update-with-types"
+    tauri-plugin-clipboard-api: "https://github.com/jasonterando/tauri-plugin-clipboard.git#head=v2-yarn-friendly"
     typeface-open-sans: "npm:^1.1.13"
     typescript: "npm:^5"
     valibot: "npm:^0.36.0"
@@ -9113,9 +9113,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tauri-plugin-clipboard-api@git@github.com:jasonterando/tauri-plugin-clipboard.git#head=v2-update-with-types":
+"tauri-plugin-clipboard-api@https://github.com/jasonterando/tauri-plugin-clipboard.git#head=v2-yarn-friendly":
   version: 2.1.8
-  resolution: "tauri-plugin-clipboard-api@git@github.com:jasonterando/tauri-plugin-clipboard.git#commit=cf4a0e4506902179047e5ea090116760e5bd2b44"
+  resolution: "tauri-plugin-clipboard-api@https://github.com/jasonterando/tauri-plugin-clipboard.git#commit=cf4a0e4506902179047e5ea090116760e5bd2b44"
   dependencies:
     "@tauri-apps/api": "npm:^2.0.0-beta"
     valibot: "npm:^0.40.0"
