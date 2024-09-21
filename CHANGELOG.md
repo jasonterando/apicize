@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.5.4
+
+* Fix "Off" cascading parameters
+* Update Tauri clipboard plugin to include large clipboard content fix
+
 # 0.5.3
 
 * Update Tauri CLI and other dependencies

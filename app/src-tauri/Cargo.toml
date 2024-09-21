@@ -1,6 +1,6 @@
 [package]
 name = "apicize"
-version = "0.5.3"
+version = "0.5.4"
 description = "Apicize HTTP call testing application"
 authors = ["Jason Terando"]
 license = ""
@@ -25,7 +25,7 @@ tauri-plugin-fs = "2.0.0-rc"
 tauri-plugin-global-shortcut = "2.0.0-rc"
 tauri-plugin-dialog = "2.0.0-rc"
 tauri-plugin-window-state = "2.0.0-rc"
-tauri-plugin-clipboard = { git = "https://github.com/CrossCopy/tauri-plugin-clipboard", branch = "v2" }
+tauri-plugin-clipboard = { git = "https://github.com/jasonterando/tauri-plugin-clipboard/", branch = "v2-update-with-types" }
 env_logger = "0.10.2"
 tauri-plugin-log = "2.0.0-rc"
 

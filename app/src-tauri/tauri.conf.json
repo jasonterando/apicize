@@ -1,8 +1,8 @@
 {
-  "$schema": "../../node_modules/@tauri-apps/cli/schema.json",
+  "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "apicize.app",
   "productName": "Apicize",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "app": {
     "security": {
       "csp": null
@@ -60,7 +60,7 @@
       "../examples/demo.apicize",
       "./help"
     ],
-    "shortDescription": "",
+    "shortDescription": "HTTP testing tool",
     "targets": [
       "deb",
       "rpm",

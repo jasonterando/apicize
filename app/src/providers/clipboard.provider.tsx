@@ -46,15 +46,16 @@ export function ClipboardProvider({
     )
 
     useEffect(() => {
-        const updateClipboardState = async () => {
-            const text = await hasText()
-            const image = await hasImage()
-            store.updateClipboardTextStatus(text)
-            store.updateClipboardImageStatus(false)
-            if (image) {
+        const updateClipboardState = async (state: {
+            text: boolean,
+            image: boolean
+        }) => {
+            store.updateClipboardTextStatus(state.text)
+            store.updateClipboardImageStatus(state.image)
+            if (state.image) {
                 const tryReadImage = (attempt: number) => {
                     readImageBase64()
-                        .then(() => {store.updateClipboardImageStatus(true)})
+                        .then(() => { store.updateClipboardImageStatus(true) })
                         .catch(() => {
                             if (attempt < 30) setTimeout(() => tryReadImage(attempt + 1), 100)
                         })
@@ -64,9 +65,13 @@ export function ClipboardProvider({
         }
 
         const unlisten = onClipboardUpdate(updateClipboardState)
-        updateClipboardState()
+        Promise.all([hasText(), hasImage()]).then(([text, image]) => {
+            updateClipboardState({
+                text, image
+            })
+        })
         return () => {
-            unlisten.then(() => {})
+            unlisten.then(() => { })
         }
     }, [store])
 

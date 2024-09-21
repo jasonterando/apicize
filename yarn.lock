@@ -1964,10 +1964,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/api@npm:2.0.0-beta.11":
-  version: 2.0.0-beta.11
-  resolution: "@tauri-apps/api@npm:2.0.0-beta.11"
-  checksum: 10c0/f9bce29d2db55d329f2c8cf234000d25083ce8dd488e91da0ae8fa6295cce62aa756b16ef35cd5ff04d43b25df089474ab4f49abac34300548a34b2934fee2f7
+"@tauri-apps/api@npm:^2.0.0-beta, @tauri-apps/api@npm:^2.0.0-rc.5":
+  version: 2.0.0-rc.5
+  resolution: "@tauri-apps/api@npm:2.0.0-rc.5"
+  checksum: 10c0/40e816e5b78c7c2c48c08c1a0ca51952366abdf407695eec2882f26c3bd9044c244478375decc2b9d37d9f2bd45b1513ffa8f01e8aa1be01faaf08374ae30c2e
   languageName: node
   linkType: hard
 
@@ -1975,13 +1975,6 @@ __metadata:
   version: 2.0.0-rc.0
   resolution: "@tauri-apps/api@npm:2.0.0-rc.0"
   checksum: 10c0/7fe6c2fe92dd7c5eb3a0de96ab1d149660bb553a527b21aa96cbf3184fb1a5e56524e7b6dbbd14c65add5d27057c9f9346ba6e523fc7f84b5eb2a6f8c43a893e
-  languageName: node
-  linkType: hard
-
-"@tauri-apps/api@npm:^2.0.0-rc.5":
-  version: 2.0.0-rc.5
-  resolution: "@tauri-apps/api@npm:2.0.0-rc.5"
-  checksum: 10c0/40e816e5b78c7c2c48c08c1a0ca51952366abdf407695eec2882f26c3bd9044c244478375decc2b9d37d9f2bd45b1513ffa8f01e8aa1be01faaf08374ae30c2e
   languageName: node
   linkType: hard
 
@@ -2702,7 +2695,7 @@ __metadata:
     react: "npm:^18.2.0"
     react-dom: "npm:^18.2.0"
     remark-directive: "npm:^3.0.0"
-    tauri-plugin-clipboard-api: "npm:^2.1.6"
+    tauri-plugin-clipboard-api: "git@github.com:jasonterando/tauri-plugin-clipboard.git#head=v2-update-with-types"
     typeface-open-sans: "npm:^1.1.13"
     typescript: "npm:^5"
     valibot: "npm:^0.36.0"
@@ -9120,14 +9113,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tauri-plugin-clipboard-api@npm:^2.1.6":
-  version: 2.1.6
-  resolution: "tauri-plugin-clipboard-api@npm:2.1.6"
+"tauri-plugin-clipboard-api@git@github.com:jasonterando/tauri-plugin-clipboard.git#head=v2-update-with-types":
+  version: 2.1.8
+  resolution: "tauri-plugin-clipboard-api@git@github.com:jasonterando/tauri-plugin-clipboard.git#commit=cf4a0e4506902179047e5ea090116760e5bd2b44"
   dependencies:
-    "@tauri-apps/api": "npm:2.0.0-beta.11"
-  peerDependencies:
-    valibot: ^0.36.0
-  checksum: 10c0/e60b64d4fc8fad16b19945ec16ec635a8d6a5a604602c4f5f56c5929074f971e33a01b91ea821f00f55c9c2a64e55fd67809080379474c56ef8a43edab072f5d
+    "@tauri-apps/api": "npm:^2.0.0-beta"
+    valibot: "npm:^0.40.0"
+  checksum: 10c0/e47dc6c6c0a42a485b951fa5f090b443fe64dad7016038d5793ce8a6166a454306be5e40246bbfb617e828274b93989188b28d47503867c61c27346a8c827306
   languageName: node
   linkType: hard
 
@@ -9730,6 +9722,18 @@ __metadata:
   version: 0.36.0
   resolution: "valibot@npm:0.36.0"
   checksum: 10c0/deff84cdcdc324d5010c2087e553cd26b07752ac18912c9152eccd241b507a49a9ad77fed57501d45bcbef9bec6a7a6707b17d9bef8d35e681d45f098a70e466
+  languageName: node
+  linkType: hard
+
+"valibot@npm:^0.40.0":
+  version: 0.40.0
+  resolution: "valibot@npm:0.40.0"
+  peerDependencies:
+    typescript: ">=5"
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  checksum: 10c0/6ff15efa1926f8d094a1578d92a515ed5ca6aaac532f9d1e0f98be6b64fb4ae22058e424be25133a109d1c2390a2a80a5b6d246c4bcab63945b18897de0ff4db
   languageName: node
   linkType: hard
 

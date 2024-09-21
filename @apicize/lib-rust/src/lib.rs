@@ -19,6 +19,7 @@ use encoding_rs::{Encoding, UTF_8};
 use mime::Mime;
 use reqwest::{Body, Client, ClientBuilder, Error, Identity, Proxy};
 use serde_json::Value;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 use std::time::{Duration, Instant};
@@ -32,6 +33,8 @@ use models::*;
 use oauth2_client_tokens::get_oauth2_client_credentials;
 
 static V8_INIT: Once = Once::new();
+
+const NO_SELECTION_ID: &str = "\tNONE\t";
 
 /// Cleanup V8 platform, should only be called once at end of application
 pub fn cleanup_v8() {
@@ -1006,8 +1009,6 @@ impl Workspace {
         Ok(Some(test_response))
     }
 
-
-    // xxx
     fn retrieve_parameters(
         &self,
         request: &WorkbookRequestEntry,
@@ -1018,7 +1019,7 @@ impl Workspace {
         Option<&WorkbookCertificate>,
         Option<&WorkbookProxy>,
         Option<&WorkbookCertificate>,
-        Option<&WorkbookProxy>
+        Option<&WorkbookProxy>,
     ) {
         let mut done = false;
 
@@ -1032,45 +1033,80 @@ impl Workspace {
         let mut auth_certificate: Option<&WorkbookCertificate> = None;
         let mut auth_proxy: Option<&WorkbookProxy> = None;
 
+        let mut allow_scenario = true;
+        let mut allow_authorization = true;
+        let mut allow_certificate = true;
+        let mut allow_proxy = true;
+
+        let mut encountered_ids = HashSet::<String>::new();
 
         while !done {
             // Set the credential values at the current request value
-            if let Some(selected) = current.get_selected_scenario() {
-                scenario = self.scenarios.entities.get(&selected.id);
-            };
-            if let Some(selected) = current.get_selected_authorization() {
-                authorization = self.authorizations.entities.get(&selected.id);
-                if let Some(matching_auth) = authorization {
-                    if let WorkbookAuthorization::OAuth2Client {
-                        selected_certificate,
-                        selected_proxy,
-                        ..
-                    } = matching_auth
-                    {
-                        if let Some(cert) = selected_certificate {
-                            auth_certificate = self.certificates.entities.get(&cert.id);
-                        }
-                        if let Some(proxy) = selected_proxy {
-                            auth_proxy = self.proxies.entities.get(&proxy.id);
+            if allow_scenario {
+                if let Some(selected) = current.get_selected_scenario() {
+                    if selected.id == NO_SELECTION_ID {
+                        allow_scenario = false;
+                    } else {
+                        scenario = self.scenarios.entities.get(&selected.id);
+                    }
+                }
+            }
+            if allow_authorization {
+                if let Some(selected) = current.get_selected_authorization() {
+                    if selected.id == NO_SELECTION_ID {
+                        allow_authorization = false
+                    } else {
+                        authorization = self.authorizations.entities.get(&selected.id);
+                        if let Some(matching_auth) = authorization {
+                            if let WorkbookAuthorization::OAuth2Client {
+                                selected_certificate,
+                                selected_proxy,
+                                ..
+                            } = matching_auth
+                            {
+                                if let Some(cert) = selected_certificate {
+                                    auth_certificate = self.certificates.entities.get(&cert.id);
+                                }
+                                if let Some(proxy) = selected_proxy {
+                                    auth_proxy = self.proxies.entities.get(&proxy.id);
+                                }
+                            }
                         }
                     }
                 }
-            };
-            if let Some(selected) = current.get_selected_certificate() {
-                certificate = self.certificates.entities.get(&selected.id)
-            };
-            if let Some(selected) = current.get_selected_proxy() {
-                proxy = self.proxies.entities.get(&selected.id)
-            };
+            }
+            if allow_certificate {
+                if let Some(selected) = current.get_selected_certificate() {
+                    if selected.id == NO_SELECTION_ID {
+                        allow_certificate = false
+                    } else {
+                        certificate = self.certificates.entities.get(&selected.id)
+                    }
+                }
+            }
+            if allow_proxy {
+                if let Some(selected) = current.get_selected_proxy() {
+                    if selected.id == NO_SELECTION_ID {
+                        allow_proxy = false
+                    } else {
+                        proxy = self.proxies.entities.get(&selected.id)
+                    }
+                }
+            }
 
-            done = scenario.is_some()
+            done = (scenario.is_some()
                 && authorization.is_some()
                 && certificate.is_some()
-                && proxy.is_some();
+                && proxy.is_some()) ||
+                (! (
+                    allow_scenario && allow_authorization && allow_certificate && allow_proxy
+                ));
 
             if !done {
                 // Get the parent
                 let id = current.get_id();
+                encountered_ids.insert(id.clone());
+
                 let mut parent: Option<&WorkbookRequestEntry> = None;
                 if let Some(child_ids) = &self.requests.child_ids {
                     for (parent_id, children) in child_ids.iter() {
@@ -1082,11 +1118,33 @@ impl Workspace {
                 }
 
                 if let Some(found_parent) = parent {
-                    current = found_parent;
+                    let parent_id = found_parent.get_id();
+                    if encountered_ids.contains(parent_id) {
+                        println!("Recursive parent found at {}, cancelling traversal", parent_id);
+                        done = true
+                    } else {
+                        current = found_parent;
+                    }
                 } else {
                     done = true;
                 }
             }
+        }
+
+        if ! allow_scenario {
+            scenario = None
+        }
+
+        if ! allow_authorization {
+            authorization = None
+        }
+
+        if ! allow_certificate {
+            certificate = None
+        }
+
+        if ! allow_proxy {
+            proxy = None
         }
 
         let mut result_variables = if let Some(active_scenario) = scenario {
@@ -1113,8 +1171,8 @@ impl Workspace {
             certificate,
             proxy,
             auth_certificate,
-            auth_proxy
-        )
+            auth_proxy,
+        );
     }
 
     /// Run the specified request entry recursively
@@ -1242,8 +1300,7 @@ impl Workspace {
                 // Recursively run requests located in groups...
                 let mut results: Vec<ApicizeResult> = Vec::new();
 
-                let (variables, ..) =
-                    workspace.retrieve_parameters(request, &variables);
+                let (variables, ..) = workspace.retrieve_parameters(request, &variables);
 
                 let mut arc_variables = Arc::new(variables);
 
@@ -1862,11 +1919,11 @@ impl WorkbookCertificate {
         match identity_result {
             Ok(identity) => {
                 // request_certificate = Some(cert.clone());
-                Ok(builder
-                    .identity(identity)
-                    // .connection_verbose(true)
-                    .use_native_tls()
-                    // .tls_info(true)
+                Ok(
+                    builder
+                        .identity(identity)
+                        // .connection_verbose(true)
+                        .use_native_tls(), // .tls_info(true)
                 )
             }
             Err(err) => Err(ExecutionError::Reqwest(err)),
