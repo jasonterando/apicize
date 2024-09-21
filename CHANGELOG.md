@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.5.5
+
+* Fix "dirty" close dialog for release build
+
 # 0.5.4
 
 * Fix "Off" cascading parameters

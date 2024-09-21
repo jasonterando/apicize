@@ -13,20 +13,12 @@ export function WorkspaceProvider({ store, children }: { store: WorkspaceStore, 
     const feedback = useFeedback()
     const fileOps = useFileOperations()
 
-    let _window: Window | undefined = undefined
-    const getWindow = async () => {
-        if (!_window) {
-            _window = (await import('@tauri-apps/api/window')).Window.getCurrent()
-        }
-        return _window
-    }
-
     // Update window title
     reaction(
         () => ({ dirty: store.dirty, displayName: store.workbookDisplayName }),
         async ({ dirty, displayName }) => {
             const showDirty = dirty ? ' *' : ''
-            const currentWindow = await getWindow()
+            const currentWindow = Window.getCurrent()
             currentWindow.setTitle(((displayName?.length ?? 0) > 0)
                 ? `Apicize - ${displayName}${showDirty}`
                 : `Apicize (New Workbook)${showDirty}`)
@@ -47,10 +39,12 @@ export function WorkspaceProvider({ store, children }: { store: WorkspaceStore, 
         }
 
         store.changeApp(name, version)
+    })()
 
+    useEffect(() => {
         // Set up close event hook, warn user if "dirty"
-        const currentWindow = await getWindow()
-        currentWindow.onCloseRequested((e) => {
+        const currentWindow = Window.getCurrent()
+        const unlistenClose = currentWindow.onCloseRequested((e) => {
             if (store.dirty && (!_forceClose.current)) {
                 e.preventDefault();
                 (async () => {
@@ -68,11 +62,9 @@ export function WorkspaceProvider({ store, children }: { store: WorkspaceStore, 
                 })()
             }
         })
-    })()
 
-    useEffect(() => {
-        const unlisten = listen<string>('shortcut', async (e) => {
-            switch(e.payload) {
+        const unlistenShortcuts = listen<string>('shortcut', async (e) => {
+            switch (e.payload) {
                 case 'new':
                     await fileOps.newWorkbook()
                     break;
@@ -86,11 +78,12 @@ export function WorkspaceProvider({ store, children }: { store: WorkspaceStore, 
                     await fileOps.saveWorkbookAs()
                     break;
             }
-        })   
-        return (() => {
-            unlisten.then(f => f())
         })
-    }, [fileOps])
+        return (() => {
+            unlistenClose.then(f => f())
+            unlistenShortcuts.then(f => f())
+        })
+    }, [fileOps, feedback, store])
 
     return (
         <WorkspaceContext.Provider value={store}>
