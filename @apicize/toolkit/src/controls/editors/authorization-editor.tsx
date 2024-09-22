@@ -71,7 +71,7 @@ export const AuthorizationEditor = observer((props: {
                                 <MenuItem value={WorkbookAuthorizationType.OAuth2Client}>OAuth2 Client Flow</MenuItem>
                             </Select>
                         </FormControl>
-                        <PersistenceEditor onUpdatePersistence={workspace.setAuthorizationPersistence} persistence={auth.persistence} />
+                        <PersistenceEditor onUpdatePersistence={(e) => workspace.setAuthorizationPersistence(e)} persistence={auth.persistence} />
                     </Stack>
                 </Grid2>
                 <Grid2>

@@ -40,7 +40,6 @@ pub async fn get_oauth2_client_credentials(
     let valid_token = match tokens.get(&cloned_id) {
         Some((expiration, cached_token)) => {
             let now = Instant::now();
-            println!("Token expires: {:?}, now: {:?}", &expiration, &now);
             if expiration.gt(&now) {
                 Some(cached_token.clone())
             } else {
@@ -57,10 +56,9 @@ pub async fn get_oauth2_client_credentials(
     // We have to create a blocked span when using oauth because some error types
     // in oauth2 library dependencies do not implement Copy
     // match spawn_blocking(move || {
-        // Retrieve an access token
-    let mut client = BasicClient::new(ClientId::new(cloned_client_id)).set_token_uri(
-        TokenUrl::new(cloned_token_url).expect("Unable to parse OAuth token URL"),
-    );
+    // Retrieve an access token
+    let mut client = BasicClient::new(ClientId::new(cloned_client_id))
+        .set_token_uri(TokenUrl::new(cloned_token_url).expect("Unable to parse OAuth token URL"));
 
     if !cloned_client_secret.trim().is_empty() {
         client = client.set_client_secret(ClientSecret::new(cloned_client_secret));
@@ -95,7 +93,7 @@ pub async fn get_oauth2_client_credentials(
     if let Some(active_proxy) = proxy {
         match active_proxy.append_to_builder(reqwest_builder) {
             Ok(updated_builder) => reqwest_builder = updated_builder,
-            Err(err) => return Err(ExecutionError::Reqwest(err))
+            Err(err) => return Err(ExecutionError::Reqwest(err)),
         }
     }
 
