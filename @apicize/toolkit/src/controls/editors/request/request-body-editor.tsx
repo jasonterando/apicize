@@ -145,7 +145,7 @@ export const RequestBodyEditor = observer(() => {
     <Stack direction='column' spacing={3}>
       <Stack direction='row' sx={{ justifyContent: 'space-between' }}>
         <FormControl>
-          <InputLabel id='request-method-label-id'>Body Content Type</InputLabel>
+          <InputLabel id='request-body-type-label-id'>Body Content Type</InputLabel>
           <Select
             labelId='request-method-label-id'
             id="request-method"
@@ -155,6 +155,7 @@ export const RequestBodyEditor = observer(() => {
               width: "10em"
             }}
             onChange={e => updateBodyType(e.target.value)}
+            aria-labelledby='request-body-type-label-id'
           >
             {bodyTypeMenuItems()}
           </Select>
@@ -164,7 +165,12 @@ export const RequestBodyEditor = observer(() => {
       {request.body.type == WorkbookBodyType.None
         ? <></>
         : request.body.type == WorkbookBodyType.Form
-          ? <NameValueEditor values={request.body.data as EditableNameValuePair[]} nameHeader='Name' valueHeader='Value' onUpdate={updateBodyAsFormData} />
+          ? <NameValueEditor
+            title='body form data'
+            values={request.body.data as EditableNameValuePair[]}
+            nameHeader='Name'
+            valueHeader='Value'
+            onUpdate={updateBodyAsFormData} />
           : request.body.type == WorkbookBodyType.Raw
             ? <Stack
               direction='row'
@@ -175,10 +181,10 @@ export const RequestBodyEditor = observer(() => {
                 width: 'fit-content',
               }}
             >
-              <IconButton aria-label='from-file' title='Load Body from File' onClick={() => openFile()} sx={{ marginRight: '4px' }}>
+              <IconButton aria-label='load body from file' title='Load Body from File' onClick={() => openFile()} sx={{ marginRight: '4px' }}>
                 <FileOpenIcon />
               </IconButton>
-              <IconButton aria-label='from-clipboard' title='Paste Body from Clipboard' disabled={! clipboard.hasImage} 
+              <IconButton aria-label='copy body from clipboard' title='Paste Body from Clipboard' disabled={! clipboard.hasImage} 
                 onClick={() => pasteImageFromClipboard()} sx={{ marginRight: '4px' }}>
                 <ContentPasteGoIcon />
               </IconButton>
@@ -204,7 +210,7 @@ export const RequestBodyEditor = observer(() => {
                 showLineNumbers: true,
               }}
               onChange={updateBodyAsText}
-              name='code-editor'
+              name='request body editor'
               value={request.body.data as string}
             />
       }

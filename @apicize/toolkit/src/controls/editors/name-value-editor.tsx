@@ -22,6 +22,7 @@ import { Button } from "@mui/material";
 
 export function NameValueEditor(props: {
     values: EditableNameValuePair[] | undefined,
+    title: string,
     nameHeader: string,
     valueHeader: string,
     onUpdate: (pair: EditableNameValuePair[]) => void
@@ -119,6 +120,7 @@ export function NameValueEditor(props: {
                         <GridActionsCellItem
                             icon={<SaveIcon />}
                             label="Save"
+                            aria-label="save updated value"
                             sx={{
                                 color: 'primary.main',
                             }}
@@ -127,6 +129,7 @@ export function NameValueEditor(props: {
                         <GridActionsCellItem
                             icon={<CancelIcon />}
                             label="Cancel"
+                            aria-label="cancel updates"
                             className="textPrimary"
                             onClick={handleCancelClick(id)}
                             color="inherit"
@@ -138,12 +141,14 @@ export function NameValueEditor(props: {
                     <GridActionsCellItem
                         icon={<EditIcon />}
                         label="Edit"
+                        aria-label="edit value"
                         className="textPrimary"
                         onClick={handleEditClick(id)}
                         color="inherit"
                     />,
                     <GridActionsCellItem
                         icon={<DeleteIcon />}
+                        aria-label="delete value"
                         label="Delete"
                         onClick={handleDeleteClick(id)}
                         color="inherit"
@@ -170,6 +175,7 @@ export function NameValueEditor(props: {
         >
             <DataGrid
                 autoHeight
+                aria-label={props.title}
                 rows={data}
                 columns={columns}
                 editMode="row"

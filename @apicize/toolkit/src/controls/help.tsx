@@ -30,15 +30,17 @@ import { observer } from 'mobx-react-lite';
 import { reaction } from 'mobx';
 import { useWorkspace } from '../contexts/workspace.context';
 import { ToastSeverity, useFeedback } from '../contexts/feedback.context';
+import { useFileOperations } from '../contexts/file-operations.context';
 
 // Register `hName`, `hProperties` types, used when turning markdown to HTML:
 /// <reference types="mdast-util-to-hast" />
 // Register directive nodes in mdast:
 /// <reference types="mdast-util-directive" />
 
-export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: string) => Promise<string> }) => {
+export const HelpPanel = observer(() => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
+    const fileOps = useFileOperations()
 
     let name = workspace.appName
     let version = workspace.appVersion
@@ -62,7 +64,7 @@ export const HelpPanel = observer(({ onRenderTopic }: { onRenderTopic: (topic: s
 
                 if (topic === lastTopic) return
 
-                const helpText = await onRenderTopic(topic ?? 'home')
+                const helpText = await fileOps.retrieveHelpTopic(topic ?? 'home')
                 if (helpText.length > 0) {
                     const r = await unified()
                         .use(remarkParse)

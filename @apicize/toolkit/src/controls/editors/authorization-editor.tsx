@@ -9,6 +9,7 @@ import { NO_SELECTION_ID } from '../../models/store';
 import { observer } from 'mobx-react-lite';
 import { EditableEntityType } from '../../models/workbook/editable-entity-type';
 import { useWorkspace } from '../../contexts/workspace.context';
+import { ToastSeverity, useFeedback } from '../../contexts/feedback.context';
 
 let credIndex = 0
 const itemsFromSelections = (selections: EntitySelection[]) => {
@@ -19,10 +20,20 @@ const itemsFromSelections = (selections: EntitySelection[]) => {
 
 export const AuthorizationEditor = observer((props: {
     sx: SxProps
-    triggerClearToken: () => void
 }) => {
     const workspace = useWorkspace()
+    const feedback = useFeedback()
+
     if (workspace.active?.entityType !== EditableEntityType.Authorization || workspace.helpVisible) return null
+
+    const clearTokens = async () => {
+        try {
+            await workspace.clearTokens()
+            feedback.toast('OAuth tokens cleared', ToastSeverity.Info)
+        } catch (e) {
+            feedback.toast(`${e}`, ToastSeverity.Error)
+        }
+    }
 
     const auth = workspace.active as EditableWorkbookAuthorization
     return (
@@ -33,7 +44,7 @@ export const AuthorizationEditor = observer((props: {
                     <TextField
                         id='auth-name'
                         label='Name'
-                        aria-label='name'
+                        aria-label='authorization name'
                         // size='small'
                         value={auth.name}
                         error={auth.nameInvalid}
@@ -48,6 +59,7 @@ export const AuthorizationEditor = observer((props: {
                             <InputLabel id='auth-type-label-id'>Type</InputLabel>
                             <Select
                                 labelId='auth-type-label-id'
+                                aria-label='authorization type'
                                 id='auth-type'
                                 value={auth.type}
                                 label='Type'
@@ -70,7 +82,7 @@ export const AuthorizationEditor = observer((props: {
                                     <TextField
                                         id='auth-header'
                                         label="Header"
-                                        aria-label='header'
+                                        aria-label='authorization header name'
                                         value={auth.header}
                                         error={auth.headerInvalid}
                                         helperText={auth.headerInvalid ? 'Header is required' : ''}
@@ -82,7 +94,7 @@ export const AuthorizationEditor = observer((props: {
                                     <TextField
                                         id='auth-value'
                                         label="Value"
-                                        aria-label='value'
+                                        aria-label='authorization header value'
                                         value={auth.value}
                                         error={auth.valueInvalid}
                                         helperText={auth.valueInvalid ? 'Value is required' : ''}
@@ -97,7 +109,7 @@ export const AuthorizationEditor = observer((props: {
                                         <TextField
                                             id='auth-username'
                                             label="Username"
-                                            aria-label='username'
+                                            aria-label='authorization user name'
                                             value={auth.username}
                                             error={auth.usernameInvalid}
                                             helperText={auth.usernameInvalid ? 'Username is required' : ''}
@@ -109,7 +121,7 @@ export const AuthorizationEditor = observer((props: {
                                         <TextField
                                             id='auth-password'
                                             label="Password"
-                                            aria-label='password'
+                                            aria-label='authorization password'
                                             value={auth.password}
                                             onChange={e => workspace.setAuthorizationPassword(e.target.value)}
                                             fullWidth
@@ -122,7 +134,7 @@ export const AuthorizationEditor = observer((props: {
                                             <TextField
                                                 id='auth-oauth2-access-token-url'
                                                 label='Access Token URL'
-                                                aria-label='access token url'
+                                                aria-label='oauth access token url'
                                                 value={auth.accessTokenUrl}
                                                 error={auth.accessTokenUrlInvalid}
                                                 helperText={auth.accessTokenUrlInvalid ? 'Access Token URL is required' : ''}
@@ -134,7 +146,7 @@ export const AuthorizationEditor = observer((props: {
                                             <TextField
                                                 id='auth-oauth2-client-id'
                                                 label='Client ID'
-                                                aria-label='client id'
+                                                aria-label='oauth client id'
                                                 value={auth.clientId}
                                                 error={auth.clientIdInvalid}
                                                 helperText={auth.clientIdInvalid ? 'Client ID is required' : ''}
@@ -146,7 +158,7 @@ export const AuthorizationEditor = observer((props: {
                                             <TextField
                                                 id='auth-oauth2-client-secret'
                                                 label='Client Secret'
-                                                aria-label='client secret'
+                                                aria-label='oauth client secret'
                                                 value={auth.clientSecret}
                                                 onChange={e => workspace.setAuthorizationClientSecret(e.target.value)}
                                                 fullWidth
@@ -156,7 +168,7 @@ export const AuthorizationEditor = observer((props: {
                                             <TextField
                                                 id='auth-oauth2-scope'
                                                 label='Scope'
-                                                aria-label='scope'
+                                                aria-label='oauth scope'
                                                 value={auth.scope}
                                                 onChange={e => workspace.setAuthorizationScope(e.target.value)}
                                                 fullWidth
@@ -167,6 +179,7 @@ export const AuthorizationEditor = observer((props: {
                                                 <InputLabel id='cred-cert-label'>Certificate</InputLabel>
                                                 <Select
                                                     labelId='cred-cert-label'
+                                                    aria-label='client certificate to use on oauth token requests'
                                                     id='cred-cert'
                                                     label='Certificate'
                                                     value={auth.selectedCertificate?.id ?? NO_SELECTION_ID}
@@ -182,6 +195,7 @@ export const AuthorizationEditor = observer((props: {
                                                 <InputLabel id='cred-proxy-label'>Proxy</InputLabel>
                                                 <Select
                                                     labelId='cred-proxy-label'
+                                                    aria-label='proxy to use on oauth token requests'
                                                     id='cred-proxy'
                                                     label='Proxy'
                                                     value={auth.selectedProxy?.id ?? NO_SELECTION_ID}
@@ -195,9 +209,10 @@ export const AuthorizationEditor = observer((props: {
                                         <Grid2>
                                             <Button
                                                 color='warning'
+                                                aria-label='Clear cached oauth tokens'
                                                 variant='outlined'
                                                 // startIcon={<ClearIcon />}
-                                                onClick={() => props.triggerClearToken()}>
+                                                onClick={clearTokens}>
                                                 Clear Any Cached Token
                                             </Button>
                                         </Grid2>

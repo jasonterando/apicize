@@ -28,9 +28,10 @@ export const RequestParametersEditor = observer(() => {
     return (
         <Stack spacing={3}>
             <FormControl>
-                <InputLabel id='cred-scenario-label'>Scenarios</InputLabel>
+                <InputLabel id='scenario-label-id'>Scenarios</InputLabel>
                 <Select
-                    labelId='cred-scenario-label'
+                    labelId='scenario-label'
+                    aria-labelledby='scenario-label-id'
                     id='cred-scenario'
                     label='Scenario'
                     value={requestEntry.selectedScenario?.id ?? DEFAULT_SELECTION_ID}
@@ -41,9 +42,10 @@ export const RequestParametersEditor = observer(() => {
                 </Select>
             </FormControl>
             <FormControl>
-                <InputLabel id='cred-auth-label'>Authorization</InputLabel>
+                <InputLabel id='auth-label-id'>Authorization</InputLabel>
                 <Select
-                    labelId='cred-auth-label'
+                    labelId='auth-label'
+                    aria-labelledby='auth-label-id'
                     id='cred-auth'
                     label='Authorization'
                     value={requestEntry.selectedAuthorization?.id ?? DEFAULT_SELECTION_ID}
@@ -54,9 +56,10 @@ export const RequestParametersEditor = observer(() => {
                 </Select>
             </FormControl>
             <FormControl>
-                <InputLabel id='cred-cert-label'>Certificate</InputLabel>
+                <InputLabel id='cert-label-id'>Certificate</InputLabel>
                 <Select
-                    labelId='cred-cert-label'
+                    labelId='cert-label'
+                    aria-labelledby='cert-label-id'
                     id='cred-cert'
                     label='Certificate'
                     value={requestEntry.selectedCertificate?.id ?? DEFAULT_SELECTION_ID}
@@ -67,9 +70,10 @@ export const RequestParametersEditor = observer(() => {
                 </Select>
             </FormControl>
             <FormControl>
-                <InputLabel id='cred-proxy-label'>Proxy</InputLabel>
+                <InputLabel id='proxy-label-id'>Proxy</InputLabel>
                 <Select
-                    labelId='cred-proxy-label'
+                    labelId='proxy-label'
+                    aria-labelledby='proxy-label-id'
                     id='cred-proxy'
                     label='Proxy'
                     value={requestEntry.selectedProxy?.id ?? DEFAULT_SELECTION_ID}

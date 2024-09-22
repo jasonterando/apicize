@@ -29,7 +29,7 @@ export function RequestRunProgress() {
         ? (
             <Box>
                 <Typography variant='h2' sx={{ marginTop: 0 }} component='div'>Execution In Progress...</Typography>
-                <Button variant='outlined' color='error' onClick={() => handleCancel()}>Cancel</Button>
+                <Button aria-label='cancel execution' variant='outlined' color='error' onClick={() => handleCancel()}>Cancel</Button>
             </Box>
         )
         : null

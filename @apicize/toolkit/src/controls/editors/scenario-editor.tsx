@@ -20,7 +20,7 @@ export const ScenarioEditor = observer((props: {sx: SxProps}) => {
                     <TextField
                         id='scenario-name'
                         label='Name'
-                        aria-label='name'
+                        aria-label='scenario name'
                         // size='small'
                         value={scenario.name}
                         onChange={e => workspace.setName(e.target.value)}
@@ -33,7 +33,7 @@ export const ScenarioEditor = observer((props: {sx: SxProps}) => {
                     <PersistenceEditor onUpdatePersistence={(e) => workspace.setScenarioPersistence(e)} persistence={scenario.persistence} />
                 </Grid2>
                 <Grid2>
-                    <NameValueEditor values={scenario.variables} nameHeader='Variable Name' valueHeader='Value' onUpdate={(e) => workspace.setScenarioVariables(e)} />
+                    <NameValueEditor title='scenario variables' values={scenario.variables} nameHeader='Variable Name' valueHeader='Value' onUpdate={(e) => workspace.setScenarioVariables(e)} />
                 </Grid2>
             </Grid2>
         </Stack >

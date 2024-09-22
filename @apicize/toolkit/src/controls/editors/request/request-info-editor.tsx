@@ -26,7 +26,7 @@ export const RequestInfoEditor = observer(() => {
                 <TextField
                     id='request-name'
                     label="Name"
-                    aria-label='Request name'
+                    aria-label='request name'
                     required
                     // size="small"
                     value={request.name}
@@ -40,7 +40,7 @@ export const RequestInfoEditor = observer(() => {
                 <TextField
                     id='request-url'
                     label="URL"
-                    aria-label='Request url'
+                    aria-label='request url'
                     required
                     // size="small"
                     value={request.url}
@@ -55,7 +55,7 @@ export const RequestInfoEditor = observer(() => {
                     <InputLabel id='request-method-label-id'>Method</InputLabel>
                     <Select
                         labelId='request-method-label-id'
-                        aria-label='Request method'
+                        aria-labelledby='request-method-label-id'
                         id="request-method"
                         value={request.method}
                         label="Method"
@@ -66,7 +66,7 @@ export const RequestInfoEditor = observer(() => {
                 </FormControl>
                 <FormControl>
                     <TextField
-                        aria-label='Request Timeout input'
+                        aria-label='request timeout in milliseconds'
                         placeholder='Timeout in Milliseconds'
                         label='Timeout'
                         sx={{marginLeft: '24px', width: '8em'}}

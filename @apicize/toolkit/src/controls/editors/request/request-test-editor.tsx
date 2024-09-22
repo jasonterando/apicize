@@ -1,9 +1,8 @@
-import Prism from "prismjs";
-const foo = Prism
-
+import 'prismjs'
 import 'prismjs/components/prism-javascript'
 import 'prismjs/components/prism-markup'
 import 'prismjs/themes/prism-tomorrow.css'
+
 import AceEditor from "react-ace"
 import "ace-builds/src-noconflict/mode-javascript"
 import { EditableEntityType } from "../../../models/workbook/editable-entity-type";

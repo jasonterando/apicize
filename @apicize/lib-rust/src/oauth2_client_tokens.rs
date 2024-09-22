@@ -38,9 +38,11 @@ pub async fn get_oauth2_client_credentials(
     // Check cache and return if token found and not expired
     let mut tokens = OAUTH2_TOKEN_CACHE.lock().await;
     let valid_token = match tokens.get(&cloned_id) {
-        Some(existing) => {
-            if existing.0.gt(&Instant::now()) {
-                Some(existing.1.clone())
+        Some((expiration, cached_token)) => {
+            let now = Instant::now();
+            println!("Token expires: {:?}, now: {:?}", &expiration, &now);
+            if expiration.gt(&now) {
+                Some(cached_token.clone())
             } else {
                 None
             }

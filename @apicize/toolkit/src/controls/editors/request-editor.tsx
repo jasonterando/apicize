@@ -47,6 +47,9 @@ export const RequestEditor = observer((props: {
         return null
     }
 
+    const usePanel = (group && panel !== 'Info' && panel !== 'Parameters')
+        ? 'Info' : panel
+
     return  (
         <Stack direction='column' className='editor-panel' sx={{ ...props.sx, display: 'flex' }}>
             <Stack sx={{ height: '50vh', paddingBottom: '48px', flexBasis: 2 }}>
@@ -59,7 +62,7 @@ export const RequestEditor = observer((props: {
                                     orientation='vertical'
                                     exclusive
                                     onChange={handlePanelChanged}
-                                    value={panel}
+                                    value={usePanel}
                                     sx={{ marginRight: '24px' }}
                                     aria-label="text alignment">
                                     <ToggleButton value="Info" title="Show Group Info" aria-label='show info'><DisplaySettingsIcon /></ToggleButton>
@@ -67,8 +70,8 @@ export const RequestEditor = observer((props: {
                                 </ToggleButtonGroup>
                                 <Box className='panels' sx={{ flexGrow: 1 }}>
                                     <EditorTitle icon={<FolderIcon />} name={group.name.length ?? 0 > 0 ? `${group.name} - ${panel}` : '(Unnamed)'} />
-                                    {panel === 'Info' ? <RequestGroupEditor />
-                                        : panel === 'Parameters' ? <RequestParametersEditor />
+                                    {usePanel === 'Info' ? <RequestGroupEditor />
+                                        : usePanel === 'Parameters' ? <RequestParametersEditor />
                                             : null}
                                 </Box>
                             </Box>
@@ -81,7 +84,7 @@ export const RequestEditor = observer((props: {
                                         orientation='vertical'
                                         exclusive
                                         onChange={handlePanelChanged}
-                                        value={panel}
+                                        value={usePanel}
                                         sx={{ marginRight: '24px' }}
                                         aria-label="text alignment">
                                         <ToggleButton value="Info" title="Show Request Info" aria-label='show info'><DisplaySettingsIcon /></ToggleButton>
@@ -93,12 +96,12 @@ export const RequestEditor = observer((props: {
                                     </ToggleButtonGroup>
                                     <Box className='panels' sx={{ flexGrow: 1 }}>
                                         <EditorTitle icon={<SendIcon />} name={(request.name.length > 0) ? `${request.name} - ${panel}` : `(Unnamed) - ${panel}`} />
-                                        {panel === 'Info' ? <RequestInfoEditor />
-                                            : panel === 'Headers' ? <RequestHeadersEditor />
-                                                : panel === 'Query String' ? <RequestQueryStringEditor />
-                                                    : panel === 'Body' ? <RequestBodyEditor />
-                                                        : panel === 'Test' ? <RequestTestEditor />
-                                                            : panel === 'Parameters' ? <RequestParametersEditor />
+                                        {usePanel === 'Info' ? <RequestInfoEditor />
+                                            : usePanel === 'Headers' ? <RequestHeadersEditor />
+                                                : usePanel === 'Query String' ? <RequestQueryStringEditor />
+                                                    : usePanel === 'Body' ? <RequestBodyEditor />
+                                                        : usePanel === 'Test' ? <RequestTestEditor />
+                                                            : usePanel === 'Parameters' ? <RequestParametersEditor />
                                                                 : null}
                                     </Box>
                                 </Box>

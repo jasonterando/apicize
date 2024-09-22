@@ -11,10 +11,8 @@ import { emit } from "@tauri-apps/api/event";
  * @returns View displaying either help ro viewers/editors
  */
 const Pane = (() => {
-    const fileOps = useFileOperations()
-
     return (<>
-        <HelpPanel onRenderTopic={(topic) => fileOps.retrieveHelpTopic(topic)} />
+        <HelpPanel />
         <RequestEditor
             sx={{ display: 'block', flexGrow: 1 }}
         />
@@ -23,9 +21,7 @@ const Pane = (() => {
         />
         <AuthorizationEditor
             sx={{ display: 'block', flexGrow: 1 }}
-            triggerClearToken={() => {
-                emit('action', 'clearToken')
-            }} />
+        />
         <CertificateEditor
             sx={{ display: 'block', flexGrow: 1 }}
         />

@@ -13,6 +13,7 @@ export const RequestHeadersEditor = observer(() => {
 
   const request = workspace.active as EditableWorkbookRequest
   return (<NameValueEditor
+    title='request headers'
     values={request.headers}
     nameHeader='Header'
     valueHeader='Value'

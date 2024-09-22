@@ -104,7 +104,7 @@ checksum = "86fdf8605db99b54d3cd748a44c6d04df638eb5dafb219b135d0149bd0db01f6"
 
 [[package]]
 name = "apicize"
-version = "0.5.6"
+version = "0.5.7"
 dependencies = [
  "apicize_lib",
  "env_logger",
@@ -4154,9 +4154,9 @@ dependencies = [
 
 [[package]]
 name = "security-framework-sys"
-version = "2.11.1"
+version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75da29fe9b9b08fe9d6b22b5b4bcbc75d8db3aa31e639aa56bb62e9d46bfceaf"
+checksum = "ea4a292869320c0272d7bc55a5a6aafaff59b4f63404a003887b679a2e05b4b6"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -4413,9 +4413,9 @@ dependencies = [
 
 [[package]]
 name = "simdutf8"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
+checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
 name = "siphasher"
@@ -4849,7 +4849,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-clipboard"
 version = "2.1.8"
-source = "git+https://github.com/jasonterando/tauri-plugin-clipboard/?branch=v2-yarn-friendly#cf4a0e4506902179047e5ea090116760e5bd2b44"
+source = "git+https://github.com/jasonterando/tauri-plugin-clipboard/?branch=v2-yarn-friendly#ca97cac2c272b9398f9de7758caf7a16d89331ed"
 dependencies = [
  "base64 0.22.1",
  "clipboard-rs",

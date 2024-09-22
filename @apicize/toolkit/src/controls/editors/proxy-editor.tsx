@@ -21,7 +21,7 @@ export const ProxyEditor = observer((props: {
                     <TextField
                         id='proxy-name'
                         label='Name'
-                        aria-label='name'
+                        aria-label='proxy name'
                         // size='small'
                         value={proxy.name}
                         onChange={e => workspace.setName(e.target.value)}
@@ -37,7 +37,7 @@ export const ProxyEditor = observer((props: {
                     <TextField
                         id='proxy-url'
                         label='URL'
-                        aria-label='url'
+                        aria-label='proxy url'
                         // size='small'
                         value={proxy.url}
                         onChange={e => workspace.setProxyUrl(e.target.value)}

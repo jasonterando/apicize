@@ -7,9 +7,10 @@ export function PersistenceEditor(props: {
 }) {
     return (
         <FormControl>
-            <InputLabel id='storage-type-label'>Storage</InputLabel>
+            <InputLabel id='storage-type-label-id'>Storage</InputLabel>
             <Select
                 labelId='storage-type-label'
+                aria-labelledby="storage-type-label-id"
                 id='storage-type'
                 value={props.persistence}
                 label='Storage'

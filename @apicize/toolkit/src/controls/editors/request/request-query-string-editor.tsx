@@ -13,6 +13,7 @@ export const RequestQueryStringEditor = observer(() => {
 
   const request = workspace.active as EditableWorkbookRequest
   return (<NameValueEditor
+    title='query string parameters'
     values={request.queryStringParams}
     nameHeader='Parameter'
     valueHeader='Value'

@@ -21,7 +21,7 @@ export const ResultRequestViewer = observer((props: {
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>
             <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>Request
                 <IconButton
-                    aria-label="Copy Request to Clipboard"
+                    aria-label="copy request to clipboard"
                     title="Copy Request to Clipboard"
                     sx={{ marginLeft: '16px' }}
                     onClick={_ => { if (text) clipboard.writeTextToClipboard(text) }}>

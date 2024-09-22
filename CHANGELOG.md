@@ -1,5 +1,11 @@
 # Change Log
 
+# 0.5.7
+
+* Fix OAuth expiration detection
+* Fix OAuth token clearing
+* Acccessibility enhancements
+
 # 0.5.6
 
 * Migrate toast/confirm states from useState to mobx

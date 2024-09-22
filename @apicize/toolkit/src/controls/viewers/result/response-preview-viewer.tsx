@@ -54,11 +54,11 @@ export function ResultResponsePreview(props: {
 
     return (
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', width: '100%', display: 'flex' }}>
-            <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>
+            <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div' aria-label="response body preview">
                 Response Body (Preview)
                 {showImageCopy
                     ? (<IconButton
-                        aria-label="Copy Image to Clipboard"
+                        aria-label="copy image to clipboard"
                         title="Copy Image to Clipboard"
                         sx={{ marginLeft: '16px' }}
                         onClick={_ => { if (body?.data) clipboard.writeImageToClipboard(body.data) } } >
@@ -66,7 +66,7 @@ export function ResultResponsePreview(props: {
                     </IconButton>)
                     : showTextCopy
                         ? (<IconButton
-                            aria-label="Copy Text to Clipboard"
+                            aria-label="copy text to clipboard"
                             title="Copy Text to Clipboard"
                             sx={{ marginLeft: '16px' }}
                             onClick={_ => clipboard.writeTextToClipboard(text)}>

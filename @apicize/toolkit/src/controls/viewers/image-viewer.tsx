@@ -21,6 +21,7 @@ export function ImageViewer(props: {
                 }}
             >
                 <img
+                    aria-label="response image"
                     style={{
                         position: 'absolute'
                     }}

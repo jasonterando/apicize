@@ -20,8 +20,8 @@ export function ResultRawPreview(props: {
             <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>Response Body (Raw)
                 {(preview?.length ?? 0) > 0
                 ? (<IconButton
-                    aria-label="Copy Text to Clipboard"
-                    title="Copy Text to Clipboard"
+                    aria-label="copy data to clipboard"
+                    title="Copy Data to Clipboard"
                     sx={{ marginLeft: '16px' }}
                     onClick={_ => { if (preview) clipboard.writeTextToClipboard(preview) }}>
                     <ContentCopyIcon />
@@ -31,7 +31,7 @@ export function ResultRawPreview(props: {
             </Typography>
             {has_text
                 ? (<TextViewer text={preview} extension='txt' />)
-                : (<><Typography variant='h3' sx={{ marginTop: 0 }} component='div'>Base 64</Typography><TextViewer text={preview} extension='txt' /></>)
+                : (<><Typography aria-label="base64 response data" variant='h3' sx={{ marginTop: 0 }} component='div'>Base 64</Typography><TextViewer text={preview} extension='txt' /></>)
             }
         </Stack>
     )

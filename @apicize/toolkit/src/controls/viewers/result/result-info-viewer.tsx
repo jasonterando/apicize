@@ -178,7 +178,7 @@ export const ResultInfoViewer = observer((props: {
             <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>
                 {title}
                 <IconButton
-                    aria-label="Copy Results to Clipboard"
+                    aria-label="copy results to clipboard"
                     title="Copy Results to Clipboard"
                     sx={{ marginLeft: '1rem' }}
                     onClick={_ => copyToClipboard(result ?? summary)}>

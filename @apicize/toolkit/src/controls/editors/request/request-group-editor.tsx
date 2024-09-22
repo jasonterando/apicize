@@ -17,7 +17,7 @@ export const RequestGroupEditor = observer((props: {
                 <TextField
                     id='group-name'
                     label='Name'
-                    aria-label='name'
+                    aria-label='group name'
                     sx={{ flexGrow: 1 }}
                     fullWidth
                     // size='small'
@@ -27,10 +27,11 @@ export const RequestGroupEditor = observer((props: {
             </Grid2>
             <Grid2>
                 <FormControl>
-                    <InputLabel id='execution-id'>Execution Mode</InputLabel>
+                    <InputLabel id='execution-label-id'>Execution Mode</InputLabel>
                     <Select
                         labelId='execution-id'
                         id='execution'
+                        aria-labelledby='execution-label-id'
                         value={group.execution}
                         label='Type'
                         onChange={e => workspace.setGroupExecution(e.target.value as WorkbookGroupExecution)}

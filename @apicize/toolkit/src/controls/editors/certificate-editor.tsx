@@ -67,7 +67,7 @@ export const CertificateEditor = observer((props: {
         try {
             const data = await fileOps.openSshFile(fileType)
             if (data) {
-                switch(fileType) {
+                switch (fileType) {
                     case SshFileType.PEM:
                         workspace.setCertificatePem(data)
                         break
@@ -80,7 +80,7 @@ export const CertificateEditor = observer((props: {
                 }
                 feedback.toast(`${fileType} loaded from file`, ToastSeverity.Success)
             }
-        } catch(e) {
+        } catch (e) {
             feedback.toast(`${e}`, ToastSeverity.Error)
         }
     }
@@ -127,7 +127,7 @@ export const CertificateEditor = observer((props: {
                                 <Stack direction={'column'} spacing={3}>
                                     <Stack direction={'row'} spacing={3} position='relative'>
                                         <Typography variant='h6' component='div'>SSL PEM Certificate / Chain</Typography>
-                                        <IconButton color='primary' size='medium' aria-label='open-pem' title='Open Certificate PEM File' 
+                                        <IconButton color='primary' size='medium' aria-label='open pem certificate chai filen' title='Open Certificate PEM File'
                                             onClick={() => openFile(SshFileType.PEM)}
                                         ><FileOpenIcon fontSize='inherit' /></IconButton>
                                         <IconButton color='primary' disabled={!clipboard.hasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard'
@@ -136,6 +136,7 @@ export const CertificateEditor = observer((props: {
                                     <TextField
                                         id='cert-pem'
                                         label='PEM'
+                                        aria-label='pem file contents'
                                         multiline
                                         slotProps={{
                                             input: {
@@ -149,7 +150,7 @@ export const CertificateEditor = observer((props: {
                                     />
                                     <Stack direction={'row'} spacing={3} position='relative'>
                                         <Typography variant='h6' component='div'>SSL Key</Typography>
-                                        <IconButton color='primary' size='medium' aria-label='open-key' title='Open Certificate Key File'
+                                        <IconButton color='primary' size='medium' aria-label='open certificate key file' title='Open Certificate Key File'
                                             onClick={() => openFile(SshFileType.Key)}
                                         ><FileOpenIcon fontSize='inherit' /></IconButton>
                                         <IconButton color='primary' disabled={!clipboard.hasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard'
@@ -158,6 +159,7 @@ export const CertificateEditor = observer((props: {
                                     <TextField
                                         id='cert-key'
                                         label='Certificate Key'
+                                        aria-label='certificate key file contents'
                                         multiline
                                         slotProps={{
                                             input: {
@@ -190,13 +192,14 @@ export const CertificateEditor = observer((props: {
                                             value={certificate.pfx ? base64Encode(Buffer.from(certificate.pfx)) : ''}
                                             fullWidth
                                         />
-                                        <IconButton color='primary' size='medium' aria-label='open-pfx' title='Open Certificate PFX File'
+                                        <IconButton color='primary' size='medium' aria-label='open certificate pfx file' title='Open Certificate PFX File'
                                             onClick={() => openFile(SshFileType.PFX)}
                                         ><FileOpenIcon fontSize='inherit' /></IconButton>
                                     </Stack>
                                     <TextField
                                         id='cert-key'
                                         label='Certificate Key'
+                                        aria-label='certificate pfx file contents'
                                         className="password"
                                         value={certificate.password}
                                         onChange={e => workspace.setCertificatePassword(e.target.value)}
@@ -211,6 +214,7 @@ export const CertificateEditor = observer((props: {
                                         <TextField
                                             id='cert-pem'
                                             label='PEM'
+                                            aria-label='pem file contents'
                                             multiline
                                             slotProps={{
                                                 input: {
@@ -218,6 +222,7 @@ export const CertificateEditor = observer((props: {
                                                     className: 'code'
                                                 }
                                             }}
+
                                             rows={8}
                                             value={pemToView}
                                             fullWidth

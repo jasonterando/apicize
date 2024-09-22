@@ -19,8 +19,9 @@ export function ResponseHeadersViewer(props: {requestOrGroupId: string, runIndex
 
     return (
         <Stack direction="column" sx={{ flexGrow: 1 }}>
-            <Typography variant='h2' sx={{ marginTop: 0 }} component='div'>Response Headers</Typography>
+            <Typography id='response-headers-label-id' variant='h2' sx={{ marginTop: 0 }} component='div'>Response Headers</Typography>
             <DataGrid
+                aria-labelledby="response-headers-label-id"
                 rows={headers}
                 rowHeight={32}
                 sx={{
