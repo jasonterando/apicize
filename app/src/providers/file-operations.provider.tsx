@@ -220,11 +220,11 @@ export function FileOperationsProvider({ store: workspaceStore, children }: { st
                     return
                 }
             }
+
             const workspaceToSave = workspaceStore.getWorkspace()
-
             await core.invoke('save_workspace', { workspace: workspaceToSave, path: workspaceStore.workbookFullName })
-
             await updateSettings({ lastWorkbookFileName: workspaceStore.workbookFullName })
+            console.log('Triggering toast...')
             feedback.toast(`Saved ${workspaceStore.workbookFullName}`, ToastSeverity.Success)
             workspaceStore.updateSavedLocation(
                 workspaceStore.workbookFullName,

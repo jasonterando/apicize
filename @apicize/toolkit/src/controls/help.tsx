@@ -2,7 +2,7 @@ import { Box, IconButton, Link, LinkProps, Typography, TypographyProps, Typograp
 import HomeIcon from '@mui/icons-material/Home';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
-import { createElement, Fragment, HTMLAttributes, useEffect, useState } from 'react'
+import { createElement, Fragment, HTMLAttributes, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import { visit } from 'unist-util-visit';
 import { Node as DastNode } from 'mdast';

@@ -1,24 +1,12 @@
 import MuiAlert, { AlertProps } from '@mui/material/Alert';
 import React from 'react';
 import { Snackbar } from '@mui/material';
-import { ToastSeverity } from '@apicize/toolkit';
+import { useFeedback } from '@apicize/toolkit';
+import { observer } from 'mobx-react-lite';
 
-export interface ToastOptions {
-    severity: ToastSeverity
-    message: string
-}
+export const Toast = observer(() => {
+    const store = useFeedback()
 
-interface ToastProps extends ToastOptions {
-    open: boolean
-    onClose: () => void
-}
-
-export const Toast: React.FC<ToastProps> = ({
-    open,
-    onClose,
-    severity,
-    message,
-}) => {
     const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
         props,
         ref,
@@ -27,10 +15,12 @@ export const Toast: React.FC<ToastProps> = ({
     });
 
     return (
-        <Snackbar open={open} autoHideDuration={6000} onClose={onClose}>
-            <Alert onClose={onClose} severity={severity} sx={{ width: '100%' }}>
-                {message}
-            </Alert>
-        </Snackbar>
+        <>
+            <Snackbar open={store.toastOpen} autoHideDuration={6000} onClose={() => store.closeToast()}>
+                <Alert onClose={() => store.closeToast()} severity={store.toastSeverity} sx={{ width: '100%' }}>
+                    {store.toastMessage}
+                </Alert>
+            </Snackbar>
+        </>
     )
-}
+})

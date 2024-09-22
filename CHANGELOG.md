@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.5.6
+
+* Migrate toast/confirm states from useState to mobx
+
 # 0.5.5
 
 * Fix "dirty" close dialog for release build
